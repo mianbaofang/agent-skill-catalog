@@ -1,0 +1,391 @@
+import json
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts" / "build_catalog.py"
+LEGACY_IMPORT_SCRIPT = ROOT / "scripts" / "import_legacy_catalog.py"
+SERVER_SCRIPT = ROOT / "scripts" / "serve_catalog.py"
+TINY_PNG = (
+    b"\x89PNG\r\n\x1a\n"
+    b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+    b"\x00\x00\x00\x0dIDAT\x08\xd7c\xf8\xcf\xc0\xf0\x1f\x00\x05\x00\x01\xff\x89\x99=\x1d"
+    b"\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def run_builder(root: Path, output: Path, refresh: bool = False, curation: Path | None = None) -> dict:
+    command = [sys.executable, str(SCRIPT), "--root", str(root), "--output-dir", str(output)]
+    if curation:
+        command.extend(["--curation", str(curation)])
+    if refresh:
+        command.append("--refresh")
+    result = subprocess.run(command, capture_output=True, text=True, check=True)
+    assert "Generated" in result.stdout
+    return json.loads((output / "catalog.json").read_text(encoding="utf-8"))
+
+
+def load_builder():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("build_catalog", SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_scan_classify_image_and_refresh() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        demo = root / "demo-video"
+        demo.mkdir(parents=True)
+        (demo / "SKILL.md").write_text(
+            "---\nname: demo-video\ndescription: Make a short video with captions.\n---\n# Demo\n",
+            encoding="utf-8",
+        )
+        (demo / "preview.png").write_bytes(TINY_PNG)
+        other = root / "plain"
+        other.mkdir()
+        (other / "SKILL.md").write_text("---\nname: plain\n---\n# Plain\n", encoding="utf-8")
+        git_only = root / "git-only"
+        (git_only / ".git").mkdir(parents=True)
+        (git_only / "SKILL.md").write_text("---\nname: git-only\ndescription: Local repository skill.\n---\n", encoding="utf-8")
+        (git_only / ".git" / "config").write_text(
+            "[remote \"origin\"]\nurl = git@github.com:example/git-only.git\n",
+            encoding="utf-8",
+        )
+        output = fixture / "catalog"
+
+        first = run_builder(root, output)
+        assert first["summary"]["skill_count"] == 3
+        demo_item = next(item for item in first["items"] if item["name"] == "demo-video")
+        assert demo_item["category"] == "video"
+        assert demo_item["image"]["status"] == "verified-local"
+        assert demo_item["category_evidence"]
+        plain_item = next(item for item in first["items"] if item["name"] == "plain")
+        assert plain_item["image"]["status"] == "generated-fallback"
+        assert plain_item["image"]["value"].startswith("data:image/svg+xml")
+        assert "\"path\"" not in json.dumps(plain_item, ensure_ascii=False)
+        git_item = next(item for item in first["items"] if item["name"] == "git-only")
+        assert git_item["github"]["url"] == "https://github.com/example/git-only"
+        assert git_item["github"]["source"] == "git-config"
+        assert (output / "index.html").is_file()
+        html = (output / "index.html").read_text(encoding="utf-8")
+        assert ".join('\\n')" in html
+
+        second = run_builder(root, output, refresh=True)
+        assert second["mode"] == "refresh"
+        assert second["previous_generated_at"] == first["generated_at"]
+
+
+def test_curation_family_plugin_merge_and_output_guards() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        hyperframes = root / "hyperframes"
+        (hyperframes / "components").mkdir(parents=True)
+        (hyperframes / "SKILL.md").write_text(
+            "---\nname: hyperframes\ndescription: Build motion video pages.\n---\n",
+            encoding="utf-8",
+        )
+        (hyperframes / "components" / "SKILL.md").write_text(
+            "---\nname: tailwind\ndescription: Component used with HyperFrames.\n---\n",
+            encoding="utf-8",
+        )
+        animation = root / "hyperframes-animation"
+        animation.mkdir()
+        (animation / "SKILL.md").write_text(
+            "---\nname: hyperframes-animation\ndescription: Animate a composition.\n---\n",
+            encoding="utf-8",
+        )
+        git_config = hyperframes / ".git" / "config"
+        git_config.parent.mkdir()
+        git_config.write_text("[remote \"origin\"]\nurl = git@github.com:example/hyperframes.git\n", encoding="utf-8")
+        plugin_root = fixture / "plugins"
+        for version in ("1.0.0", "2.0.0"):
+            location = plugin_root / "example" / "catalog-plugin" / version / "skills" / "helper"
+            location.mkdir(parents=True)
+            (location / "SKILL.md").write_text(
+                f"---\nname: helper-{version}\ndescription: Search the web.\n---\n",
+                encoding="utf-8",
+            )
+        curation = fixture / "curation.json"
+        archived_preview = fixture / "hyperframes-preview.png"
+        archived_preview.write_bytes(TINY_PNG)
+        curation.write_text(
+            json.dumps(
+                {
+                    "description_overrides": {
+                        "hyperframes": "将组件、时间轴和渲染能力整理为视频与动效工作流。"
+                    },
+                    "github_overrides": {
+                        "hyperframes": "https://github.com/example/hyperframes"
+                    },
+                    "image_overrides": {
+                        "hyperframes": str(archived_preview)
+                    },
+                    "family_overrides": {
+                        "tailwind": {"id": "ecosystem:hyperframes", "name": "HyperFrames", "category": "video"}
+                    },
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        output = fixture / "catalog"
+
+        command = [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(root),
+            "--root",
+            str(plugin_root),
+            "--config",
+            str(ROOT / "references" / "catalog-config.json"),
+            "--curation",
+            str(curation),
+            "--output-dir",
+            str(output),
+        ]
+        # The plugin root requires its own root spec. Use the default config only for categories.
+        command = [
+            sys.executable,
+            str(SCRIPT),
+            "--config",
+            str(ROOT / "references" / "catalog-config.json"),
+            "--root",
+            str(root),
+            "--root",
+            str(plugin_root),
+            "--curation",
+            str(curation),
+            "--output-dir",
+            str(output),
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        assert "Generated" in result.stdout
+        catalog = json.loads((output / "catalog.json").read_text(encoding="utf-8"))
+        family = next(entry for entry in catalog["families"] if entry["id"] == "ecosystem:hyperframes")
+        assert family["category"] == "video"
+        assert len(family["skill_ids"]) == 3
+        assert family["description"].startswith("将组件")
+        assert family["github"]["url"] == "https://github.com/example/hyperframes"
+        assert family["image"]["status"] == "curated-local"
+
+        # CLI roots are standalone Skill roots. Verify plugin merging through scan() with a plugin root spec.
+        module = load_builder()
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        legacy = fixture / "legacy-plugin-descriptions.json"
+        legacy.write_text(json.dumps({"catalog-plugin": "旧目录的中文插件说明。"}, ensure_ascii=False), encoding="utf-8")
+        module.load_curation([str(curation), str(legacy)], config)
+        items, raw_plugins, _ = module.scan(
+            config,
+            [
+                {"path": str(root), "label": "Skills", "kind": "skill"},
+                {"path": str(plugin_root), "label": "Plugin cache", "kind": "plugin"},
+            ],
+            False,
+        )
+        plugins = module.merge_plugins(raw_plugins, items, config)
+        assert len(plugins) == 1
+        assert plugins[0]["name"] == "catalog-plugin"
+        assert len(plugins[0]["skill_ids"]) == 2
+        assert plugins[0]["description"] == "旧目录的中文插件说明。"
+
+        failed = subprocess.run(
+            [sys.executable, str(SCRIPT), "--root", str(root), "--output-dir", str(output)],
+            capture_output=True,
+            text=True,
+        )
+        assert failed.returncode == 2
+        assert "--refresh" in failed.stderr
+        inside_root = subprocess.run(
+            [sys.executable, str(SCRIPT), "--root", str(root), "--output-dir", str(root / "catalog")],
+            capture_output=True,
+            text=True,
+        )
+        assert inside_root.returncode == 2
+        assert "outside scanned roots" in inside_root.stderr
+
+
+def test_malformed_config_fails() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        config = Path(temp) / "broken.json"
+        config.write_text("{", encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--config", str(config), "--output-dir", str(Path(temp) / "catalog")],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 2
+        assert "Cannot read JSON" in result.stderr
+
+
+def test_folded_frontmatter_description() -> None:
+    module = load_builder()
+    fields = module.parse_frontmatter("---\nname: folded\ndescription: >-\n  First sentence.\n  Second sentence.\n---\n")
+    assert fields["description"] == "First sentence. Second sentence."
+
+
+def test_import_legacy_catalog_curation() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        previews = fixture / "skill-previews"
+        previews.mkdir()
+        preview = previews / "demo.png"
+        preview.write_bytes(TINY_PNG)
+        legacy = fixture / "catalog-data.js"
+        payload = {
+            "items": [
+                {
+                    "name": "demo",
+                    "description": "这是已经人工整理的中文说明。",
+                    "githubUrl": "https://github.com/example/demo",
+                    "preview": {"url": "skill-previews/demo.png"},
+                }
+            ],
+            "plugins": [
+                {
+                    "name": "demo-plugin",
+                    "description": "插件的中文说明。",
+                    "skills": [
+                        {
+                            "name": "child",
+                            "description": "子技能的中文说明。",
+                            "githubUrl": "https://github.com/sponsors/example",
+                        }
+                    ],
+                }
+            ],
+        }
+        legacy.write_text("window.SKILL_ATLAS_DATA = " + json.dumps(payload, ensure_ascii=False) + ";\n", encoding="utf-8")
+        output = fixture / "curation.json"
+        subprocess.run(
+            [sys.executable, str(LEGACY_IMPORT_SCRIPT), "--legacy-catalog-data", str(legacy), "--output", str(output)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        curation = json.loads(output.read_text(encoding="utf-8"))
+        assert curation["description_overrides"]["child"] == "子技能的中文说明。"
+        assert curation["github_overrides"] == {"demo": "https://github.com/example/demo"}
+        assert curation["image_overrides"]["demo"] == str(preview.resolve())
+
+
+def test_explainable_classification_scoped_override_and_plugin_providers() -> None:
+    module = load_builder()
+    config = module.load_config(ROOT / "references" / "catalog-config.json")
+    category, _, confidence, detail = module.classify("image-video", "", "SKILL.md", {}, config)
+    assert category == "video"
+    assert detail["tie_reason"] == "exact-tie"
+    assert detail["low_confidence"] is True
+    assert confidence < 0.5
+    assert {candidate["category"] for candidate in detail["candidates"]} >= {"visual", "video"}
+
+    config["category_overrides"] = [
+        {"name": "shared", "category": "visual"},
+        {"name": "shared", "root": "Team B", "category": "data"},
+    ]
+    category, evidence, _, detail = module.classify("shared", "video", "SKILL.md", {}, config, root_label="Team B")
+    assert category == "data"
+    assert detail["tie_reason"] == "explicit-override"
+    assert evidence[0]["scope"] == {"root": "Team B", "name": "shared"}
+
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "plugins"
+        for provider in ("openai", "community"):
+            location = root / provider / "shared-plugin" / "1.0.0" / "skills" / "helper"
+            location.mkdir(parents=True)
+            (location / "SKILL.md").write_text(
+                "---\nname: helper\ndescription: Search the web.\n---\n",
+                encoding="utf-8",
+            )
+        items, raw_plugins, _ = module.scan(
+            config,
+            [{"path": str(root), "label": "Plugin cache", "kind": "plugin"}],
+            False,
+        )
+        plugins = module.merge_plugins(raw_plugins, items, config)
+        assert {plugin["id"] for plugin in plugins} == {"plugin:openai:shared-plugin", "plugin:community:shared-plugin"}
+
+
+def test_config_root_refresh_and_privacy_contract() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        skill = root / "search"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: search\ndescription: Search the web.\n---\n",
+            encoding="utf-8",
+        )
+        config = fixture / "catalog-config.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "roots": [{"path": str(root), "label": "Skills", "kind": "skill"}],
+                    "categories": {"internet_search": {"label": "互联网搜索", "keywords": ["search"]}, "other": {"label": "其他", "keywords": []}},
+                    "category_tie_break": ["internet_search", "other"],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        output = fixture / "output"
+        subprocess.run(
+            [sys.executable, str(SCRIPT), "--config", str(config), "--output-dir", str(output)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        catalog_text = (output / "catalog.json").read_text(encoding="utf-8")
+        assert str(root.resolve()) not in catalog_text
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        process = subprocess.Popen(
+            [sys.executable, str(SERVER_SCRIPT), "--config", str(config), "--output-dir", str(output), "--port", str(port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            health_url = f"http://127.0.0.1:{port}/api/health"
+            for _ in range(30):
+                try:
+                    with urllib.request.urlopen(health_url, timeout=1) as response:
+                        assert response.status == 200
+                        break
+                except OSError:
+                    time.sleep(0.1)
+            else:
+                raise AssertionError("Catalog server did not start")
+            request = urllib.request.Request(f"http://127.0.0.1:{port}/api/refresh", method="POST")
+            with urllib.request.urlopen(request, timeout=15) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            assert payload["ok"] is True
+            assert json.loads((output / "catalog.json").read_text(encoding="utf-8"))["mode"] == "refresh"
+        finally:
+            process.terminate()
+            process.wait(timeout=5)
+
+
+if __name__ == "__main__":
+    test_scan_classify_image_and_refresh()
+    test_curation_family_plugin_merge_and_output_guards()
+    test_malformed_config_fails()
+    test_folded_frontmatter_description()
+    test_import_legacy_catalog_curation()
+    test_explainable_classification_scoped_override_and_plugin_providers()
+    test_config_root_refresh_and_privacy_contract()
+    print("ok")

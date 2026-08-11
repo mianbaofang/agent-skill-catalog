@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "description_overrides": {
+    "example-video": "将脚本、素材和镜头要求组织为可交付的视频制作流程，适合需要分镜、字幕、配音或渲染检查的任务。"
+  },
+  "github_overrides": {
+    "example-video": "https://github.com/example/example-video"
+  },
+  "image_overrides": {
+    "example-video": "C:/path/to/example-video/preview.png"
+  },
+  "family_overrides": {
+    "example-video": {
+      "id": "example-video",
+      "name": "Example Video",
+      "category": "video"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python scripts/validate_package.py .
+      - run: python -m py_compile scripts/build_catalog.py scripts/serve_catalog.py scripts/import_legacy_catalog.py scripts/validate_package.py scripts/package_skill.py
+      - run: python tests/test_build_catalog.py
+      - run: python scripts/package_skill.py .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-skill-catalog
+          path: dist/agent-skill-catalog-skill.zip*

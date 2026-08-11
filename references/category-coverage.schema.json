@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/agent-skill-catalog/category-coverage.schema.json",
+  "title": "Agent Skill Catalog Category Coverage",
+  "type": "object",
+  "required": ["schema_version", "categories", "covered_count", "category_count", "coverage_ratio", "uncovered"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "count", "covered", "image_count"],
+        "properties": {
+          "id": {"type": "string"},
+          "label": {"type": "string"},
+          "count": {"type": "integer", "minimum": 0},
+          "covered": {"type": "boolean"},
+          "image_count": {"type": "integer", "minimum": 0},
+          "average_confidence": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "covered_count": {"type": "integer", "minimum": 0},
+    "category_count": {"type": "integer", "minimum": 0},
+    "coverage_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+    "uncovered": {"type": "array", "items": {"type": "string"}}
+  }
+}

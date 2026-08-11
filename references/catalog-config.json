@@ -1,0 +1,44 @@
+{
+  "config_version": "1.1",
+  "locale": "zh-CN",
+  "roots": [],
+  "output_dir": "agent-skill-catalog-output",
+  "include_absolute_paths": false,
+  "scan": {
+    "skip_dirs": [".git", ".venv", "venv", "node_modules", "__pycache__", "tests", "test", "fixtures", "examples", "vendor", "site-packages", ".previews"],
+    "max_depth": 12
+  },
+  "image": {
+    "frontmatter_keys": ["preview_image", "image", "cover", "preview"],
+    "sidecar_names": ["preview.png", "preview.jpg", "preview.jpeg", "preview.webp", "cover.png", "cover.jpg", "cover.webp", "assets/preview.png", "assets/preview.jpg", "assets/preview.webp"],
+    "allow_remote_metadata": true,
+    "category_cover_fallback": true,
+    "max_embedded_bytes": 524288
+  },
+  "classification": {
+    "small_margin": 1.0,
+    "low_confidence": 0.5
+  },
+  "category_tie_break": ["internet_search", "securities", "learning", "video", "audio", "content", "data", "development", "productivity", "specialist", "visual", "other"],
+  "category_overrides": {},
+  "curation": {
+    "description_overrides": {},
+    "github_overrides": {},
+    "family_overrides": {},
+    "image_overrides": {}
+  },
+  "categories": {
+    "visual": {"label": "视觉与图片", "keywords": ["image", "photo", "portrait", "illustration", "graphic", "logo", "poster", "cover", "visual", "图片", "图像", "肖像", "插画", "海报", "封面", "视觉"]},
+    "video": {"label": "视频与动效", "keywords": ["video", "film", "motion", "animation", "ffmpeg", "caption", "b-roll", "storyboard", "视频", "影片", "动效", "动画", "字幕", "分镜", "镜头"]},
+    "audio": {"label": "音频与配音", "keywords": ["audio", "voice", "speech", "tts", "podcast", "music", "sound", "narration", "音频", "语音", "配音", "播客", "音乐", "声音", "旁白"]},
+    "content": {"label": "内容与增长", "keywords": ["content", "writing", "copywriting", "social", "seo", "marketing", "brand", "内容", "写作", "文案", "社交", "营销", "品牌", "增长"]},
+    "internet_search": {"label": "互联网搜索", "keywords": ["internet search", "web search", "search engine", "web research", "search api", "web crawl", "crawl", "scrape", "互联网搜索", "网页搜索", "搜索引擎", "网络研究", "爬取", "抓取"]},
+    "learning": {"label": "学习教育", "keywords": ["education", "teaching", "lesson", "course", "tutor", "chemistry", "geometry", "mathematics", "教育", "教学", "课程", "辅导", "化学", "几何", "数学", "学习"]},
+    "securities": {"label": "证券股市", "keywords": ["stock", "securities", "equity", "trading", "market", "investment", "fund", "股票", "证券", "股权", "交易", "市场", "投资", "基金"]},
+    "data": {"label": "数据与研究", "keywords": ["data", "analytics", "spreadsheet", "report", "dashboard", "database", "sql", "research", "chart", "metric", "dataset", "数据", "分析", "表格", "报告", "仪表盘", "数据库", "研究", "图表", "指标", "数据集"]},
+    "development": {"label": "开发与自动化", "keywords": ["code", "coding", "development", "frontend", "backend", "web app", "api", "cloud", "deploy", "git", "react", "node", "python", "test", "debug", "cli", "sdk", "代码", "编程", "开发", "前端", "后端", "网页应用", "接口", "云", "部署", "测试", "调试", "自动化"]},
+    "productivity": {"label": "办公与交付", "keywords": ["document", "docx", "pdf", "slide", "calendar", "email", "meeting", "project", "workflow", "browser", "automation", "bookmark", "template", "文档", "幻灯片", "日历", "邮件", "会议", "项目", "工作流", "浏览器", "自动化", "书签", "模板", "办公"]},
+    "specialist": {"label": "专业领域", "keywords": ["medical", "legal", "security", "game", "gis", "ecommerce", "healthcare", "医疗", "法律", "安全", "游戏", "地理信息", "电商", "健康"]},
+    "other": {"label": "其他工具", "keywords": []}
+  }
+}

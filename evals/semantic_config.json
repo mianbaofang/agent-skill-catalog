@@ -1,0 +1,23 @@
+{
+  "optimizer_hints": {
+    "capability": "Scan local SKILL.md roots and build or refresh a searchable Agent Skill Catalog",
+    "inputs": ["SKILL.md", "skill roots", "plugin cache", "category overrides", "image metadata", "本地技能目录", "插件缓存", "分类覆盖", "图片元数据"],
+    "trigger_actions": ["scan skills", "build an Agent Skill Catalog", "refresh a local catalog", "serve an existing Agent Skill Catalog", "show category coverage", "generate catalog.json", "生成 Agent Skill Catalog", "刷新技能目录", "重启 Agent Skill Catalog 服务", "检查分类覆盖"],
+    "exclusions": ["single skill install", "single SKILL.md edit", "summary-only", "translation-only", "unrelated website service", "one-off page", "只安装一个 skill", "只编辑一个 SKILL.md", "只总结", "只翻译", "不涉及 Agent Skill Catalog", "一次性页面"],
+    "artifacts": ["catalog.json", "index.html", "category coverage", "image evidence", "扫描报告", "分类覆盖", "图片证据"]
+  },
+  "fallback_positive_concepts": ["scan_skill_roots", "build_catalog", "refresh_catalog", "serve_existing_catalog", "review_category_coverage"],
+  "positive_concepts": {
+    "scan_skill_roots": {"weight": 0.3, "phrases": ["scan SKILL.md", "scan skill roots", "扫描技能目录", "扫描 SKILL.md", "插件缓存"]},
+    "build_catalog": {"weight": 0.3, "phrases": ["Agent Skill Catalog", "skill catalog", "local catalog", "installed skills", "searchable inventory", "deterministic JSON", "self-contained HTML", "HTML directory", "export", "生成 Agent Skill Catalog", "技能目录", "可搜索目录"]},
+    "refresh_catalog": {"weight": 0.2, "phrases": ["refresh", "regenerate", "刷新", "重新生成", "维护流程"]},
+    "serve_existing_catalog": {"weight": 0.15, "phrases": ["serve an existing Agent Skill Catalog", "restart Agent Skill Catalog", "重启已经配置好的本地服务", "重启 Agent Skill Catalog 服务"]},
+    "review_category_coverage": {"weight": 0.2, "phrases": ["category coverage", "category evidence", "image priority", "inspect catalog", "检查目录", "分类覆盖", "分类证据", "图片优先级"]}
+  },
+  "negative_concepts": {
+    "single_skill": {"weight": 0.5, "phrases": ["single skill", "one skill", "一个 skill", "一个 SKILL.md", "只安装"]},
+    "non_building": {"weight": 0.3, "phrases": ["summary only", "translation only", "do not build", "do not refresh", "不要生成", "不要构建", "只总结", "只翻译", "explain only", "只解释"]},
+    "one_off_page": {"weight": 0.2, "phrases": ["one-off page", "landing page", "一次性页面"]},
+    "unrelated_site": {"weight": 0.6, "phrases": ["不涉及 Agent Skill Catalog", "unrelated website service", "电商网站"]}
+  }
+}
