@@ -1,0 +1,26 @@
+interface:
+  display_name: "Agent Skill Catalog"
+  short_description: "扫描本地 SKILL.md，按分类、家族和插件生成可检索 Agent Skill Catalog，并保留图片证据"
+  default_prompt: "Use $agent-skill-catalog to scan these explicit local skill roots, build or refresh a searchable Agent Skill Catalog, separate standalone skills from plugins, aggregate parent/child families, and report category coverage, image evidence, GitHub metadata, output paths, and unresolved inputs. Do not install or edit scanned skills."
+compatibility:
+  canonical_format: "agent-skills"
+  adapter_targets:
+    - "openai"
+    - "claude"
+    - "generic"
+    - "vscode"
+  activation:
+    mode: "manual"
+    paths: []
+  execution:
+    context: "inline"
+    shell: "powershell"
+  trust:
+    source_tier: "local"
+    remote_inline_execution: "forbid"
+    remote_metadata_policy: "allow-metadata-only"
+  degradation:
+    openai: "metadata-adapter"
+    claude: "neutral-source-plus-adapter"
+    generic: "neutral-source"
+    vscode: "agent-skills-source-with-workspace-trust-notes"

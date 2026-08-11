@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "reviewed_at": "2026-08-11",
+  "capabilities": {
+    "file_write": {
+      "decision": "approved",
+      "reviewer": "User-authorized local implementation task",
+      "scope": "Only the explicitly selected Agent Skill Catalog output directory may receive catalog.json and index.html; scanned roots remain read-only.",
+      "reason": "The user explicitly authorized this local Agent Skill Catalog implementation and refresh; this approval does not authorize public publication or writes outside the selected output directory.",
+      "expires_at": "2027-08-11",
+      "evidence": [
+        "scripts/build_catalog.py",
+        "tests/test_build_catalog.py",
+        "security/permission_policy.json"
+      ],
+      "target_enforcement": {
+        "openai": "metadata-only permission contract",
+        "claude": "metadata-only permission contract",
+        "generic": "metadata-only permission contract",
+        "vscode": "metadata-only permission contract"
+      }
+    },
+    "subprocess": {
+      "decision": "approved",
+      "reviewer": "User-authorized local implementation task",
+      "scope": "The local server may invoke only scripts/build_catalog.py with fixed startup config, curation files, output directory, and --refresh; HTTP requests cannot supply command arguments.",
+      "reason": "The page refresh button needs the fixed local builder process; this approval does not authorize arbitrary commands or HTTP-provided paths.",
+      "expires_at": "2027-08-11",
+      "evidence": [
+        "scripts/serve_catalog.py",
+        "security/permission_policy.json"
+      ],
+      "target_enforcement": {
+        "openai": "metadata-only permission contract",
+        "claude": "metadata-only permission contract",
+        "generic": "metadata-only permission contract",
+        "vscode": "metadata-only permission contract"
+      }
+    }
+  }
+}

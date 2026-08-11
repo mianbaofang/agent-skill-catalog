@@ -1,0 +1,36 @@
+{
+  "recommended_threshold": 0.33,
+  "negative_patterns": [
+    "只安装一个 skill",
+    "编辑一个 SKILL.md",
+    "只总结",
+    "只翻译",
+    "one-off",
+    "single skill",
+    "do not scan"
+  ],
+  "should_trigger": [
+    {"text": "扫描我的 .agents/skills 目录并生成一个可搜索的 Agent Skill Catalog。", "family": "cn_build_catalog"},
+    {"text": "刷新本地技能目录，把 SKILL.md 和 Codex 插件缓存合并进去。", "family": "cn_refresh_catalog"},
+    {"text": "Build a local catalog of all installed skills and show category coverage.", "family": "build_catalog"},
+    {"text": "Generate a searchable inventory from these SKILL.md roots without modifying them.", "family": "build_catalog"},
+    {"text": "检查 Agent Skill Catalog 的分类证据、低置信度项和图片优先级，必要时刷新目录。", "family": "cn_review_catalog"},
+    {"text": "Export a deterministic JSON and self-contained HTML directory for our skill library.", "family": "build_catalog"},
+    {"text": "给团队维护一套可重复运行的 Agent Skill Catalog 扫描和刷新流程。", "family": "cn_refresh_catalog"},
+    {"text": "现有 Agent Skill Catalog 页面打不开，请只重启已经配置好的本地服务。", "family": "serve_existing_catalog"}
+  ],
+  "should_not_trigger": [
+    {"text": "只安装 image-gen-flow 这一个 skill。", "family": "single_install"},
+    {"text": "请编辑这个 SKILL.md 的一句描述。", "family": "single_skill_edit"},
+    {"text": "总结一下这个 Skill 的用途，不要生成目录。", "family": "summary_only"},
+    {"text": "把这段 Skill 文档翻译成英文。", "family": "translation_only"},
+    {"text": "Design a one-off landing page for this skill.", "family": "one_off_page"},
+    {"text": "把某个插件里的一个子 Skill 单独安装出来。", "family": "single_plugin_skill_install"},
+    {"text": "Explain what a skill is without scanning any files.", "family": "explain_only"},
+    {"text": "Brainstorm category names but do not build or refresh a catalog.", "family": "brainstorm_only"}
+  ],
+  "near_neighbor": [
+    {"text": "网页打不开，帮我重启这个电商网站的服务，不涉及 Agent Skill Catalog。", "family": "unrelated_site_service"},
+    {"text": "为一个 Skill 制作介绍落地页，但不要扫描、分类或维护目录。", "family": "one_skill_landing"}
+  ]
+}

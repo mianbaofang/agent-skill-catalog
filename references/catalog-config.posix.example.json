@@ -1,0 +1,8 @@
+{
+  "roots": [
+    {"path": "$SKILL_ROOT", "label": "Skills", "kind": "skill"},
+    {"path": "$PLUGIN_ROOT", "label": "Plugins", "kind": "plugin"}
+  ],
+  "output_dir": "$XDG_CACHE_HOME/agent-skill-catalog-output",
+  "include_absolute_paths": false
+}
