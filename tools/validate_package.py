@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the portable Agent Skill Catalog source package."""
+"""Validate the repository and its GitHub-discoverable Agent Skill."""
 
 from __future__ import annotations
 
@@ -11,22 +11,19 @@ from pathlib import Path
 
 
 NAME = "agent-skill-catalog"
-REQUIRED_FILES = (
+SKILL_RELATIVE = Path("skills") / NAME
+REQUIRED_SKILL_FILES = (
     "SKILL.md",
-    "README.md",
-    "LICENSE",
-    "VERSION",
     "manifest.json",
     "agents/interface.yaml",
+    "agents/openai.yaml",
     "scripts/build_catalog.py",
     "scripts/serve_catalog.py",
     "scripts/import_legacy_catalog.py",
     "references/catalog-config.json",
     "references/catalog-config.windows.example.json",
     "references/catalog-config.posix.example.json",
-    "tests/test_build_catalog.py",
 )
-FORBIDDEN_ROOT_OUTPUTS = ("catalog.json", "index.html", "catalog-data.js")
 PRIVATE_PATH = re.compile(r"(?:[A-Za-z]:\\(?:Users|home)\\|/(?:Users|home)/)", re.I)
 
 
@@ -56,19 +53,33 @@ def text_files(root: Path):
 
 def validate(root: Path) -> list[str]:
     failures: list[str] = []
-    for relative in REQUIRED_FILES:
-        if not (root / relative).is_file():
-            failures.append(f"Missing required file: {relative}")
+    skill = root / SKILL_RELATIVE
 
-    skill = root / "SKILL.md"
-    if skill.is_file():
-        fields = frontmatter(skill)
+    if (root / "SKILL.md").exists():
+        failures.append("Root SKILL.md must be moved to skills/agent-skill-catalog/SKILL.md")
+    if not skill.is_dir():
+        failures.append(f"Missing GitHub-discoverable skill directory: {SKILL_RELATIVE}")
+        return failures
+
+    if skill.name != NAME:
+        failures.append(f"Skill directory must be named {NAME}")
+    for relative in REQUIRED_SKILL_FILES:
+        if not (skill / relative).is_file():
+            failures.append(f"Missing required Skill file: {SKILL_RELATIVE / relative}")
+
+    skill_md = skill / "SKILL.md"
+    if skill_md.is_file():
+        fields = frontmatter(skill_md)
         if fields.get("name") != NAME:
             failures.append(f"SKILL.md name must be {NAME}")
         if not fields.get("description"):
             failures.append("SKILL.md requires a description")
+        if fields.get("license") != "MIT":
+            failures.append("SKILL.md must declare license: MIT")
+        if re.search(r"metadata\.github-[A-Za-z0-9_-]+", skill_md.read_text(encoding="utf-8")):
+            failures.append("Published SKILL.md must not contain metadata.github-* install fields")
 
-    manifest = root / "manifest.json"
+    manifest = skill / "manifest.json"
     if manifest.is_file():
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -81,7 +92,7 @@ def validate(root: Path) -> list[str]:
             if data.get("name") != NAME:
                 failures.append(f"manifest.json name must be {NAME}")
 
-    config = root / "references/catalog-config.json"
+    config = skill / "references/catalog-config.json"
     if config.is_file():
         try:
             data = json.loads(config.read_text(encoding="utf-8"))
@@ -91,13 +102,24 @@ def validate(root: Path) -> list[str]:
             if data.get("roots") != []:
                 failures.append("Default catalog config must not contain machine-specific roots")
 
-    interface = root / "agents/interface.yaml"
+    interface = skill / "agents/interface.yaml"
     if interface.is_file() and 'display_name: "Agent Skill Catalog"' not in interface.read_text(encoding="utf-8"):
         failures.append("agents/interface.yaml must use the public display name")
 
-    for output in FORBIDDEN_ROOT_OUTPUTS:
-        if (root / output).exists():
-            failures.append(f"Local generated output must not be committed: {output}")
+    openai = skill / "agents/openai.yaml"
+    if openai.is_file():
+        content = openai.read_text(encoding="utf-8")
+        if 'display_name: "Agent Skill Catalog"' not in content:
+            failures.append("agents/openai.yaml must use the public display name")
+        short = re.search(r"^\s+short_description:\s*\"(.*)\"$", content, re.MULTILINE)
+        if not short or not 25 <= len(short.group(1)) <= 64:
+            failures.append("agents/openai.yaml short_description must be 25-64 characters")
+        if "$agent-skill-catalog" not in content:
+            failures.append("agents/openai.yaml default_prompt must mention $agent-skill-catalog")
+
+    for forbidden in ("catalog.json", "index.html", "catalog-data.js"):
+        if (skill / forbidden).exists():
+            failures.append(f"Generated output must not be committed inside the Skill: {forbidden}")
 
     for path in text_files(root):
         try:
@@ -110,7 +132,7 @@ def validate(root: Path) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate Agent Skill Catalog for public packaging.")
+    parser = argparse.ArgumentParser(description="Validate the GitHub Agent Skill repository.")
     parser.add_argument("source_dir", nargs="?", default=".")
     args = parser.parse_args()
     root = Path(args.source_dir).resolve()

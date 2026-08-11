@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Skill Catalog"
+  short_description: "Build a searchable local skills catalog"
+  default_prompt: "Use $agent-skill-catalog to catalog explicit local Skill and plugin roots."
+policy:
+  allow_implicit_invocation: false

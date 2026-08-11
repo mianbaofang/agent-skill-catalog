@@ -1,58 +1,105 @@
 # Agent Skill Catalog
 
-Local-first tooling for turning explicit `SKILL.md` roots into a searchable desktop catalog. It scans read-only directories, classifies each entry with reviewable evidence, groups real parent/child families, aggregates plugins by `provider:name`, and writes deterministic `catalog.json` plus a self-contained `index.html`.
+[中文说明](README.zh-CN.md) | A local-first Agent Skill and plugin catalog for Codex and other AI coding agents.
 
-本项目是本地优先的 Agent Skill Catalog 生成器：只读扫描明确指定的 `SKILL.md` 根目录，输出可审查的分类证据、家族/插件聚合、图片证据和桌面检索页面。不安装、不执行、不修改被扫描内容。
+Agent Skill Catalog scans only the `SKILL.md` roots you explicitly provide and generates a searchable desktop catalog. It classifies Skills with reviewable evidence, groups real parent/child Skill families, separates plugin aggregates from standalone Skills, and presents invocation, GitHub metadata, image evidence, and source locations in one place.
 
-## Requirements
+It does not install, execute, edit, or upload the Skills it scans.
 
-- Python 3.10+
-- Standard library only
+## Product demo
 
-## Quick start
+The animation below is captured from the generated product UI with public demo Skills. It shows category overview, filtering, and a Skill detail view.
 
-Use explicit roots. The default config intentionally contains no machine-specific roots.
+![Agent Skill Catalog: browse categories, filter video Skills, and open a Skill detail view](docs/media/agent-skill-catalog-demo.gif)
+
+| Catalog overview | Skill detail |
+| --- | --- |
+| ![Agent Skill Catalog overview with category filters and Skill cards](docs/media/agent-skill-catalog-overview.png) | ![Agent Skill Catalog Skill detail view with invocation and classification evidence](docs/media/agent-skill-catalog-detail.png) |
+
+## Install
+
+Install the published Skill through the GitHub CLI:
 
 ```powershell
-python scripts/build_catalog.py --root $env:SKILL_ROOT --output-dir $env:TEMP\agent-skill-catalog-output
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --agent codex --scope user
 ```
 
-```bash
-python scripts/build_catalog.py --root "$SKILL_ROOT" --output-dir "${TMPDIR:-/tmp}/agent-skill-catalog-output"
+To install a specific release after the repository publishes one:
+
+```powershell
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.2.1 --agent codex --scope user
 ```
 
-To scan a plugin root, configure its kind explicitly in a user-owned JSON file. Start with `references/catalog-config.windows.example.json` or `references/catalog-config.posix.example.json`, then pass `--config PATH`.
+The installable Skill lives in [`skills/agent-skill-catalog`](skills/agent-skill-catalog). This is the GitHub Agent Skills discovery path; the repository root is reserved for human-facing documentation, tests, release evidence, and demo media.
+
+## Use with an agent
+
+Ask your agent to use the Skill with explicit local roots. For example:
 
 ```text
-python scripts/build_catalog.py --config path/to/catalog-config.json --output-dir path/to/output
+Use $agent-skill-catalog to scan my local Skill root and Codex plugin cache, build a searchable catalog, keep standalone Skills and plugins separate, and report low-confidence classifications and missing image evidence. Do not install, edit, or execute scanned Skills.
 ```
 
-`--refresh` is required before replacing an existing output directory. Add `--include-absolute-paths` only for a deliberate local diagnostic; the default catalog redacts absolute roots and plugin paths.
+## Build a catalog from source
 
-## Desktop UI and refresh
+Requirements: Python 3.10+ and the standard library only.
 
-Open the generated `index.html` directly for a static view. The page keeps separate Skills and Plugins views, family grouping, category filters, search, GitHub thumbnail links, image-evidence labels, and a detail dialog with invocation, child skills, confidence, and classification evidence.
-
-For the refresh button, serve the exact output with explicit startup roots and the same curation files:
-
-```text
-python scripts/serve_catalog.py --output-dir path/to/output --root path/to/skills --root path/to/plugins --curation path/to/curation.json
+```powershell
+python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --output-dir "$env:TEMP\agent-skill-catalog-output"
 ```
 
-The server binds to localhost only. It rejects refresh when startup roots or curation counts are omitted, so a refresh cannot silently switch to another config's roots.
+To include plugin caches, copy a platform example, set each root's `kind` to `plugin`, and pass it with `--config`:
 
-## Evidence model
+```powershell
+python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --config .\my-catalog-config.json `
+  --output-dir "$env:TEMP\agent-skill-catalog-output"
+```
 
-Each item records `category_candidates`, `category_winner_margin`, `category_tie_reason`, `low_confidence`, `category_evidence`, and `image.missing_evidence`. Generated covers and remote metadata are visual fallbacks, not verified skill images.
+Open the generated `index.html` directly for a static catalog. To make the page refresh button available, run the bounded localhost server with the same roots and curation files:
 
-## Validation
+```powershell
+python skills/agent-skill-catalog/scripts/serve_catalog.py `
+  --output-dir "$env:TEMP\agent-skill-catalog-output" `
+  --root "C:\path\to\skills"
+```
 
-```text
-python scripts/validate_package.py .
+## What the catalog contains
+
+| Area | Included information |
+| --- | --- |
+| Classification | Category candidates, supporting evidence, confidence, winner margin, and low-confidence markers |
+| Skill families | Parent/child aggregation from nested folders, or a same-named root plus at least two source-consistent sibling Skills; explicit curation handles exceptions |
+| Plugins | A dedicated view aggregated by `provider:name`, separate from standalone Skills |
+| Invocation | Agent-facing invocation guidance and source-relative location |
+| Images | Verified local image, curated local preview, remote metadata, or an explicitly labeled fallback |
+| GitHub | Repository address only when local Skill metadata, Git config, or curation provides it |
+
+## Privacy and operating boundaries
+
+- Scan only roots supplied by the operator.
+- Keep scanned roots read-only.
+- Do not fetch remote content or execute discovered Skills.
+- Redact absolute paths in catalog output by default.
+- Accept no browser-provided command or path on the refresh endpoint.
+
+## Compatibility and discovery
+
+- GitHub Agent Skills: the installable package is discoverable at `skills/agent-skill-catalog/SKILL.md`.
+- Codex: includes `agents/openai.yaml` for UI metadata and `agents/interface.yaml` for the Yao Meta interface contract.
+- Generic/local use: run the Python scripts directly with explicit roots.
+
+## Verification
+
+```powershell
+python tools/validate_package.py .
 python tests/test_build_catalog.py
+gh skill publish --dry-run
 ```
 
-The GitHub Actions workflow runs the same standard-library checks and creates a source package without local catalogs or reports.
+The public demo data used for the screenshots is under [`docs/demo`](docs/demo). Its `DEMO.md` files are intentionally non-discoverable examples; they contain no local machine paths or personal catalog data.
 
 ## License
 

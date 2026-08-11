@@ -51,6 +51,11 @@ COVER_STYLES = {
     "specialist": ("#7e1d44", "#f9a8d4"),
     "other": ("#334155", "#cbd5e1"),
 }
+FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<rect width="64" height="64" rx="12" fill="#0f494d"/>
+<path d="M16 20h32v8H16zm0 16h22v8H16z" fill="#fff"/>
+</svg>
+"""
 
 
 def read_json(path: Path, fallback: Any, strict: bool = False) -> Any:
@@ -809,9 +814,105 @@ def family_override_for_structure(mapping: Any, item: Dict[str, Any]) -> Dict[st
     return {}
 
 
-def family_identity(item: Dict[str, Any], config: Dict[str, Any]) -> Tuple[str, str, str]:
+def direct_skill_folder(item: Dict[str, Any]) -> str:
+    """Return the direct folder name for a root-level ``SKILL.md`` item."""
+    parts = Path(str(item.get("relative_path") or "")).parts
+    if len(parts) != 2 or parts[-1].casefold() != "skill.md":
+        return ""
+    folder = normalize_for_match(parts[0])
+    name = normalize_for_match(str(item.get("name") or ""))
+    return folder if folder and folder == name else ""
+
+
+def github_key(item: Dict[str, Any]) -> str:
+    github = item.get("github")
+    url = github.get("url") if isinstance(github, dict) else ""
+    value = normalize_for_match(str(url or "")).rstrip("/")
+    return re.sub(r"\.git$", "", value)
+
+
+def rooted_sibling_families(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Infer families installed as sibling root folders, conservatively.
+
+    A prefix is considered a family only when a same-named root Skill exists and
+    at least two sibling root Skills use that prefix. This catches repositories
+    installed as ``research``, ``research-deep`` and ``research-report`` while
+    avoiding loose prefix or description-based merges. Conflicting observed
+    GitHub repositories are kept separate.
+    """
+    buckets: Dict[Tuple[str, str], Dict[str, List[Dict[str, Any]]]] = {}
+    for item in items:
+        if item.get("kind") != "skill":
+            continue
+        folder = direct_skill_folder(item)
+        if not folder:
+            continue
+        bucket_key = (
+            normalize_for_match(str(item.get("source") or "skill")),
+            normalize_for_match(str(item.get("root_basename") or "")),
+        )
+        bucket = buckets.setdefault(bucket_key, {})
+        bucket.setdefault(folder, []).append(item)
+
+    inferred: Dict[str, Dict[str, Any]] = {}
+    assigned: set[str] = set()
+    for bucket in buckets.values():
+        for parent_name in sorted(bucket, key=lambda value: (-len(value), value)):
+            parents = bucket[parent_name]
+            if len(parents) != 1:
+                continue
+            parent = parents[0]
+            parent_id = str(parent.get("id") or "")
+            if not parent_id or parent_id in assigned:
+                continue
+            children: List[Dict[str, Any]] = []
+            prefix = parent_name + "-"
+            for child_name, candidates in bucket.items():
+                if not child_name.startswith(prefix) or len(candidates) != 1:
+                    continue
+                child = candidates[0]
+                child_id = str(child.get("id") or "")
+                if child_id and child_id not in assigned:
+                    children.append(child)
+            if len(children) < 2:
+                continue
+
+            members = [parent, *children]
+            observed_repositories = {github_key(member) for member in members if github_key(member)}
+            parent_repository = github_key(parent)
+            if len(observed_repositories) > 1:
+                if not parent_repository:
+                    continue
+                members = [member for member in members if not github_key(member) or github_key(member) == parent_repository]
+                if len(members) < 3:
+                    continue
+
+            source = normalize_for_match(str(parent.get("source") or "skill")) or "skill"
+            family_id = f"family:{source}:{parent_name}"
+            family = {
+                "id": family_id,
+                "name": str(parent.get("name") or parent_name),
+                "category": str(parent.get("category") or "other"),
+            }
+            for member in members:
+                member_id = str(member.get("id") or "")
+                if member_id:
+                    inferred[member_id] = family
+                    assigned.add(member_id)
+    return inferred
+
+
+def family_identity(
+    item: Dict[str, Any],
+    config: Dict[str, Any],
+    inferred: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Tuple[str, str, str]:
     mapping = config.get("curation", {}).get("family_overrides")
-    override = family_override(mapping, item) or family_override_for_structure(mapping, item)
+    override = (
+        family_override(mapping, item)
+        or family_override_for_structure(mapping, item)
+        or (inferred or {}).get(str(item.get("id") or ""), {})
+    )
     if override:
         family_id = str(override.get("id") or override.get("family") or item["name"])
         family_name = str(override.get("name") or family_id)
@@ -825,10 +926,11 @@ def family_identity(item: Dict[str, Any], config: Dict[str, Any]) -> Tuple[str, 
 
 def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List[Dict[str, Any]]:
     buckets: Dict[str, List[Dict[str, Any]]] = {}
+    inferred = rooted_sibling_families(items)
     for item in items:
         if item["kind"] != "skill":
             continue
-        family_id, family_name, family_category = family_identity(item, config)
+        family_id, family_name, family_category = family_identity(item, config, inferred)
         item["family_id"] = family_id
         item["family_name"] = family_name
         item["family_category"] = family_category
@@ -1062,7 +1164,7 @@ def render_html(catalog: Dict[str, Any]) -> str:
     data = json.dumps(catalog, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     return """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Agent Skill Catalog</title><style>
+<title>Agent Skill Catalog</title><link rel="icon" href="favicon.svg"><style>
 :root{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;color:#142127;background:#f5f7f5}*{box-sizing:border-box}body{min-width:1080px;margin:0}.shell{width:min(1440px,calc(100% - 64px));margin:auto;padding:28px 0 56px}header{display:flex;align-items:center;justify-content:space-between;padding-bottom:22px;border-bottom:1px solid #d9e1dd}.brand{font-size:21px;font-weight:760}.brand span{display:inline-grid;width:36px;height:36px;place-items:center;margin-right:10px;border-radius:6px;color:#fff;background:#0f494d}.refresh{padding:10px 15px;border:0;border-radius:5px;color:#fff;background:#0f494d;font:inherit;font-weight:700;cursor:pointer}.intro{display:grid;grid-template-columns:1fr auto;gap:42px;align-items:end;padding:44px 0 30px}.intro h1{max-width:720px;margin:0;font-size:44px;line-height:1.12;letter-spacing:0}.intro p{max-width:720px;margin:13px 0 0;color:#587076;font-size:16px;line-height:1.7}.stat{padding-left:25px;border-left:3px solid #f05a35}.stat strong{display:block;font-size:42px;line-height:1;color:#0f494d}.stat span{color:#587076}.tabs{display:inline-flex;overflow:hidden;border:1px solid #c9d5d0;border-radius:5px;background:#fff}.tabs button{min-width:92px;padding:10px 18px;border:0;border-right:1px solid #c9d5d0;color:#395055;background:transparent;font:inherit;font-weight:700;cursor:pointer}.tabs button:last-child{border-right:0}.tabs button.active{color:#fff;background:#0f494d}.toolbar{display:grid;grid-template-columns:1fr auto;gap:14px;margin:22px 0}.search{width:100%;padding:13px 15px;border:1px solid #c9d5d0;border-radius:5px;background:#fff;font:inherit;font-size:15px}.filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 24px}.filter{padding:8px 12px;border:1px solid #c9d5d0;border-radius:999px;color:#4b6267;background:#fff;font:inherit;cursor:pointer}.filter.active{border-color:#0f494d;color:#fff;background:#0f494d}.overview{display:grid;grid-template-columns:repeat(6,1fr);gap:11px;margin:0 0 34px}.category{min-height:108px;padding:15px;border:0;border-radius:6px;color:#fff;text-align:left;background:#235258;cursor:pointer}.category:nth-child(3n){background:#3d5160}.category:nth-child(3n+2){background:#5b492f}.category strong{display:block;margin-top:30px;font-size:16px}.category span{display:block;margin-top:4px;color:#d7e8e5;font-size:13px}.results-head{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 15px}.results-head h2{margin:0;font-size:23px}.results-head span{color:#667b80}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{display:grid;grid-template-rows:auto 1fr;border:1px solid #d7e1dc;border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(29,52,54,.06)}.thumb{position:relative;aspect-ratio:16/9;overflow:hidden;background:#173f45}.thumb img{width:100%;height:100%;object-fit:cover}.thumb-link{display:block;color:inherit}.badge{position:absolute;right:10px;bottom:10px;padding:5px 8px;border-radius:4px;color:#dcefed;background:rgba(10,38,42,.82);font-size:12px}.body{display:flex;min-width:0;flex-direction:column;padding:16px}.card-top{display:flex;gap:10px;align-items:start;justify-content:space-between}.card h3{min-width:0;margin:0;font-size:18px;overflow-wrap:anywhere}.tag{flex:none;padding:4px 7px;border-radius:999px;color:#426167;background:#edf3f0;font-size:12px}.body p{display:-webkit-box;overflow:hidden;margin:10px 0 14px;color:#526b70;line-height:1.55;-webkit-line-clamp:3;-webkit-box-orient:vertical}.meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;color:#667b80;font-size:13px}.open{width:34px;height:34px;border:1px solid #b9cac4;border-radius:4px;color:#0f494d;background:#fff;font-size:18px;cursor:pointer}.empty{padding:48px;color:#667b80;text-align:center;border:1px dashed #b8c9c3;background:#fff}dialog{width:min(1050px,calc(100% - 64px));max-height:calc(100% - 64px);padding:0;border:0;border-radius:7px;box-shadow:0 30px 100px rgba(10,27,30,.38)}dialog::backdrop{background:rgba(8,25,28,.58)}.dialog{position:relative;display:grid;grid-template-columns:390px 1fr}.detail-media{min-height:360px;background:#173f45}.detail-media img{width:100%;height:100%;object-fit:cover;object-position:left center}.detail{padding:30px 34px}.close{position:absolute;top:15px;right:16px;width:32px;height:32px;border:0;border-radius:4px;color:#567076;background:transparent;font-size:26px;cursor:pointer}.detail h2{margin:8px 40px 10px 0;font-size:28px}.detail-summary{margin:0 0 22px;color:#536a70;line-height:1.7}.label{margin:20px 0 8px;color:#0f494d;font-size:13px;font-weight:760}.code{padding:12px 14px;border-left:3px solid #f05a35;background:#eef3f0;color:#273f43;line-height:1.55;white-space:pre-wrap}.subskills{display:grid;gap:0;border-top:1px solid #dbe5e0}.subskill{display:grid;grid-template-columns:1fr auto;gap:9px;padding:12px 0;border-bottom:1px solid #dbe5e0}.subskill strong{overflow-wrap:anywhere}.subskill p{grid-column:1/-1;margin:0;color:#647b80;font-size:13px;line-height:1.5}.github{display:inline-block;color:#0b6570;font-weight:700;overflow-wrap:anywhere}.status{min-height:20px;margin-top:8px;color:#647b80;font-size:13px}
 </style></head><body><div class="shell"><header><div class="brand"><span>AC</span>Agent Skill Catalog</div><div><button class="refresh" id="refresh" type="button">刷新索引</button><div class="status" id="status" role="status" aria-live="polite"></div></div></header><section class="intro"><div><h1>找到正确的能力，直接开始工作。</h1><p>将本机 Skill 与插件按用途、来源、调用方式和预览整理为可检索目录。独立技能按家族聚合；插件只在插件视图中展示。</p></div><div class="stat"><strong id="total"></strong><span id="stat-label"></span></div></section><nav class="tabs" aria-label="目录视图"><button class="mode active" data-mode="skills" type="button">技能</button><button class="mode" data-mode="plugins" type="button">插件</button></nav><section class="toolbar"><label class="sr-only" for="search">搜索技能与插件</label><input class="search" id="search" type="search" placeholder="搜索名称、用途、GitHub 或本地相对路径"><span></span></section><section class="filters" id="filters" aria-label="分类筛选"></section><section class="overview" id="overview" aria-label="分类概览"></section><section><div class="results-head"><h2 id="result-title"></h2><span id="count"></span></div><div class="grid" id="list"></div></section></div><dialog id="detail" aria-labelledby="detail-name"><article class="dialog"><button class="close" id="close" type="button" title="关闭详情" aria-label="关闭详情">×</button><div class="detail-media"><img id="detail-image" alt=""></div><div class="detail"><span class="tag" id="detail-tag"></span><h2 id="detail-name"></h2><p class="detail-summary" id="detail-description"></p><section id="github-panel" hidden><div class="label">GitHub 仓库</div><a class="github" id="detail-github" target="_blank" rel="noreferrer"></a></section><div class="label">调用方式</div><div class="code" id="detail-invocation"></div><section id="subskills-panel"><div class="label" id="subskills-label"></div><div class="subskills" id="detail-subskills"></div></section><div class="label">来源位置</div><div class="code" id="detail-locations"></div></div></article></dialog><script>
 const data=__CATALOG__;
@@ -1086,6 +1188,15 @@ document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener
 </script></body></html>""".replace("__CATALOG__", data).replace(
         "</style>",
         ".sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}:focus-visible{outline:3px solid #f05a35;outline-offset:3px}.evidence{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;color:#526b70;font-size:12px}.evidence span{padding:3px 6px;border:1px solid #d3dfda;border-radius:4px;background:#f5f8f6}.detail-evidence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:18px}.detail-evidence div{padding:8px 10px;background:#f5f8f6;color:#526b70;font-size:13px;line-height:1.4}.detail-evidence strong{display:block;color:#0f494d;font-size:12px}.source{overflow-wrap:anywhere}</style>",
+    ).replace(
+        "</style>",
+        ":root{--ease-spring:cubic-bezier(.32,.72,0,1);--ease-out-quart:cubic-bezier(.25,1,.5,1)}.shell>header{position:sticky;top:0;z-index:10;background:rgba(245,247,245,.82);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);box-shadow:0 8px 22px rgba(29,52,54,.04);transition:background .22s var(--ease-out-quart),box-shadow .22s var(--ease-out-quart)}.refresh,.tabs button,.filter,.category,.open,.close{transition:transform .16s var(--ease-out-quart),box-shadow .16s var(--ease-out-quart),background-color .16s var(--ease-out-quart),border-color .16s var(--ease-out-quart),color .16s var(--ease-out-quart)}.refresh:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(15,73,77,.2)}.refresh:active,.tabs button:active,.filter:active,.category:active,.open:active,.close:active{transform:scale(.97)}.refresh:disabled{cursor:wait;opacity:.72;transform:none}.tabs button:hover,.filter:hover{border-color:#9eb9b2;color:#0f494d}.tabs button.active:hover,.filter.active:hover{color:#fff;background:#0c4144}.category:hover{transform:translateY(-3px) scale(1.01);box-shadow:0 12px 24px rgba(22,53,57,.18)}.open:hover{transform:scale(1.06);border-color:#0f494d;background:#eef7f4;box-shadow:0 5px 12px rgba(15,73,77,.16)}.close:hover{color:#0f494d;background:#eef3f0}.search{transition:border-color .16s var(--ease-out-quart),box-shadow .16s var(--ease-out-quart)}.search:focus{border-color:#0f494d;box-shadow:0 0 0 4px rgba(15,73,77,.12);outline:0}.card{transition:transform .22s var(--ease-out-quart),box-shadow .22s var(--ease-out-quart),border-color .22s var(--ease-out-quart)}.card:hover{transform:translateY(-3px) scale(1.01);border-color:#b2c8c0;box-shadow:0 16px 34px rgba(29,52,54,.14)}.card:focus-within{border-color:#8eb3aa;box-shadow:0 12px 28px rgba(29,52,54,.12)}.thumb img{transition:transform .35s var(--ease-out-quart),filter .35s var(--ease-out-quart)}.card:hover .thumb img{transform:scale(1.035);filter:saturate(1.04)}dialog{background:rgba(255,255,255,.86);backdrop-filter:blur(20px) saturate(145%);-webkit-backdrop-filter:blur(20px) saturate(145%);overflow:hidden;isolation:isolate}dialog::backdrop{background:rgba(8,25,28,0);transition:background .25s var(--ease-out-quart)}dialog.is-visible::backdrop{background:rgba(8,25,28,.58)}dialog .dialog{opacity:0;transform:translateY(14px) scale(.98);transform-origin:50% 12%;transition:opacity .28s var(--ease-spring),transform .28s var(--ease-spring)}dialog.is-visible .dialog{opacity:1;transform:none;transition-duration:.4s}.detail{background:rgba(255,255,255,.78)}@media (prefers-reduced-motion:reduce){.card:hover,.category:hover{transform:none}.card:hover .thumb img{transform:none}.card,.thumb img,.refresh,.tabs button,.filter,.category,.open,.close,dialog .dialog{transition-duration:.01ms!important}dialog .dialog,dialog.is-visible .dialog{transform:none;transition:opacity .2s var(--ease-out-quart)}}@media (prefers-reduced-transparency:reduce){.shell>header,dialog,.detail{background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}}@media (prefers-contrast:more){.shell>header,dialog{background:#fff;border:1px solid rgba(0,0,0,.35)}} </style>",
+    ).replace(
+        "</script>",
+        "const originalOpenRecord=openRecord;let closeTimer=null;let closing=false;function closeDetail(){const detail=$('#detail');if(!detail.open||closing)return;closing=true;detail.classList.remove('is-visible');const panel=detail.querySelector('.dialog');let finished=false;const finish=()=>{if(finished)return;finished=true;panel.removeEventListener('transitionend',onEnd);clearTimeout(closeTimer);closing=false;detail.close()};const onEnd=event=>{if(event.target===panel&&event.propertyName==='opacity')finish()};panel.addEventListener('transitionend',onEnd);closeTimer=setTimeout(finish,320)}openRecord=id=>{originalOpenRecord(id);requestAnimationFrame(()=>$('#detail').classList.add('is-visible'))};$('#close').addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();closeDetail()},true);document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#detail').open){event.preventDefault();event.stopImmediatePropagation();closeDetail()}},true);$('#detail').addEventListener('close',()=>$('#detail').classList.remove('is-visible'));</script>",
+    ).replace(
+        "</script>",
+        "const refreshButton=$('#refresh');const refreshStatus=$('#status');new MutationObserver(()=>{if(refreshStatus.textContent&&!refreshStatus.textContent.startsWith('正在')){refreshButton.disabled=false;refreshButton.removeAttribute('aria-busy')}}).observe(refreshStatus,{childList:true});refreshButton.addEventListener('click',()=>{refreshButton.disabled=true;refreshButton.setAttribute('aria-busy','true')});$('#detail').addEventListener('cancel',event=>{event.preventDefault();closeDetail()});</script>",
     )
 
 
@@ -1189,6 +1300,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
     atomic_write_text(output_dir / "catalog.json", json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
     if not args.no_html:
         atomic_write_text(output_dir / "index.html", render_html(catalog))
+        atomic_write_text(output_dir / "favicon.svg", FAVICON_SVG)
     return catalog
 
 

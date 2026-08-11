@@ -14,10 +14,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python scripts/validate_package.py .
-      - run: python -m py_compile scripts/build_catalog.py scripts/serve_catalog.py scripts/import_legacy_catalog.py scripts/validate_package.py scripts/package_skill.py
+      - run: python tools/validate_package.py .
+      - run: python -m py_compile skills/agent-skill-catalog/scripts/build_catalog.py skills/agent-skill-catalog/scripts/serve_catalog.py skills/agent-skill-catalog/scripts/import_legacy_catalog.py tools/validate_package.py tools/package_skill.py
       - run: python tests/test_build_catalog.py
-      - run: python scripts/package_skill.py .
+      - run: python tools/package_skill.py .
       - uses: actions/upload-artifact@v4
         with:
           name: agent-skill-catalog

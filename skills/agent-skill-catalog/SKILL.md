@@ -1,6 +1,7 @@
 ---
 name: agent-skill-catalog
 description: "Build or refresh a local searchable Agent Skill Catalog from explicit SKILL.md roots and optional plugin roots. Use for deterministic catalog JSON, desktop HTML, category evidence, image evidence, family grouping, plugin aggregation, and bounded local refresh. Do not install, edit, or execute scanned skills."
+license: MIT
 ---
 
 # Agent Skill Catalog
@@ -24,5 +25,5 @@ The output directory contains `catalog.json` and a self-contained `index.html`. 
 
 - No network fetches or remote code execution.
 - No inferred category override for an invalid category.
-- No automatic family merge from description text alone.
+- No family merge from description text alone. A rooted sibling family needs a same-named root Skill, at least two same-prefix sibling Skills, and no conflicting observed GitHub source; otherwise use explicit curation.
 - Refresh must receive the same startup roots and curation files explicitly.

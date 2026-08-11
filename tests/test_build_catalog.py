@@ -8,7 +8,8 @@ import urllib.request
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT / "skills" / "agent-skill-catalog"
 SCRIPT = ROOT / "scripts" / "build_catalog.py"
 LEGACY_IMPORT_SCRIPT = ROOT / "scripts" / "import_legacy_catalog.py"
 SERVER_SCRIPT = ROOT / "scripts" / "serve_catalog.py"
@@ -218,6 +219,50 @@ def test_curation_family_plugin_merge_and_output_guards() -> None:
         assert "outside scanned roots" in inside_root.stderr
 
 
+def test_rooted_sibling_family_inference_is_conservative() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        descriptions = {
+            "research": "Research entry point.",
+            "research-add-fields": "Add research fields.",
+            "research-report": "Write a research report.",
+            "conflict": "Parent package.",
+            "conflict-one": "First package child.",
+            "conflict-two": "Second package child.",
+            "agent-browser": "Automate a browser.",
+            "agent-reach": "Reach public sources.",
+        }
+        github = {
+            "conflict": "https://github.com/example/conflict",
+            "conflict-one": "https://github.com/example/conflict",
+            "conflict-two": "https://github.com/other/conflict-two",
+        }
+        for name, description in descriptions.items():
+            skill = root / name
+            skill.mkdir(parents=True)
+            source = f"metadata: {github[name]}\n" if name in github else ""
+            (skill / "SKILL.md").write_text(
+                f"---\nname: {name}\ndescription: {description}\n{source}---\n",
+                encoding="utf-8",
+            )
+
+        catalog = run_builder(root, fixture / "catalog")
+        research = next(family for family in catalog["families"] if family["name"] == "research")
+        assert len(research["skill_ids"]) == 3
+        research_items = [item for item in catalog["items"] if item["name"].startswith("research")]
+        assert {item["family_id"] for item in research_items} == {research["id"]}
+        assert all(item["family_size"] == 3 for item in research_items)
+
+        conflict_items = [item for item in catalog["items"] if item["name"].startswith("conflict")]
+        assert all(item["family_size"] == 1 for item in conflict_items)
+        assert all(item["family_id"] != research["id"] for item in conflict_items)
+
+        agent_items = [item for item in catalog["items"] if item["name"].startswith("agent-")]
+        assert len(agent_items) == 2
+        assert all(item["family_size"] == 1 for item in agent_items)
+
+
 def test_malformed_config_fails() -> None:
     with tempfile.TemporaryDirectory() as temp:
         config = Path(temp) / "broken.json"
@@ -383,6 +428,7 @@ def test_config_root_refresh_and_privacy_contract() -> None:
 if __name__ == "__main__":
     test_scan_classify_image_and_refresh()
     test_curation_family_plugin_merge_and_output_guards()
+    test_rooted_sibling_family_inference_is_conservative()
     test_malformed_config_fails()
     test_folded_frontmatter_description()
     test_import_legacy_catalog_curation()

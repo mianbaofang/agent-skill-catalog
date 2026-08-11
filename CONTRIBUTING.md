@@ -7,7 +7,7 @@ Thanks for improving Agent Skill Catalog.
 The project uses only the Python standard library. Use Python 3.10 or newer.
 
 ```text
-python scripts/validate_package.py .
+python tools/validate_package.py .
 python tests/test_build_catalog.py
 ```
 
