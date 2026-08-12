@@ -5,8 +5,16 @@ A local Skill catalog for Codex and other AI coding agents. It works as a practi
 <table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub stars"></a></td></tr></table>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python 3.10 or newer">
+  <img src="https://img.shields.io/badge/local--first-catalog-0F766E?style=flat-square" alt="Local-first catalog">
+  <img src="https://img.shields.io/badge/scan-read--only-475569?style=flat-square" alt="Read-only scanning">
+  <img src="https://img.shields.io/badge/output-static_HTML-D97706?style=flat-square" alt="Static HTML output">
+  <img src="https://img.shields.io/badge/organizes-Skills_%2B_plugins-7E22CE?style=flat-square" alt="Organizes Skills and plugins">
+</p>
+
+<p align="center">
   <a href="docs/DEMO.md">
-    <img src="docs/media/agent-skill-catalog-demo.gif" alt="Agent Skill Catalog product walkthrough: browse categories, search a Skill family, and inspect plugin details" width="100%">
+    <img src="docs/media/agent-skill-catalog-demo.en.gif" alt="Agent Skill Catalog product walkthrough: browse categories, search a Skill family, and inspect plugin details" width="100%">
   </a>
 </p>
 

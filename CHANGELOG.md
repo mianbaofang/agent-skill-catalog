@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added separate factual capability labels beneath the four operational status badges in both READMEs.
+- Added a fully English README animation while keeping the Chinese animation for `README.zh-CN.md`.
+- Made the demo recorder support explicit language, storyboard, catalog, and output arguments, with Chinese-text guards for English recordings.
+
 ## 0.2.2 - 2026-08-12
 
 - Kept the authoritative GitHub-discoverable Skill under `skills/agent-skill-catalog/`, matching `gh skill publish` validation.

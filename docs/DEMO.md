@@ -13,7 +13,10 @@ The README preview is a 16:9 product story, not a sequence of unrelated screensh
 
 ## Animation acceptance
 
-`docs/media/agent-skill-catalog-demo.gif` must remain:
+Both README animations must remain:
+
+- English: `docs/media/agent-skill-catalog-demo.en.gif`
+- Chinese: `docs/media/agent-skill-catalog-demo.gif`
 
 - exactly `960x540` pixels (`16:9`)
 - exactly `5 fps`
@@ -38,10 +41,11 @@ The committed animation and screenshots contain no private machine paths or pers
 
 ## Re-recording
 
-The source storyboard is [`docs/media/demo-storyboard.html`](media/demo-storyboard.html). Serve a non-personal local catalog, then record it:
+The source storyboard is [`docs/media/demo-storyboard.html`](media/demo-storyboard.html). It has English and Chinese copy modes. Serve a non-personal local catalog, then record both outputs:
 
 ```powershell
-node tools/record_demo.mjs http://127.0.0.1:8768/index.html
+node tools/record_demo.mjs --lang en --catalog http://127.0.0.1:8768/index.html
+node tools/record_demo.mjs --lang zh --catalog http://127.0.0.1:8768/index.html
 ```
 
 The supplied catalog must not expose personal paths or a private Skill inventory. This documentation-only recording tool requires Playwright and FFmpeg in the maintainer environment. Neither is a runtime dependency of the installed Skill.

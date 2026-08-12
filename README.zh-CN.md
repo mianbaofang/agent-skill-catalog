@@ -5,6 +5,14 @@
 <table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub 星标"></a></td></tr></table>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python 3.10 或更高版本">
+  <img src="https://img.shields.io/badge/local--first-%E6%9C%AC%E5%9C%B0%E7%9B%AE%E5%BD%95-0F766E?style=flat-square" alt="本地优先目录">
+  <img src="https://img.shields.io/badge/%E6%89%AB%E6%8F%8F-%E5%8F%AA%E8%AF%BB-475569?style=flat-square" alt="只读扫描">
+  <img src="https://img.shields.io/badge/%E8%BE%93%E5%87%BA-%E9%9D%99%E6%80%81_HTML-D97706?style=flat-square" alt="静态 HTML 输出">
+  <img src="https://img.shields.io/badge/%E6%95%B4%E7%90%86-Skill_%2B_%E6%8F%92%E4%BB%B6-7E22CE?style=flat-square" alt="整理 Skill 与插件">
+</p>
+
+<p align="center">
   <a href="docs/DEMO.md">
     <img src="docs/media/agent-skill-catalog-demo.gif" alt="Agent Skill Catalog 产品演示，浏览分类、搜索 Skill 家族并查看插件详情" width="100%">
   </a>

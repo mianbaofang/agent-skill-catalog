@@ -83,7 +83,7 @@
     .image-source span { color: var(--muted); font-size: 11px; }
     .image-source em { color: var(--muted); font-size: 10px; font-style: normal; }
     .image-preview { position: relative; min-height: 235px; padding: 16px; border: 1px solid var(--line); background: #edf3f0; overflow: hidden; }
-    .image-preview::before { content: "图片证据"; display: block; margin-bottom: 14px; color: var(--teal); font-size: 12px; font-weight: 760; letter-spacing: .5px; }
+    .image-preview-title { display: block; margin-bottom: 14px; color: var(--teal); font-size: 12px; font-weight: 760; letter-spacing: .5px; }
     .preview-card { position: absolute; width: 142px; padding: 11px; border: 1px solid var(--line); background: var(--white); box-shadow: 0 8px 20px rgba(29,52,54,.08); }
     .preview-card .pic { height: 74px; margin-bottom: 9px; background: var(--teal-2); }
     .preview-card:nth-child(2) { left: 28px; top: 74px; transform: rotate(-4deg); }
@@ -108,6 +108,14 @@
     .closeout .lead { max-width: 470px; }
     .foot { position: absolute; left: 30px; right: 30px; bottom: 15px; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
     .scene[data-scene="4"] .product-frame { animation: frame-in .7s var(--ease) both; }
+    .scene.product > .kicker { display: none; }
+    html[lang="en"] .scene[data-scene="0"] h1 { font-size: 35px; }
+    html[lang="en"] .scene[data-scene="0"] .intro-grid { height: 225px; }
+    html[lang="en"] .scene[data-scene="0"] .scatter { height: 150px; }
+    html[lang="en"] .scene[data-scene="3"] .image-grid { margin-top: 23px; }
+    html[lang="en"] .scene[data-scene="3"] .image-source { padding: 8px 10px; }
+    html[lang="en"] .scene[data-scene="3"] .image-source .icon { width: 27px; height: 27px; }
+    html[lang="en"] .scene[data-scene="3"] .image-preview { min-height: 222px; }
     @keyframes frame-in { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
   </style>
@@ -179,6 +187,7 @@
           <div class="image-source"><span class="icon">04</span><div><strong>说明封面</strong><span>没有真实图片证据时使用</span></div><em>缺证据</em></div>
         </div>
         <div class="image-preview">
+          <div class="image-preview-title">图片证据</div>
           <div class="preview-card"><div class="pic"></div><strong>GitHub 仓库图片</strong><span>verified repository preview</span></div>
           <div class="preview-card"><div class="pic" style="background:var(--slate)"></div><strong>手工替换</strong><span>output-owned override</span></div>
           <div class="missing">说明封面会标记 missing evidence</div>
@@ -209,6 +218,94 @@
     <div class="foot"><span>READ-ONLY · EVIDENCE-BACKED · LOCAL-FIRST</span><span id="counter">01 / 06</span></div>
   </main>
   <script>
+    const params = new URLSearchParams(window.location.search);
+    const language = params.get('lang') === 'en' ? 'en' : 'zh';
+    const english = new Map(Object.entries({
+      '01 / 复杂的 Skill 库': '01 / A crowded Skill library',
+      'Skill 越来越多，查找也越来越困难。': 'As the Skill library grows, finding the right one gets harder.',
+      '主 Skill、子 Skill、插件和图片散在不同目录里。清单能列出名字，却看不出归属、调用方式和分类依据。': 'Parent Skills, child Skills, plugins, and images are scattered across folders. A flat list shows names, but not ownership, invocation, or classification evidence.',
+      '目录把归属、分类依据和调用方式放在一起，打开条目就能看到。': 'The catalog keeps ownership, classification evidence, and invocation together in each entry.',
+      '视觉与图片': 'Visual and image',
+      '同类名称很多，边界不清': 'Similar names, unclear boundaries',
+      '主 Skill 与子 Skill 混在一起': 'Parent and child Skills mixed together',
+      '插件缓存': 'Plugin cache',
+      '携带多个 Skill，需要单独显示': 'Bundles several Skills and needs its own view',
+      '图片来源': 'Image source',
+      '分类封面不能代替 Skill 预览': 'A category cover is not a Skill preview',
+      '先确定扫描范围，再生成目录。': 'Choose the scan roots before building the catalog.',
+      '扫描器只读取传入的根目录，结果保留来源和中间判断。': 'The scanner reads only the supplied roots and keeps the source and intermediate decisions.',
+      '传入根目录': 'Supply roots',
+      'Skill 根目录': 'Skill roots',
+      '插件缓存根目录': 'Plugin cache roots',
+      '读取 SKILL.md': 'Read SKILL.md',
+      '说明、manifest、来源路径和本地图片': 'Descriptions, manifests, source paths, and local images',
+      '整理关系': 'Resolve structure',
+      '分类候选、家族关系、插件归属、图片状态': 'Category candidates, families, plugin ownership, and image state',
+      '生成目录': 'Build catalog',
+      'catalog.json + 自包含 index.html': 'catalog.json + self-contained index.html',
+      '不安装': 'No install',
+      '不执行': 'No execution',
+      'GitHub 预览受限缓存': 'Bounded GitHub preview cache',
+      '默认隐藏绝对路径': 'Absolute paths hidden by default',
+      '主 Skill 保留一个条目，子 Skill 放进详情；插件单独列出。': 'Keep one entry for a parent Skill, put child Skills in its detail, and list plugins separately.',
+      '主 / 子 Skill 家族': 'Parent / child Skill family',
+      'hyperframes · 主 Skill': 'hyperframes · parent Skill',
+      '分类置信度': 'Classification confidence',
+      '插件聚合': 'Plugin aggregate',
+      'hyperframes 插件': 'hyperframes plugin',
+      '独立视图': 'Separate view',
+      '主入口': 'Primary entry',
+      '插件子技能': 'Plugin child Skill',
+      '预览图按证据强弱选择，也可以手工替换。': 'Choose preview images by evidence strength, with a manual override when needed.',
+      '人工图、GitHub 仓库图和 Skill 本地图分别标注；没有证据时才使用说明封面。': 'Manual images, GitHub repository images, and local Skill images are labeled separately. A fallback cover appears only when evidence is missing.',
+      '手工预览图': 'Manual preview',
+      '只保存在目录输出，不改源 Skill': 'Stored in catalog output; source Skill stays unchanged',
+      '最高优先': 'Highest priority',
+      'GitHub 仓库图': 'GitHub repository image',
+      '公开仓库页面与允许的图片域名': 'Public repository page and allowlisted image hosts',
+      '已验证': 'Verified',
+      'Skill 自带预览': 'Skill-provided preview',
+      'frontmatter 或 assets/preview.png': 'frontmatter or assets/preview.png',
+      '说明封面': 'Fallback cover',
+      '没有真实图片证据时使用': 'Used only without real image evidence',
+      '缺证据': 'Missing evidence',
+      '图片证据': 'Image evidence',
+      'GitHub 仓库图片': 'GitHub repository image',
+      '手工替换': 'Manual override',
+      '说明封面会标记 missing evidence': 'Fallback covers are marked missing evidence',
+      '打开 Skill，就能看到归属和调用方式。': 'Open a Skill to see where it belongs and how to invoke it.',
+      '页面支持搜索、筛选、刷新和手工换图。找到 GitHub 仓库的 Skill 会直接显示链接。': 'Search, filter, refresh, or replace a preview manually. A verified GitHub repository appears as a direct link.',
+      '搜索': 'Search',
+      '家族': 'Families',
+      '插件': 'Plugins',
+      '手工改图': 'Replace image',
+      '详情里要回答的问题': 'Questions answered in the detail view',
+      '它属于哪个 Skill 或插件？包含哪些子 Skill？怎么调用？图片和 GitHub 地址来自哪里？需要时怎样手工换图？': 'Which Skill or plugin owns it? Which child Skills are included? How is it invoked? Where did the image and GitHub URL come from? How can the image be replaced?',
+      '独立 Skill / 家族': 'Standalone Skill / family',
+      '归属清楚': 'Clear ownership',
+      '插件聚合': 'Plugin aggregate',
+      '单独查看': 'Separate view',
+      '图片来源与替换': 'Image source and override',
+      '可以追溯': 'Traceable',
+      '目录总览备用画面': 'Catalog overview fallback'
+    }));
+    function translateTextNodes(root) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(node => {
+        const value = node.nodeValue.trim();
+        if (english.has(value)) node.nodeValue = node.nodeValue.replace(value, english.get(value));
+      });
+    }
+    if (language === 'en') {
+      document.documentElement.lang = 'en';
+      document.title = 'Agent Skill Catalog English Demo Storyboard';
+      translateTextNodes(document.body);
+      document.querySelectorAll('[alt]').forEach(node => {
+        if (english.has(node.alt)) node.alt = english.get(node.alt);
+      });
+    }
     const stage = document.querySelector('.stage');
     const scenes = [...document.querySelectorAll('.scene')];
     const chapter = document.querySelector('#chapter');
@@ -239,7 +336,7 @@
     }
     window.__demoScene = -1;
     window.__demoSceneStartedAt = startedAt;
-    const catalogUrl = new URLSearchParams(window.location.search).get('catalog');
+    const catalogUrl = params.get('catalog');
     if (catalogUrl) document.querySelector('.product-frame iframe').src = catalogUrl;
     tick();
   </script>
