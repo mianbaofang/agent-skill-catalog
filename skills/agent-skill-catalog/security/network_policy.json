@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "default_policy": {
+    "require_https": true,
+    "custom_hosts": "deny-by-default",
+    "review_rule": "GitHub preview retrieval is limited to observed repositories and the fixed image-host allowlist in scripts/github_preview.py."
+  },
+  "scripts": {
+    "scripts\\github_preview.py": {
+      "purpose": "Read an observed public GitHub repository page and cache one verified preview image for the local catalog.",
+      "allowed_hosts": [
+        "github.com",
+        "www.github.com",
+        "raw.githubusercontent.com",
+        "user-images.githubusercontent.com",
+        "private-user-images.githubusercontent.com",
+        "github-production-user-asset-6210df.s3.amazonaws.com",
+        "opengraph.githubassets.com"
+      ],
+      "allowed_path_prefixes": [
+        "/"
+      ],
+      "requires_https": true,
+      "custom_url_policy": "not supported; repository pages must be github.com URLs already observed in scanned metadata",
+      "timeout_seconds": 6,
+      "auth": "none"
+    }
+  }
+}

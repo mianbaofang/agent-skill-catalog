@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -263,6 +264,123 @@ def test_rooted_sibling_family_inference_is_conservative() -> None:
         assert all(item["family_size"] == 1 for item in agent_items)
 
 
+def test_repository_root_skill_hides_same_named_packaged_mirror() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        library = fixture / "skills"
+        repository = library / "catalog-demo"
+        package = repository / "skills" / "catalog-demo"
+        package.mkdir(parents=True)
+        source = "---\nname: catalog-demo\ndescription: Build a local Skill catalog.\n---\n"
+        (repository / "SKILL.md").write_text(source, encoding="utf-8")
+        (package / "SKILL.md").write_text(source, encoding="utf-8")
+
+        catalog = run_builder(library, fixture / "output")
+        matches = [item for item in catalog["items"] if item["name"] == "catalog-demo"]
+        assert len(matches) == 1
+        assert matches[0]["relative_path"] == "catalog-demo/SKILL.md"
+
+
+def test_github_preview_uses_readme_image() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        cache = Path(temp)
+        image_url = "https://raw.githubusercontent.com/example/catalog/main/preview.png"
+        result = module.github_preview_image(
+            "https://github.com/example/catalog",
+            {},
+            cache,
+            fetch_readme_urls=lambda *_: [image_url],
+            fetch_image=lambda url, _: (TINY_PNG, ".png") if url == image_url else (b"", ""),
+        )
+        assert result["status"] == "github-repository"
+        assert result["source"] == "github-readme"
+        assert result["remote_source"] == image_url
+        assert result["value"].startswith("data:image/png;base64,")
+
+
+def test_github_preview_falls_back_to_social_image() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        result = module.github_preview_image(
+            "https://github.com/example/catalog",
+            {},
+            Path(temp),
+            fetch_readme_urls=lambda *_: [],
+            fetch_image=lambda url, _: (TINY_PNG, ".png") if "opengraph.githubassets.com" in url else (b"", ""),
+        )
+        assert result["status"] == "github-social-preview"
+        assert result["source"] == "github-opengraph"
+        assert "opengraph.githubassets.com" in result["remote_source"]
+
+
+def test_github_preview_reuses_cached_source_type() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        cache = Path(temp)
+        repository = "https://github.com/example/catalog"
+        first = module.github_preview_image(
+            repository,
+            {},
+            cache,
+            fetch_readme_urls=lambda *_: [],
+            fetch_image=lambda *_: (TINY_PNG, ".png"),
+        )
+        assert first["status"] == "github-social-preview"
+
+        def unexpected_fetch(*_):
+            raise AssertionError("A fresh cache entry must be reused without network access")
+
+        second = module.github_preview_image(
+            repository,
+            {},
+            cache,
+            fetch_readme_urls=unexpected_fetch,
+            fetch_image=unexpected_fetch,
+        )
+        assert second["status"] == "github-social-preview"
+        assert second["source"] == "github-cache"
+
+
+def test_github_preview_ignores_untyped_legacy_cache() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        cache = Path(temp)
+        repository = "https://github.com/example/catalog"
+        legacy = cache / f"{module.github_cache_key(repository)}.png"
+        legacy.write_bytes(TINY_PNG)
+        image_url = "https://raw.githubusercontent.com/example/catalog/main/current.png"
+        result = module.github_preview_image(
+            repository,
+            {},
+            cache,
+            fetch_readme_urls=lambda *_: [image_url],
+            fetch_image=lambda url, _: (TINY_PNG, ".png") if url == image_url else (b"", ""),
+        )
+        assert result["status"] == "github-repository"
+        assert result["source"] == "github-readme"
+        assert result["remote_source"] == image_url
+
+
+def test_github_redirect_policy_rejects_non_github_hosts() -> None:
+    module = load_builder()
+    handler = module.AllowedRedirectHandler({"github.com"})
+    request = urllib.request.Request("https://github.com/example/catalog")
+    try:
+        handler.redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            {},
+            "https://example.com/preview.png",
+        )
+    except urllib.error.HTTPError:
+        pass
+    else:
+        raise AssertionError("A redirect outside the GitHub allowlist must be rejected")
+
+
 def test_malformed_config_fails() -> None:
     with tempfile.TemporaryDirectory() as temp:
         config = Path(temp) / "broken.json"
@@ -420,6 +538,37 @@ def test_config_root_refresh_and_privacy_contract() -> None:
                 payload = json.loads(response.read().decode("utf-8"))
             assert payload["ok"] is True
             assert json.loads((output / "catalog.json").read_text(encoding="utf-8"))["mode"] == "refresh"
+
+            upload = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/image",
+                data=TINY_PNG,
+                method="POST",
+                headers={
+                    "Content-Type": "image/png",
+                    "X-Catalog-Skill-Name": "search",
+                    "X-Catalog-Relative-Path": "search/SKILL.md",
+                },
+            )
+            with urllib.request.urlopen(upload, timeout=15) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            assert payload["ok"] is True
+            curation = json.loads((output / "catalog-curation.json").read_text(encoding="utf-8"))
+            uploaded_path = Path(curation["image_overrides"]["search/SKILL.md"])
+            assert uploaded_path.is_file()
+            catalog = json.loads((output / "catalog.json").read_text(encoding="utf-8"))
+            assert catalog["families"][0]["image"]["status"] == "curated-local"
+
+            remove = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/image",
+                method="DELETE",
+                headers={"X-Catalog-Relative-Path": "search/SKILL.md"},
+            )
+            with urllib.request.urlopen(remove, timeout=15) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            assert payload["ok"] is True
+            curation = json.loads((output / "catalog-curation.json").read_text(encoding="utf-8"))
+            assert "search/SKILL.md" not in curation["image_overrides"]
+            assert not uploaded_path.exists()
         finally:
             process.terminate()
             process.wait(timeout=5)
@@ -429,6 +578,12 @@ if __name__ == "__main__":
     test_scan_classify_image_and_refresh()
     test_curation_family_plugin_merge_and_output_guards()
     test_rooted_sibling_family_inference_is_conservative()
+    test_repository_root_skill_hides_same_named_packaged_mirror()
+    test_github_preview_uses_readme_image()
+    test_github_preview_falls_back_to_social_image()
+    test_github_preview_reuses_cached_source_type()
+    test_github_preview_ignores_untyped_legacy_cache()
+    test_github_redirect_policy_rejects_non_github_hosts()
     test_malformed_config_fails()
     test_folded_frontmatter_description()
     test_import_legacy_catalog_curation()

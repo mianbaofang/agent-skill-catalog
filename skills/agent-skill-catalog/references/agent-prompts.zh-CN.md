@@ -31,5 +31,5 @@ python scripts/build_catalog.py --config references/catalog-config.json --output
 ## 图片证据
 
 ```text
-请按 `references/image-priority.md` 检查图片。区分 `verified-local`、`curated-local`、`generated-fallback`、`remote-metadata`、`category-cover` 和 `missing`；不要联网抓图，不要把类别封面当作 Skill 预览。生成的说明封面必须写明 Skill 名称和功能摘要，不得伪装成源项目截图。
+请按 `references/image-priority.md` 检查图片。默认先保留人工选择图，再从已识别的 GitHub 仓库获取并缓存公开仓库图片，随后才检查 Skill 自带本地图片。区分 `curated-local`、`github-repository`、`github-social-preview`、`verified-local`、`generated-fallback`、`remote-metadata`、`category-cover` 和 `missing`；不要把类别封面当作 Skill 预览。网页详情里的“选择图片”只能写入输出目录的 `curated-images/` 和 `catalog-curation.json`，不得改写 Skill 源目录。生成的说明封面必须写明 Skill 名称和功能摘要，不得伪装成源项目截图。
 ```

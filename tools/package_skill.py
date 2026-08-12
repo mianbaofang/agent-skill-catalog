@@ -10,7 +10,11 @@ import sys
 import zipfile
 from pathlib import Path
 
-from validate_package import SKILL_RELATIVE, validate
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from validate_package import PORTABLE_REPORTS, PRIVATE_PATH, SKILL_RELATIVE, validate
 
 
 PACKAGE_NAME = "agent-skill-catalog"
@@ -26,9 +30,22 @@ def package_paths(skill_root: Path):
         relative = path.relative_to(skill_root)
         if any(part in EXCLUDED_DIRS for part in relative.parts):
             continue
+        if relative.parts and relative.parts[0] == "reports" and relative.as_posix() not in PORTABLE_REPORTS:
+            continue
         if relative.name in EXCLUDED_FILES or relative.suffix.lower() in EXCLUDED_SUFFIXES:
             continue
         yield path, relative
+
+
+def validate_package_text(path: Path, relative: Path) -> None:
+    if path.suffix.lower() not in {".md", ".json", ".py", ".yaml", ".yml", ".txt"}:
+        return
+    try:
+        content = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return
+    if PRIVATE_PATH.search(content):
+        raise ValueError(f"Machine-specific absolute path found in packaged file: {relative.as_posix()}")
 
 
 def source_timestamp() -> tuple[int, int, int, int, int, int]:
@@ -44,6 +61,7 @@ def write_package(skill_root: Path, destination: Path) -> str:
     timestamp = source_timestamp()
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path, relative in package_paths(skill_root):
+            validate_package_text(path, relative)
             info = zipfile.ZipInfo(f"{PACKAGE_NAME}/{relative.as_posix()}", date_time=timestamp)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
@@ -66,7 +84,11 @@ def main() -> int:
     destination = Path(args.output)
     if not destination.is_absolute():
         destination = (root / destination).resolve()
-    digest = write_package(skill_root, destination)
+    try:
+        digest = write_package(skill_root, destination)
+    except ValueError as exc:
+        print(f"- {exc}", file=sys.stderr)
+        return 1
     checksum = destination.with_suffix(destination.suffix + ".sha256")
     checksum.write_text(f"{digest}  {destination.name}\n", encoding="ascii")
     print(f"Created {destination}")

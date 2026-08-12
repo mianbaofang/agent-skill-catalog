@@ -13,6 +13,13 @@
     "sidecar_names": ["preview.png", "preview.jpg", "preview.jpeg", "preview.webp", "cover.png", "cover.jpg", "cover.webp", "assets/preview.png", "assets/preview.jpg", "assets/preview.webp"],
     "allow_remote_metadata": true,
     "category_cover_fallback": true,
+    "github_repository_previews": true,
+    "github_image_cache_ttl_hours": 168,
+    "github_request_timeout_seconds": 6,
+    "github_max_page_bytes": 1048576,
+    "github_max_download_bytes": 2097152,
+    "github_image_candidate_limit": 3,
+    "github_fetch_workers": 8,
     "max_embedded_bytes": 524288
   },
   "classification": {

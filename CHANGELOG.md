@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+## 0.2.2 - 2026-08-12
+
+- Kept the authoritative GitHub-discoverable Skill under `skills/agent-skill-catalog/`, matching `gh skill publish` validation.
+- Added public GitHub repository preview retrieval with allowlisted hosts, size limits, image-signature checks, output caching, and an offline switch.
+- Added detail-view controls to choose a manual preview image, save it in the catalog output, and restore the automatic image.
+- Reused each unique GitHub repository preview during a build and extended Windows output replacement retries.
+- Added end-to-end tests for Skill discovery, image upload, refresh, and rollback.
+
 ## 0.2.1 - 2026-08-11
 
 - Restored conservative family aggregation for packages installed as sibling root folders, such as `gsap`, `hyperframes`, `research`, and `story`.

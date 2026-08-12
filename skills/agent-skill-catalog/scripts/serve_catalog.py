@@ -19,6 +19,14 @@ from typing import Any
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 BUILD_SCRIPT = PACKAGE_ROOT / "scripts" / "build_catalog.py"
 DEFAULT_CONFIG = PACKAGE_ROOT / "references" / "catalog-config.json"
+ALLOWED_IMAGE_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+}
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 
 
 def config_root_specs(path: Path) -> list[dict[str, str]]:
@@ -80,6 +88,54 @@ def compact_summary(output_dir: Path) -> dict[str, Any]:
     }
 
 
+def output_curation_path(output_dir: Path) -> Path:
+    return output_dir / "catalog-curation.json"
+
+
+def load_output_curation(output_dir: Path) -> dict[str, Any]:
+    path = output_curation_path(output_dir)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    for key, fallback in (
+        ("description_overrides", {}),
+        ("category_overrides", []),
+        ("github_overrides", {}),
+        ("family_overrides", {}),
+        ("image_overrides", {}),
+    ):
+        if not isinstance(payload.get(key), type(fallback)):
+            payload[key] = fallback
+    return payload
+
+
+def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def image_extension(content_type: str) -> str:
+    return ALLOWED_IMAGE_TYPES.get(str(content_type or "").split(";", 1)[0].strip().lower(), "")
+
+
+def valid_image_data(body: bytes, suffix: str) -> bool:
+    if suffix == ".png":
+        return body.startswith(b"\x89PNG\r\n\x1a\n")
+    if suffix == ".jpg":
+        return body.startswith(b"\xff\xd8\xff")
+    if suffix == ".gif":
+        return body.startswith(b"GIF8")
+    if suffix == ".webp":
+        return body.startswith(b"RIFF") and body[8:12] == b"WEBP"
+    if suffix == ".svg":
+        return b"<svg" in body[:1024].lower()
+    return False
+
+
 def make_handler(
     output_dir: Path,
     config_path: Path,
@@ -91,13 +147,45 @@ def make_handler(
     refresh_lock = threading.Lock()
     root_source = str(startup_root_source)
 
+    def run_refresh() -> tuple[bool, str]:
+        command = [
+            sys.executable,
+            str(BUILD_SCRIPT),
+            "--config",
+            str(config_path),
+            "--output-dir",
+            str(output_dir),
+            "--refresh",
+        ]
+        if root_source == "cli":
+            for root_path in startup_root_paths:
+                command.extend(["--root", root_path])
+        for curation_path in curation_paths:
+            command.extend(["--curation", curation_path])
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=refresh_timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return False, "refresh timed out"
+        if result.returncode != 0:
+            return False, result.stderr.strip()[-1200:] or "refresh failed"
+        return True, ""
+
     class CatalogHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             super().__init__(*args, directory=str(output_dir), **kwargs)
 
         def log_message(self, format: str, *args: Any) -> None:
             # Keep request logging local and concise.
-            sys.stderr.write("[agent-skill-catalog] " + format % args + "\n")
+            try:
+                sys.stderr.write("[agent-skill-catalog] " + format % args + "\n")
+            except OSError:
+                pass
 
         def send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -115,46 +203,107 @@ def make_handler(
             super().do_GET()
 
         def do_POST(self) -> None:
-            if self.path.split("?", 1)[0] != "/api/refresh":
+            route = self.path.split("?", 1)[0]
+            if route == "/api/image":
+                self.save_image_override()
+                return
+            if route != "/api/refresh":
                 self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "unknown endpoint"})
                 return
             if not refresh_lock.acquire(blocking=False):
                 self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "refresh already running"})
                 return
             try:
-                command = [
-                    sys.executable,
-                    str(BUILD_SCRIPT),
-                    "--config",
-                    str(config_path),
-                    "--output-dir",
-                    str(output_dir),
-                    "--refresh",
-                ]
-                if root_source == "cli":
-                    for root_path in startup_root_paths:
-                        command.extend(["--root", root_path])
-                for curation_path in curation_paths:
-                    command.extend(["--curation", curation_path])
-                result = subprocess.run(
-                    command,
-                    capture_output=True,
-                    text=True,
-                    timeout=refresh_timeout,
-                    check=False,
-                )
-            except subprocess.TimeoutExpired:
-                self.send_json(HTTPStatus.GATEWAY_TIMEOUT, {"ok": False, "error": "refresh timed out"})
-                return
+                ok, error = run_refresh()
             finally:
                 refresh_lock.release()
-            if result.returncode != 0:
+            if not ok:
                 self.send_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
-                    {"ok": False, "error": "refresh failed", "details": result.stderr.strip()[-1200:]},
+                    {"ok": False, "error": "refresh failed", "details": error},
                 )
                 return
             self.send_json(HTTPStatus.OK, {"ok": True, **compact_summary(output_dir)})
+
+        def do_DELETE(self) -> None:
+            if self.path.split("?", 1)[0] != "/api/image":
+                self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "unknown endpoint"})
+                return
+            self.remove_image_override()
+
+        def save_image_override(self) -> None:
+            content_type = self.headers.get("Content-Type", "")
+            length_text = self.headers.get("Content-Length", "0")
+            try:
+                length = int(length_text)
+            except ValueError:
+                length = 0
+            suffix = image_extension(content_type)
+            if not suffix or length <= 0 or length > MAX_UPLOAD_BYTES:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "upload must be a supported image no larger than 2 MiB"})
+                return
+            body = self.rfile.read(length)
+            if len(body) != length or not valid_image_data(body, suffix):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "uploaded file is not a valid supported image"})
+                return
+            name = self.headers.get("X-Catalog-Skill-Name", "").strip()
+            relative_path = self.headers.get("X-Catalog-Relative-Path", "").strip().replace("\\", "/")
+            if not name or not relative_path or Path(relative_path).is_absolute() or ".." in Path(relative_path).parts:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing or invalid Skill identity"})
+                return
+            asset_dir = output_dir / "curated-images"
+            asset_dir.mkdir(parents=True, exist_ok=True)
+            key = hashlib.sha256(relative_path.encode("utf-8")).hexdigest()[:20]
+            target = asset_dir / f"{key}{suffix}"
+            previous = [path for path in asset_dir.glob(key + ".*") if path != target and path.suffix != ".tmp"]
+            temporary = target.with_suffix(target.suffix + ".tmp")
+            temporary.write_bytes(body)
+            temporary.replace(target)
+            for path in previous:
+                path.unlink(missing_ok=True)
+            curation = load_output_curation(output_dir)
+            curation["image_overrides"][relative_path] = str(target.resolve())
+            atomic_write_json(output_curation_path(output_dir), curation)
+            if not refresh_lock.acquire(blocking=False):
+                self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "refresh already running"})
+                return
+            try:
+                ok, error = run_refresh()
+            finally:
+                refresh_lock.release()
+            if not ok:
+                self.send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": "image saved but refresh failed", "details": error})
+                return
+            self.send_json(HTTPStatus.OK, {"ok": True, "name": name, "relative_path": relative_path, **compact_summary(output_dir)})
+
+        def remove_image_override(self) -> None:
+            relative_path = self.headers.get("X-Catalog-Relative-Path", "").strip().replace("\\", "/")
+            if not relative_path or Path(relative_path).is_absolute() or ".." in Path(relative_path).parts:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing or invalid Skill identity"})
+                return
+            curation = load_output_curation(output_dir)
+            image_path = str(curation["image_overrides"].pop(relative_path, "") or "")
+            if image_path:
+                candidate = Path(image_path)
+                curated_root = (output_dir / "curated-images").resolve()
+                try:
+                    candidate.resolve().relative_to(curated_root)
+                except ValueError:
+                    pass
+                else:
+                    candidate.unlink(missing_ok=True)
+            atomic_write_json(output_curation_path(output_dir), curation)
+            if not refresh_lock.acquire(blocking=False):
+                self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "refresh already running"})
+                return
+            try:
+                ok, error = run_refresh()
+            finally:
+                refresh_lock.release()
+            if not ok:
+                self.send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": "preview override removed but refresh failed", "details": error})
+                return
+            self.send_json(HTTPStatus.OK, {"ok": True, "relative_path": relative_path, **compact_summary(output_dir)})
 
     return CatalogHandler
 

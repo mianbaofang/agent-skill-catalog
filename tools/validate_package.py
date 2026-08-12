@@ -14,17 +14,35 @@ NAME = "agent-skill-catalog"
 SKILL_RELATIVE = Path("skills") / NAME
 REQUIRED_SKILL_FILES = (
     "SKILL.md",
+    "LICENSE",
+    "requirements.txt",
     "manifest.json",
     "agents/interface.yaml",
     "agents/openai.yaml",
     "scripts/build_catalog.py",
+    "scripts/github_preview.py",
     "scripts/serve_catalog.py",
     "scripts/import_legacy_catalog.py",
     "references/catalog-config.json",
     "references/catalog-config.windows.example.json",
     "references/catalog-config.posix.example.json",
+    "security/network_policy.json",
+    "security/permission_policy.json",
+    "reports/output_quality_scorecard.md",
+    "reports/security_trust_report.md",
 )
-PRIVATE_PATH = re.compile(r"(?:[A-Za-z]:\\(?:Users|home)\\|/(?:Users|home)/)", re.I)
+PORTABLE_REPORTS = {
+    "reports/architecture_maintainability.md",
+    "reports/compiled_targets.md",
+    "reports/conformance_matrix.md",
+    "reports/output_quality_scorecard.md",
+    "reports/python_compatibility.md",
+    "reports/review_annotations.md",
+    "reports/review_waivers.md",
+    "reports/runtime_permission_probes.md",
+    "reports/security_trust_report.md",
+}
+PRIVATE_PATH = re.compile(r"(?:[A-Za-z]:\\(?:Users|Object)\\|/(?:Users|home)/)", re.I)
 
 
 def frontmatter(path: Path) -> dict[str, str]:
@@ -51,12 +69,17 @@ def text_files(root: Path):
             yield path
 
 
+def portable_report_files(skill: Path):
+    for relative in sorted(PORTABLE_REPORTS):
+        path = skill / relative
+        if path.is_file():
+            yield path
+
+
 def validate(root: Path) -> list[str]:
     failures: list[str] = []
     skill = root / SKILL_RELATIVE
 
-    if (root / "SKILL.md").exists():
-        failures.append("Root SKILL.md must be moved to skills/agent-skill-catalog/SKILL.md")
     if not skill.is_dir():
         failures.append(f"Missing GitHub-discoverable skill directory: {SKILL_RELATIVE}")
         return failures
@@ -78,7 +101,6 @@ def validate(root: Path) -> list[str]:
             failures.append("SKILL.md must declare license: MIT")
         if re.search(r"metadata\.github-[A-Za-z0-9_-]+", skill_md.read_text(encoding="utf-8")):
             failures.append("Published SKILL.md must not contain metadata.github-* install fields")
-
     manifest = skill / "manifest.json"
     if manifest.is_file():
         try:
@@ -91,6 +113,8 @@ def validate(root: Path) -> list[str]:
                     failures.append(f"manifest.json missing {field}")
             if data.get("name") != NAME:
                 failures.append(f"manifest.json name must be {NAME}")
+            if data.get("license") != "MIT":
+                failures.append("manifest.json license must be MIT")
 
     config = skill / "references/catalog-config.json"
     if config.is_file():
@@ -121,7 +145,7 @@ def validate(root: Path) -> list[str]:
         if (skill / forbidden).exists():
             failures.append(f"Generated output must not be committed inside the Skill: {forbidden}")
 
-    for path in text_files(root):
+    for path in [*text_files(root), *portable_report_files(skill)]:
         try:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:

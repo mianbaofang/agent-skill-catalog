@@ -1,7 +1,7 @@
 interface:
   display_name: "Agent Skill Catalog"
-  short_description: "扫描本地 SKILL.md，按分类、家族和插件生成可检索 Agent Skill Catalog，并保留图片证据"
-  default_prompt: "Use $agent-skill-catalog to scan these explicit local skill roots, build or refresh a searchable Agent Skill Catalog, separate standalone skills from plugins, aggregate parent/child families, and report category coverage, image evidence, GitHub metadata, output paths, and unresolved inputs. Do not install or edit scanned skills."
+  short_description: "扫描本地 SKILL.md，按分类、家族和插件生成可检索目录，并优先显示 GitHub 仓库预览图"
+  default_prompt: "Use $agent-skill-catalog to scan these explicit local skill roots, build or refresh a searchable Agent Skill Catalog, separate standalone skills from plugins, aggregate parent/child families, retrieve cached public GitHub repository previews when an observed repository URL exists, and report category coverage, image evidence, GitHub metadata, output paths, and unresolved inputs. Do not install or edit scanned skills."
 compatibility:
   canonical_format: "agent-skills"
   adapter_targets:
@@ -18,7 +18,7 @@ compatibility:
   trust:
     source_tier: "local"
     remote_inline_execution: "forbid"
-    remote_metadata_policy: "allow-metadata-only"
+    remote_metadata_policy: "allow-github-preview-cache-only"
   degradation:
     openai: "metadata-adapter"
     claude: "neutral-source-plus-adapter"

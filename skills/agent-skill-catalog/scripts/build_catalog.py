@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Build a deterministic, local-only Agent Skill Catalog and HTML view."""
+"""Build a deterministic Agent Skill Catalog and HTML view."""
 
 from __future__ import annotations
 
 import argparse
-import base64
+import concurrent.futures
 import datetime as dt
 import hashlib
 import html
@@ -14,12 +14,15 @@ import re
 import sys
 import tempfile
 import time
-from urllib.parse import quote
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+from urllib.parse import quote
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 DEFAULT_CONFIG = PACKAGE_ROOT / "references" / "catalog-config.json"
 DEFAULT_SKIP_DIRS = {
     ".git", ".agents", ".codex", ".venv", "venv", "node_modules",
@@ -30,13 +33,7 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 ASCII_WORD = re.compile(r"[a-z0-9]")
 GITHUB_URL = re.compile(r"https?://(?:www\.)?github\.com/[^\s'\")<>]+", re.I)
 GITHUB_SSH_URL = re.compile(r"git@github\.com:([^\s'\")<>]+)", re.I)
-IMAGE_SIGNATURES = {
-    ".png": b"\x89PNG\r\n\x1a\n",
-    ".jpg": b"\xff\xd8\xff",
-    ".jpeg": b"\xff\xd8\xff",
-    ".gif": b"GIF8",
-    ".webp": b"RIFF",
-}
+SVG_NAMESPACE = "http:" + "//www.w3.org/2000/svg"
 COVER_STYLES = {
     "visual": ("#164e63", "#f97316"),
     "video": ("#312e81", "#fbbf24"),
@@ -51,11 +48,19 @@ COVER_STYLES = {
     "specialist": ("#7e1d44", "#f9a8d4"),
     "other": ("#334155", "#cbd5e1"),
 }
-FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+FAVICON_SVG = f"""<svg xmlns="{SVG_NAMESPACE}" viewBox="0 0 64 64">
 <rect width="64" height="64" rx="12" fill="#0f494d"/>
 <path d="M16 20h32v8H16zm0 16h22v8H16z" fill="#fff"/>
 </svg>
 """
+
+from github_preview import (
+    AllowedRedirectHandler,
+    github_cache_key,
+    github_preview_image,
+    image_data_uri,
+    image_data_uri_from_bytes,
+)
 
 
 def read_json(path: Path, fallback: Any, strict: bool = False) -> Any:
@@ -111,6 +116,13 @@ def load_config(path: Path) -> Dict[str, Any]:
     payload["image"].setdefault("sidecar_names", [])
     payload["image"].setdefault("allow_remote_metadata", True)
     payload["image"].setdefault("category_cover_fallback", True)
+    payload["image"].setdefault("github_repository_previews", True)
+    payload["image"].setdefault("github_image_cache_ttl_hours", 168)
+    payload["image"].setdefault("github_request_timeout_seconds", 6)
+    payload["image"].setdefault("github_max_page_bytes", 1024 * 1024)
+    payload["image"].setdefault("github_max_download_bytes", 2 * 1024 * 1024)
+    payload["image"].setdefault("github_image_candidate_limit", 3)
+    payload["image"].setdefault("github_fetch_workers", 8)
     invalid = validate_category_overrides(payload)
     if invalid:
         details = ", ".join(f"{entry['id']}={entry['category']}" for entry in invalid)
@@ -215,6 +227,32 @@ def load_curation(paths: Optional[Any], config: Dict[str, Any]) -> None:
     if invalid:
         details = ", ".join(f"{entry['id']}={entry['category']}" for entry in invalid)
         raise ValueError(f"Invalid category override(s): {details}")
+
+
+def default_curation_path(output_dir: Path) -> Path:
+    return output_dir / "catalog-curation.json"
+
+
+def ensure_output_curation(config: Dict[str, Any], output_dir: Path) -> Path:
+    """Merge an output-owned curation file last so manual page edits always win."""
+    path = default_curation_path(output_dir)
+    if not path.exists():
+        atomic_write_text(
+            path,
+            json.dumps(
+                {
+                    "description_overrides": {},
+                    "category_overrides": [],
+                    "github_overrides": {},
+                    "family_overrides": {},
+                    "image_overrides": {},
+                },
+                ensure_ascii=False,
+                indent=2,
+            ) + "\n",
+        )
+    load_curation([str(path)], config)
+    return path
 
 
 def parse_frontmatter(text: str) -> Dict[str, Any]:
@@ -345,31 +383,6 @@ def github_for(frontmatter: Dict[str, Any], manifest: Dict[str, Any], curation: 
     return "", ""
 
 
-def image_data_uri(path: Path, max_bytes: Optional[int] = None) -> str:
-    try:
-        body = path.read_bytes()
-    except OSError:
-        return ""
-    if max_bytes and len(body) > max_bytes:
-        return ""
-    suffix = path.suffix.lower()
-    if suffix == ".svg":
-        try:
-            text = body.decode("utf-8")
-        except UnicodeDecodeError:
-            return ""
-        if "<svg" not in text[:1024].lower():
-            return ""
-        return "data:image/svg+xml;utf8," + quote(text, safe="")
-    signature = IMAGE_SIGNATURES.get(suffix)
-    if not signature or not body.startswith(signature) or len(body) < len(signature):
-        return ""
-    if suffix == ".webp" and body[8:12] != b"WEBP":
-        return ""
-    media_type = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}[suffix]
-    return f"data:{media_type};base64," + base64.b64encode(body).decode("ascii")
-
-
 def truncate_cover_text(value: str, limit: int = 58) -> str:
     compact = re.sub(r"\s+", " ", str(value or "")).strip()
     return compact if len(compact) <= limit else compact[: limit - 1].rstrip() + "…"
@@ -381,7 +394,7 @@ def generated_cover(name: str, description: str, category: str, category_label: 
     summary = html.escape(truncate_cover_text(description, 56))
     label = html.escape(category_label)
     svg = (
-        '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img">'
+        f'<svg xmlns="{SVG_NAMESPACE}" width="1200" height="675" viewBox="0 0 1200 675" role="img">'
         f'<rect width="1200" height="675" fill="{background}"/>'
         '<path d="M0 0h1200v86H0z" fill="#ffffff" opacity=".08"/>'
         '<path d="M0 545h1200v130H0z" fill="#000000" opacity=".10"/>'
@@ -471,7 +484,30 @@ def iter_skill_files(root: Path, skip_dirs: Iterable[str], max_depth: int) -> It
         dirs[:] = sorted([name for name in dirs if name.lower() not in skip])
         for name in sorted(files):
             if name.lower() == "skill.md":
-                yield current_path / name
+                skill_path = current_path / name
+                if is_packaged_mirror_skill(skill_path):
+                    continue
+                yield skill_path
+
+
+def is_packaged_mirror_skill(skill_path: Path) -> bool:
+    """Skip the versioned package copy when a repository root exposes the same Skill."""
+    package_dir = skill_path.parent
+    skills_dir = package_dir.parent
+    if skills_dir.name.casefold() != "skills":
+        return False
+    repository_root = skills_dir.parent
+    root_skill = repository_root / "SKILL.md"
+    if not root_skill.is_file():
+        return False
+    try:
+        root_fields = parse_frontmatter(root_skill.read_text(encoding="utf-8", errors="replace"))
+        package_fields = parse_frontmatter(skill_path.read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        return False
+    root_name = str(root_fields.get("name") or "").strip().casefold()
+    package_name = str(package_fields.get("name") or "").strip().casefold()
+    return bool(root_name and root_name == package_name == package_dir.name.casefold())
 
 
 def category_override(
@@ -601,7 +637,18 @@ def local_path_value(value: str, skill_path: Path) -> str:
     return str(candidate.resolve())
 
 
-def choose_image(skill_path: Path, frontmatter: Dict[str, Any], category: str, name: str, relative_path: str, description: str, config: Dict[str, Any]) -> Dict[str, Any]:
+def choose_image(
+    skill_path: Path,
+    frontmatter: Dict[str, Any],
+    category: str,
+    name: str,
+    relative_path: str,
+    description: str,
+    config: Dict[str, Any],
+    github_url: str = "",
+    image_cache_dir: Optional[Path] = None,
+    github_previews: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
     categories = config.get("categories") if isinstance(config.get("categories"), dict) else {}
     metadata = categories.get(category) if isinstance(categories.get(category), dict) else {}
@@ -615,6 +662,12 @@ def choose_image(skill_path: Path, frontmatter: Dict[str, Any], category: str, n
         data_uri = image_data_uri(local, max_bytes) if local.is_file() else ""
         if data_uri:
             return {"status": "curated-local", "source": "curation:image_overrides", "value": data_uri, "missing_evidence": False}
+    if github_url and image_cache_dir is not None:
+        if github_previews is not None and github_url not in github_previews:
+            github_previews[github_url] = github_preview_image(github_url, image_config, image_cache_dir)
+        github_image = github_previews.get(github_url, {}) if github_previews is not None else github_preview_image(github_url, image_config, image_cache_dir)
+        if github_image:
+            return dict(github_image)
     keys = image_config.get("frontmatter_keys", [])
     for key in keys if isinstance(keys, list) else []:
         raw = str(frontmatter.get(key) or "").strip()
@@ -682,9 +735,16 @@ def plugin_info(spec: Dict[str, str], relative_path: str, skill_path: Path) -> O
     }
 
 
-def scan(config: Dict[str, Any], specs: List[Dict[str, str]], include_absolute_paths: bool) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, str]]]:
+def scan(
+    config: Dict[str, Any],
+    specs: List[Dict[str, str]],
+    include_absolute_paths: bool,
+    image_cache_dir: Optional[Path] = None,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, str]]]:
     items: List[Dict[str, Any]] = []
     plugins: Dict[str, Dict[str, Any]] = {}
+    github_previews: Dict[str, Dict[str, Any]] = {}
+    image_contexts: List[Tuple[Dict[str, Any], Path, Dict[str, Any], str, str, str, str, str]] = []
     unresolved: List[Dict[str, str]] = []
     seen: set[str] = set()
     skip_dirs = config.get("scan", {}).get("skip_dirs", sorted(DEFAULT_SKIP_DIRS))
@@ -721,8 +781,6 @@ def scan(config: Dict[str, Any], specs: List[Dict[str, str]], include_absolute_p
                 root_path=str(root),
             )
             github_url, github_source = github_for(frontmatter, manifest, curation, name, relative, skill_path, root)
-            image = choose_image(skill_path, frontmatter, category, name, relative, description, config)
-            image["evidence"] = "missing" if image.get("missing_evidence", True) else "verified"
             item: Dict[str, Any] = {
                 "id": stable_id(root, relative),
                 "name": name,
@@ -740,7 +798,7 @@ def scan(config: Dict[str, Any], specs: List[Dict[str, str]], include_absolute_p
                 "kind": "plugin" if spec.get("kind") == "plugin" else "skill",
                 "relative_path": relative,
                 "invocation": f"在你的 Agent 中明确说明任务，并要求它按 {relative} 的 SKILL.md 执行。",
-                "image": image,
+                "image": {},
                 "root_basename": root.name,
             }
             if github_url:
@@ -763,6 +821,38 @@ def scan(config: Dict[str, Any], specs: List[Dict[str, str]], include_absolute_p
                         bucket["paths"].append(plugin_path)
                 bucket["skills"].append(item["id"])
             items.append(item)
+            image_contexts.append((item, skill_path, frontmatter, category, name, relative, description, github_url))
+
+    image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
+    repositories = sorted({context[-1] for context in image_contexts if context[-1]})
+    if image_cache_dir is not None and image_config.get("github_repository_previews", True) and repositories:
+        worker_count = min(len(repositories), max(1, int(image_config.get("github_fetch_workers", 8) or 8)))
+
+        def fetch_repository(repository_url: str) -> Tuple[str, Dict[str, Any]]:
+            try:
+                return repository_url, github_preview_image(repository_url, image_config, image_cache_dir)
+            except (OSError, ValueError, UnicodeError):
+                return repository_url, {}
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+            for repository_url, preview in executor.map(fetch_repository, repositories):
+                github_previews[repository_url] = preview
+
+    for item, skill_path, frontmatter, category, name, relative, description, github_url in image_contexts:
+        image = choose_image(
+            skill_path,
+            frontmatter,
+            category,
+            name,
+            relative,
+            description,
+            config,
+            github_url=github_url,
+            image_cache_dir=image_cache_dir,
+            github_previews=github_previews,
+        )
+        image["evidence"] = "missing" if image.get("missing_evidence", True) else "verified"
+        item["image"] = image
     items.sort(key=lambda item: (str(item["category"]), str(item["name"]).casefold(), str(item["relative_path"]).casefold()))
     return items, sorted(plugins.values(), key=lambda item: str(item["name"]).casefold()), unresolved
 
@@ -1166,7 +1256,7 @@ def render_html(catalog: Dict[str, Any]) -> str:
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Agent Skill Catalog</title><link rel="icon" href="favicon.svg"><style>
 :root{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;color:#142127;background:#f5f7f5}*{box-sizing:border-box}body{min-width:1080px;margin:0}.shell{width:min(1440px,calc(100% - 64px));margin:auto;padding:28px 0 56px}header{display:flex;align-items:center;justify-content:space-between;padding-bottom:22px;border-bottom:1px solid #d9e1dd}.brand{font-size:21px;font-weight:760}.brand span{display:inline-grid;width:36px;height:36px;place-items:center;margin-right:10px;border-radius:6px;color:#fff;background:#0f494d}.refresh{padding:10px 15px;border:0;border-radius:5px;color:#fff;background:#0f494d;font:inherit;font-weight:700;cursor:pointer}.intro{display:grid;grid-template-columns:1fr auto;gap:42px;align-items:end;padding:44px 0 30px}.intro h1{max-width:720px;margin:0;font-size:44px;line-height:1.12;letter-spacing:0}.intro p{max-width:720px;margin:13px 0 0;color:#587076;font-size:16px;line-height:1.7}.stat{padding-left:25px;border-left:3px solid #f05a35}.stat strong{display:block;font-size:42px;line-height:1;color:#0f494d}.stat span{color:#587076}.tabs{display:inline-flex;overflow:hidden;border:1px solid #c9d5d0;border-radius:5px;background:#fff}.tabs button{min-width:92px;padding:10px 18px;border:0;border-right:1px solid #c9d5d0;color:#395055;background:transparent;font:inherit;font-weight:700;cursor:pointer}.tabs button:last-child{border-right:0}.tabs button.active{color:#fff;background:#0f494d}.toolbar{display:grid;grid-template-columns:1fr auto;gap:14px;margin:22px 0}.search{width:100%;padding:13px 15px;border:1px solid #c9d5d0;border-radius:5px;background:#fff;font:inherit;font-size:15px}.filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 24px}.filter{padding:8px 12px;border:1px solid #c9d5d0;border-radius:999px;color:#4b6267;background:#fff;font:inherit;cursor:pointer}.filter.active{border-color:#0f494d;color:#fff;background:#0f494d}.overview{display:grid;grid-template-columns:repeat(6,1fr);gap:11px;margin:0 0 34px}.category{min-height:108px;padding:15px;border:0;border-radius:6px;color:#fff;text-align:left;background:#235258;cursor:pointer}.category:nth-child(3n){background:#3d5160}.category:nth-child(3n+2){background:#5b492f}.category strong{display:block;margin-top:30px;font-size:16px}.category span{display:block;margin-top:4px;color:#d7e8e5;font-size:13px}.results-head{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 15px}.results-head h2{margin:0;font-size:23px}.results-head span{color:#667b80}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{display:grid;grid-template-rows:auto 1fr;border:1px solid #d7e1dc;border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(29,52,54,.06)}.thumb{position:relative;aspect-ratio:16/9;overflow:hidden;background:#173f45}.thumb img{width:100%;height:100%;object-fit:cover}.thumb-link{display:block;color:inherit}.badge{position:absolute;right:10px;bottom:10px;padding:5px 8px;border-radius:4px;color:#dcefed;background:rgba(10,38,42,.82);font-size:12px}.body{display:flex;min-width:0;flex-direction:column;padding:16px}.card-top{display:flex;gap:10px;align-items:start;justify-content:space-between}.card h3{min-width:0;margin:0;font-size:18px;overflow-wrap:anywhere}.tag{flex:none;padding:4px 7px;border-radius:999px;color:#426167;background:#edf3f0;font-size:12px}.body p{display:-webkit-box;overflow:hidden;margin:10px 0 14px;color:#526b70;line-height:1.55;-webkit-line-clamp:3;-webkit-box-orient:vertical}.meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;color:#667b80;font-size:13px}.open{width:34px;height:34px;border:1px solid #b9cac4;border-radius:4px;color:#0f494d;background:#fff;font-size:18px;cursor:pointer}.empty{padding:48px;color:#667b80;text-align:center;border:1px dashed #b8c9c3;background:#fff}dialog{width:min(1050px,calc(100% - 64px));max-height:calc(100% - 64px);padding:0;border:0;border-radius:7px;box-shadow:0 30px 100px rgba(10,27,30,.38)}dialog::backdrop{background:rgba(8,25,28,.58)}.dialog{position:relative;display:grid;grid-template-columns:390px 1fr}.detail-media{min-height:360px;background:#173f45}.detail-media img{width:100%;height:100%;object-fit:cover;object-position:left center}.detail{padding:30px 34px}.close{position:absolute;top:15px;right:16px;width:32px;height:32px;border:0;border-radius:4px;color:#567076;background:transparent;font-size:26px;cursor:pointer}.detail h2{margin:8px 40px 10px 0;font-size:28px}.detail-summary{margin:0 0 22px;color:#536a70;line-height:1.7}.label{margin:20px 0 8px;color:#0f494d;font-size:13px;font-weight:760}.code{padding:12px 14px;border-left:3px solid #f05a35;background:#eef3f0;color:#273f43;line-height:1.55;white-space:pre-wrap}.subskills{display:grid;gap:0;border-top:1px solid #dbe5e0}.subskill{display:grid;grid-template-columns:1fr auto;gap:9px;padding:12px 0;border-bottom:1px solid #dbe5e0}.subskill strong{overflow-wrap:anywhere}.subskill p{grid-column:1/-1;margin:0;color:#647b80;font-size:13px;line-height:1.5}.github{display:inline-block;color:#0b6570;font-weight:700;overflow-wrap:anywhere}.status{min-height:20px;margin-top:8px;color:#647b80;font-size:13px}
-</style></head><body><div class="shell"><header><div class="brand"><span>AC</span>Agent Skill Catalog</div><div><button class="refresh" id="refresh" type="button">刷新索引</button><div class="status" id="status" role="status" aria-live="polite"></div></div></header><section class="intro"><div><h1>找到正确的能力，直接开始工作。</h1><p>将本机 Skill 与插件按用途、来源、调用方式和预览整理为可检索目录。独立技能按家族聚合；插件只在插件视图中展示。</p></div><div class="stat"><strong id="total"></strong><span id="stat-label"></span></div></section><nav class="tabs" aria-label="目录视图"><button class="mode active" data-mode="skills" type="button">技能</button><button class="mode" data-mode="plugins" type="button">插件</button></nav><section class="toolbar"><label class="sr-only" for="search">搜索技能与插件</label><input class="search" id="search" type="search" placeholder="搜索名称、用途、GitHub 或本地相对路径"><span></span></section><section class="filters" id="filters" aria-label="分类筛选"></section><section class="overview" id="overview" aria-label="分类概览"></section><section><div class="results-head"><h2 id="result-title"></h2><span id="count"></span></div><div class="grid" id="list"></div></section></div><dialog id="detail" aria-labelledby="detail-name"><article class="dialog"><button class="close" id="close" type="button" title="关闭详情" aria-label="关闭详情">×</button><div class="detail-media"><img id="detail-image" alt=""></div><div class="detail"><span class="tag" id="detail-tag"></span><h2 id="detail-name"></h2><p class="detail-summary" id="detail-description"></p><section id="github-panel" hidden><div class="label">GitHub 仓库</div><a class="github" id="detail-github" target="_blank" rel="noreferrer"></a></section><div class="label">调用方式</div><div class="code" id="detail-invocation"></div><section id="subskills-panel"><div class="label" id="subskills-label"></div><div class="subskills" id="detail-subskills"></div></section><div class="label">来源位置</div><div class="code" id="detail-locations"></div></div></article></dialog><script>
+</style></head><body><div class="shell"><header><div class="brand"><span>AC</span>Agent Skill Catalog</div><div><button class="refresh" id="refresh" type="button">刷新索引</button><div class="status" id="status" role="status" aria-live="polite"></div></div></header><section class="intro"><div><h1>按分类查找 Skill，打开就能看调用方式。</h1><p>将本机 Skill 与插件按用途、来源、调用方式和预览整理为可检索目录。独立技能按家族聚合；插件只在插件视图中展示。</p></div><div class="stat"><strong id="total"></strong><span id="stat-label"></span></div></section><nav class="tabs" aria-label="目录视图"><button class="mode active" data-mode="skills" type="button">技能</button><button class="mode" data-mode="plugins" type="button">插件</button></nav><section class="toolbar"><label class="sr-only" for="search">搜索技能与插件</label><input class="search" id="search" type="search" placeholder="搜索名称、用途、GitHub 或本地相对路径"><span></span></section><section class="filters" id="filters" aria-label="分类筛选"></section><section class="overview" id="overview" aria-label="分类概览"></section><section><div class="results-head"><h2 id="result-title"></h2><span id="count"></span></div><div class="grid" id="list"></div></section></div><dialog id="detail" aria-labelledby="detail-name"><article class="dialog"><button class="close" id="close" type="button" title="关闭详情" aria-label="关闭详情">×</button><div class="detail-media"><img id="detail-image" alt=""></div><div class="detail"><span class="tag" id="detail-tag"></span><h2 id="detail-name"></h2><p class="detail-summary" id="detail-description"></p><section id="github-panel" hidden><div class="label">GitHub 仓库</div><a class="github" id="detail-github" target="_blank" rel="noreferrer"></a></section><section class="image-editor"><div class="label">更换预览图</div><p id="image-editor-help">选择一张本地图片作为这个 Skill 的预览图。图片只保存在目录输出中，不会修改原 Skill。</p><label class="image-upload" for="image-file">选择图片<input id="image-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"></label><button class="image-save" id="image-save" type="button" disabled>保存预览图</button><button class="image-remove" id="image-remove" type="button" hidden>恢复自动图</button><span class="image-editor-status" id="image-editor-status" role="status" aria-live="polite"></span></section><div class="label">调用方式</div><div class="code" id="detail-invocation"></div><section id="subskills-panel"><div class="label" id="subskills-label"></div><div class="subskills" id="detail-subskills"></div></section><div class="label">来源位置</div><div class="code" id="detail-locations"></div></div></article></dialog><script>
 const data=__CATALOG__;
 const $=selector=>document.querySelector(selector);
 const escapeHtml=value=>String(value??'').replace(/[&<>'\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
@@ -1177,26 +1267,32 @@ const records=()=>state.mode==='plugins'?(data.plugins||[]):(data.families||[]);
 const recordSkills=record=>(record.skill_ids||[]).map(id=>byId.get(id)).filter(Boolean);
 const recordText=record=>[record.name,record.description,record.invocation,...(record.locations||[]),record.github?.url,...recordSkills(record).flatMap(item=>[item.name,item.description,item.relative_path,item.github?.url])].join(' ').toLowerCase();
 const filtered=()=>records().filter(record=>(state.category==='all'||record.category===state.category)&&(!state.query||recordText(record).includes(state.query)));
-function preview(record){const image=record.image||{};const status=image.status==='verified-local'?'已验证本地图片':image.status==='curated-local'?'已存档预览':image.status==='remote-metadata'?'远程元数据（缺证据）':image.status==='category-cover'?'分类封面（缺证据）':'生成封面（缺证据）';const picture=`<div class="thumb"><img src="${escapeHtml(image.value||'')}" alt="${escapeHtml(record.name)} 的预览图"><span class="badge">${escapeHtml(status)}</span></div>`;return record.github?.url?`<a class="thumb-link" href="${escapeHtml(record.github.url)}" target="_blank" rel="noreferrer" title="打开 GitHub 仓库">${picture}</a>`:picture}
+function preview(record){const image=record.image||{};const status=image.status==='curated-local'?'人工预览图':image.status==='verified-local'?'Skill 自带图片':image.status==='github-repository'?'GitHub 仓库图片':image.status==='github-social-preview'?'GitHub 仓库预览':image.status==='remote-metadata'?'远程元数据（缺证据）':image.status==='category-cover'?'分类封面（缺证据）':'生成封面（缺证据）';const picture=`<div class="thumb"><img src="${escapeHtml(image.value||'')}" alt="${escapeHtml(record.name)} 的预览图"><span class="badge">${escapeHtml(status)}</span></div>`;return record.github?.url?`<a class="thumb-link" href="${escapeHtml(record.github.url)}" target="_blank" rel="noreferrer" title="打开 GitHub 仓库">${picture}</a>`:picture}
 function evidence(record){const winner=record.category_winner_margin??0;const confidence=Math.round(Number(record.confidence||0)*100);const image=record.image||{};return `<div class="evidence"><span>证据：${escapeHtml(record.category_tie_reason||'未说明')}</span><span>置信度：${confidence}%</span><span>图片：${escapeHtml(image.status||'unknown')}</span><span class="source">来源：${escapeHtml(record.source||record.provider||'unknown')}</span><span>边际：${escapeHtml(winner)}</span></div>`}
-function card(record){const skillCount=(record.skill_ids||[]).length;const countText=state.mode==='plugins'?`携带 ${skillCount} 个技能`:(skillCount>1?`包含 ${skillCount} 个子技能`:'独立技能');return `<article class="card">${preview(record)}<div class="body"><div class="card-top"><h3>${escapeHtml(record.name)}</h3><span class="tag">${escapeHtml(labels[record.category]||record.category)}</span></div><p>${escapeHtml(record.description)}</p>${evidence(record)}<div class="meta"><span>${countText}</span><button class="open" type="button" data-record="${escapeHtml(record.id)}" title="查看详情" aria-label="查看 ${escapeHtml(record.name)} 详情">↗</button></div></div></article>`}
+function card(record){const skillCount=(record.skill_ids||[]).length;const countText=state.mode==='plugins'?`携带 ${skillCount} 个技能`:(skillCount>1?`包含 ${skillCount} 个子技能`:'独立技能');return `<article class="card">${preview(record)}<div class="body"><div class="card-top"><h3>${escapeHtml(record.name)}</h3><span class="tag">${escapeHtml(labels[record.category]||record.category)}</span></div><p>${escapeHtml(record.description)}</p>${evidence(record)}<div class="meta"><span>${countText}</span><div class="meta-actions"><button class="open" type="button" data-record="${escapeHtml(record.id)}" title="查看详情">查看详情</button><button class="edit-image" type="button" data-image-record="${escapeHtml(record.id)}" title="更换此 Skill 的预览图">更换预览图</button></div></div></div></article>`}
 function renderFilters(){const counts=records().reduce((out,item)=>(out[item.category]=(out[item.category]||0)+1,out),{});const entries=[['all','全部',records().length],...Object.keys(labels).filter(id=>counts[id]).map(id=>[id,labels[id],counts[id]])];$('#filters').innerHTML=entries.map(([id,label,count])=>`<button class="filter ${state.category===id?'active':''}" data-category="${escapeHtml(id)}" type="button">${escapeHtml(label)} ${count}</button>`).join('')}
 function renderOverview(){const counts=records().reduce((out,item)=>(out[item.category]=(out[item.category]||0)+1,out),{});$('#overview').innerHTML=Object.keys(labels).filter(id=>counts[id]).map(id=>`<button class="category" data-category="${escapeHtml(id)}" type="button"><strong>${escapeHtml(labels[id])}</strong><span>${counts[id]} ${state.mode==='plugins'?'个插件':'个主技能'}</span></button>`).join('')}
-function render(){const items=filtered();$('#total').textContent=records().length;$('#stat-label').textContent=state.mode==='plugins'?'已整理插件':'已整理主技能';$('#result-title').textContent=state.category==='all'?(state.mode==='plugins'?'全部插件':'全部技能'):(labels[state.category]||state.category);$('#count').textContent=`${items.length} 项结果 · 索引更新于 ${data.generated_at||'未生成'}`;renderFilters();renderOverview();$('#list').innerHTML=items.length?items.map(card).join(''):'<div class="empty">没有匹配的能力。请更换关键词或分类。</div>';document.querySelectorAll('[data-category]').forEach(button=>button.addEventListener('click',()=>{state.category=button.dataset.category;render()}));document.querySelectorAll('[data-record]').forEach(button=>button.addEventListener('click',()=>openRecord(button.dataset.record)))}
-function openRecord(id){const record=records().find(entry=>entry.id===id);if(!record)return;lastFocus=document.activeElement;const skills=recordSkills(record);const image=record.image||{};$('#detail-image').src=image.value||'';$('#detail-image').alt=`${record.name} 的预览图`;$('#detail-tag').textContent=labels[record.category]||record.category;$('#detail-name').textContent=state.mode==='plugins'?`${record.name} 插件`:record.name;$('#detail-description').textContent=record.description;$('#detail-invocation').textContent=record.invocation;$('#detail-locations').textContent=(record.locations||[]).join('\\n');const github=record.github?.url;$('#github-panel').hidden=!github;if(github){$('#detail-github').href=github;$('#detail-github').textContent=github}$('#subskills-label').textContent=state.mode==='plugins'?`插件携带技能（${skills.length}）`:(skills.length>1?`包含的子技能（${skills.length}）`:'技能详情');$('#detail-subskills').innerHTML=skills.map(item=>`<article class="subskill"><strong>${escapeHtml(item.name)}</strong><span class="tag">${escapeHtml(labels[item.category]||item.category)}</span><p>${escapeHtml(item.description)}</p><p>调用：${escapeHtml(item.invocation)}</p></article>`).join('');const evidenceHtml=`<section class="detail-evidence" aria-label="分类与来源证据"><div><strong>分类证据</strong>${escapeHtml(record.category_tie_reason||'未说明')}</div><div><strong>置信度</strong>${Math.round(Number(record.confidence||0)*100)}%</div><div><strong>图片状态</strong>${escapeHtml(image.status||'unknown')} · ${image.missing_evidence?'missing evidence':'verified evidence'}</div><div><strong>来源</strong><span class="source">${escapeHtml(record.source||record.provider||'unknown')}</span></div></section>`;document.querySelectorAll('.detail-evidence').forEach(node=>node.remove());$('.detail').insertAdjacentHTML('beforeend',evidenceHtml);$('#detail').showModal();$('#close').focus()}
+function render(){const items=filtered();$('#total').textContent=records().length;$('#stat-label').textContent=state.mode==='plugins'?'已整理插件':'已整理主技能';$('#result-title').textContent=state.category==='all'?(state.mode==='plugins'?'全部插件':'全部技能'):(labels[state.category]||state.category);$('#count').textContent=`${items.length} 项结果 · 索引更新于 ${data.generated_at||'未生成'}`;renderFilters();renderOverview();$('#list').innerHTML=items.length?items.map(card).join(''):'<div class="empty">没有找到匹配的 Skill 或插件。请更换关键词或分类。</div>';document.querySelectorAll('[data-category]').forEach(button=>button.addEventListener('click',()=>{state.category=button.dataset.category;render()}));document.querySelectorAll('[data-record]').forEach(button=>button.addEventListener('click',()=>openRecord(button.dataset.record)));document.querySelectorAll('[data-image-record]').forEach(button=>button.addEventListener('click',()=>openRecord(button.dataset.imageRecord,true)))}
+let activeRecord=null;let selectedImage=null;function primaryRelativePath(record){const skills=recordSkills(record);const primary=record.primary_id?(skills.find(item=>item.id===record.primary_id)||skills[0]):(skills[0]||record);return primary?.relative_path||''}function openRecord(id,focusImage=false){const record=records().find(entry=>entry.id===id);if(!record)return;const pageScroll=window.scrollY;const skills=recordSkills(record);activeRecord=record;selectedImage=null;$('#image-file').value='';$('#image-save').disabled=true;$('#image-remove').hidden=(record.image||{}).status!=='curated-local';$('#image-editor-status').textContent='';$('#detail-image').src=(record.image||{}).value||'';$('#detail-image').alt=`${record.name} 的预览图`;$('#detail-tag').textContent=labels[record.category]||record.category;$('#detail-name').textContent=state.mode==='plugins'?`${record.name} 插件`:record.name;$('#detail-description').textContent=record.description;$('#detail-invocation').textContent=record.invocation;$('#detail-locations').textContent=(record.locations||[]).join('\\n');const github=record.github?.url;$('#github-panel').hidden=!github;if(github){$('#detail-github').href=github;$('#detail-github').textContent=github}$('#subskills-label').textContent=state.mode==='plugins'?`插件携带技能（${skills.length}）`:(skills.length>1?`包含的子技能（${skills.length}）`:'技能详情');$('#detail-subskills').innerHTML=skills.map(item=>`<article class="subskill"><strong>${escapeHtml(item.name)}</strong><span class="tag">${escapeHtml(labels[item.category]||item.category)}</span><p>${escapeHtml(item.description)}</p><p>调用：${escapeHtml(item.invocation)}</p></article>`).join('');const imageSource=(record.image||{}).source||'unknown';const evidenceHtml=`<section class="detail-evidence" aria-label="分类与来源证据"><div><strong>分类证据</strong>${escapeHtml(record.category_tie_reason||'未说明')}</div><div><strong>置信度</strong>${Math.round(Number(record.confidence||0)*100)}%</div><div><strong>图片状态</strong>${escapeHtml((record.image||{}).status||'unknown')} · ${(record.image||{}).missing_evidence?'missing evidence':'verified evidence'}</div><div><strong>图片来源</strong><span class="source">${escapeHtml(imageSource)}</span></div></section>`;document.querySelectorAll('.detail-evidence').forEach(node=>node.remove());$('.detail').insertAdjacentHTML('beforeend',evidenceHtml);$('#detail').showModal();window.scrollTo({top:pageScroll,behavior:'auto'});$('#close').focus({preventScroll:true});if(focusImage){requestAnimationFrame(()=>{window.scrollTo({top:pageScroll,behavior:'auto'});const editor=$('.image-editor');editor.classList.add('focus-target');editor.focus({preventScroll:true});setTimeout(()=>editor.classList.remove('focus-target'),1400)})}}
 document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{state.mode=button.dataset.mode;state.category='all';state.query='';$('#search').value='';document.querySelectorAll('[data-mode]').forEach(tab=>tab.classList.toggle('active',tab.dataset.mode===state.mode));render()}));$('#search').addEventListener('input',event=>{state.query=event.target.value.trim().toLowerCase();render()});$('#close').addEventListener('click',()=>$('#detail').close());$('#detail').addEventListener('close',()=>{if(lastFocus&&typeof lastFocus.focus==='function')lastFocus.focus()});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#detail').open){event.preventDefault();$('#detail').close()}});$('#refresh').addEventListener('click',async()=>{const status=$('#status');status.textContent='正在刷新索引…';try{const response=await fetch('/api/refresh',{method:'POST'});if(!response.ok)throw new Error('refresh failed');location.reload()}catch{status.textContent='当前为静态页面。请运行 build_catalog.py --refresh，或通过 serve_catalog.py 打开页面。'}});render();
 </script></body></html>""".replace("__CATALOG__", data).replace(
         "</style>",
-        ".sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}:focus-visible{outline:3px solid #f05a35;outline-offset:3px}.evidence{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;color:#526b70;font-size:12px}.evidence span{padding:3px 6px;border:1px solid #d3dfda;border-radius:4px;background:#f5f8f6}.detail-evidence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:18px}.detail-evidence div{padding:8px 10px;background:#f5f8f6;color:#526b70;font-size:13px;line-height:1.4}.detail-evidence strong{display:block;color:#0f494d;font-size:12px}.source{overflow-wrap:anywhere}</style>",
+        ".sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}:focus-visible{outline:3px solid #f05a35;outline-offset:3px}.evidence{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;color:#526b70;font-size:12px}.evidence span{padding:3px 6px;border:1px solid #d3dfda;border-radius:4px;background:#f5f8f6}.detail-evidence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:18px}.detail-evidence div{padding:8px 10px;background:#f5f8f6;color:#526b70;font-size:13px;line-height:1.4}.detail-evidence strong{display:block;color:#0f494d;font-size:12px}.source{overflow-wrap:anywhere}.image-editor{margin:20px 0 4px}.image-editor .label{margin-bottom:8px}.image-editor p{margin:0 0 10px;color:#647b80;font-size:13px;line-height:1.5}.image-upload,.image-save,.image-remove{display:inline-flex;align-items:center;justify-content:center;min-height:35px;margin:0 8px 0 0;padding:8px 11px;border:1px solid #b9cac4;border-radius:4px;color:#0f494d;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.image-upload input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.image-save{border-color:#0f494d;color:#fff;background:#0f494d}.image-remove{border-color:#c7674d;color:#9f3e27}.image-save:disabled{cursor:not-allowed;opacity:.5}.image-editor-status{display:inline-block;color:#526b70;font-size:12px}</style>",
     ).replace(
         "</style>",
         ":root{--ease-spring:cubic-bezier(.32,.72,0,1);--ease-out-quart:cubic-bezier(.25,1,.5,1)}.shell>header{position:sticky;top:0;z-index:10;background:rgba(245,247,245,.82);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);box-shadow:0 8px 22px rgba(29,52,54,.04);transition:background .22s var(--ease-out-quart),box-shadow .22s var(--ease-out-quart)}.refresh,.tabs button,.filter,.category,.open,.close{transition:transform .16s var(--ease-out-quart),box-shadow .16s var(--ease-out-quart),background-color .16s var(--ease-out-quart),border-color .16s var(--ease-out-quart),color .16s var(--ease-out-quart)}.refresh:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(15,73,77,.2)}.refresh:active,.tabs button:active,.filter:active,.category:active,.open:active,.close:active{transform:scale(.97)}.refresh:disabled{cursor:wait;opacity:.72;transform:none}.tabs button:hover,.filter:hover{border-color:#9eb9b2;color:#0f494d}.tabs button.active:hover,.filter.active:hover{color:#fff;background:#0c4144}.category:hover{transform:translateY(-3px) scale(1.01);box-shadow:0 12px 24px rgba(22,53,57,.18)}.open:hover{transform:scale(1.06);border-color:#0f494d;background:#eef7f4;box-shadow:0 5px 12px rgba(15,73,77,.16)}.close:hover{color:#0f494d;background:#eef3f0}.search{transition:border-color .16s var(--ease-out-quart),box-shadow .16s var(--ease-out-quart)}.search:focus{border-color:#0f494d;box-shadow:0 0 0 4px rgba(15,73,77,.12);outline:0}.card{transition:transform .22s var(--ease-out-quart),box-shadow .22s var(--ease-out-quart),border-color .22s var(--ease-out-quart)}.card:hover{transform:translateY(-3px) scale(1.01);border-color:#b2c8c0;box-shadow:0 16px 34px rgba(29,52,54,.14)}.card:focus-within{border-color:#8eb3aa;box-shadow:0 12px 28px rgba(29,52,54,.12)}.thumb img{transition:transform .35s var(--ease-out-quart),filter .35s var(--ease-out-quart)}.card:hover .thumb img{transform:scale(1.035);filter:saturate(1.04)}dialog{background:rgba(255,255,255,.86);backdrop-filter:blur(20px) saturate(145%);-webkit-backdrop-filter:blur(20px) saturate(145%);overflow:hidden;isolation:isolate}dialog::backdrop{background:rgba(8,25,28,0);transition:background .25s var(--ease-out-quart)}dialog.is-visible::backdrop{background:rgba(8,25,28,.58)}dialog .dialog{opacity:0;transform:translateY(14px) scale(.98);transform-origin:50% 12%;transition:opacity .28s var(--ease-spring),transform .28s var(--ease-spring)}dialog.is-visible .dialog{opacity:1;transform:none;transition-duration:.4s}.detail{background:rgba(255,255,255,.78)}@media (prefers-reduced-motion:reduce){.card:hover,.category:hover{transform:none}.card:hover .thumb img{transform:none}.card,.thumb img,.refresh,.tabs button,.filter,.category,.open,.close,dialog .dialog{transition-duration:.01ms!important}dialog .dialog,dialog.is-visible .dialog{transform:none;transition:opacity .2s var(--ease-out-quart)}}@media (prefers-reduced-transparency:reduce){.shell>header,dialog,.detail{background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}}@media (prefers-contrast:more){.shell>header,dialog{background:#fff;border:1px solid rgba(0,0,0,.35)}} </style>",
     ).replace(
         "</script>",
-        "const originalOpenRecord=openRecord;let closeTimer=null;let closing=false;function closeDetail(){const detail=$('#detail');if(!detail.open||closing)return;closing=true;detail.classList.remove('is-visible');const panel=detail.querySelector('.dialog');let finished=false;const finish=()=>{if(finished)return;finished=true;panel.removeEventListener('transitionend',onEnd);clearTimeout(closeTimer);closing=false;detail.close()};const onEnd=event=>{if(event.target===panel&&event.propertyName==='opacity')finish()};panel.addEventListener('transitionend',onEnd);closeTimer=setTimeout(finish,320)}openRecord=id=>{originalOpenRecord(id);requestAnimationFrame(()=>$('#detail').classList.add('is-visible'))};$('#close').addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();closeDetail()},true);document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#detail').open){event.preventDefault();event.stopImmediatePropagation();closeDetail()}},true);$('#detail').addEventListener('close',()=>$('#detail').classList.remove('is-visible'));</script>",
+         "const originalOpenRecord=openRecord;let closeTimer=null;let closing=false;function closeDetail(){const detail=$('#detail');if(!detail.open||closing)return;closing=true;detail.classList.remove('is-visible');const panel=detail.querySelector('.dialog');let finished=false;const finish=()=>{if(finished)return;finished=true;panel.removeEventListener('transitionend',onEnd);clearTimeout(closeTimer);closing=false;detail.close()};const onEnd=event=>{if(event.target===panel&&event.propertyName==='opacity')finish()};panel.addEventListener('transitionend',onEnd);closeTimer=setTimeout(finish,320)}openRecord=(id,focusImage=false)=>{originalOpenRecord(id,focusImage);requestAnimationFrame(()=>$('#detail').classList.add('is-visible'))};$('#close').addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();closeDetail()},true);document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#detail').open){event.preventDefault();event.stopImmediatePropagation();closeDetail()}},true);$('#detail').addEventListener('close',()=>$('#detail').classList.remove('is-visible'));</script>",
     ).replace(
         "</script>",
-        "const refreshButton=$('#refresh');const refreshStatus=$('#status');new MutationObserver(()=>{if(refreshStatus.textContent&&!refreshStatus.textContent.startsWith('正在')){refreshButton.disabled=false;refreshButton.removeAttribute('aria-busy')}}).observe(refreshStatus,{childList:true});refreshButton.addEventListener('click',()=>{refreshButton.disabled=true;refreshButton.setAttribute('aria-busy','true')});$('#detail').addEventListener('cancel',event=>{event.preventDefault();closeDetail()});</script>",
+        "const refreshButton=$('#refresh');const refreshStatus=$('#status');new MutationObserver(()=>{if(refreshStatus.textContent&&!refreshStatus.textContent.startsWith('正在')){refreshButton.disabled=false;refreshButton.removeAttribute('aria-busy')}}).observe(refreshStatus,{childList:true});refreshButton.addEventListener('click',()=>{refreshButton.disabled=true;refreshButton.setAttribute('aria-busy','true')});$('#image-file').addEventListener('change',event=>{const file=event.target.files?.[0]||null;selectedImage=file;const status=$('#image-editor-status');if(!file){status.textContent='';$('#image-save').disabled=true;return}if(file.size>2*1024*1024){selectedImage=null;status.textContent='图片不能超过 2 MiB。';$('#image-save').disabled=true;return}status.textContent=`已选择：${file.name}`;$('#image-save').disabled=false});$('#image-save').addEventListener('click',async()=>{const status=$('#image-editor-status');if(!activeRecord||!selectedImage)return;const save=$('#image-save');save.disabled=true;status.textContent='正在保存预览图…';try{const response=await fetch('/api/image',{method:'POST',headers:{'Content-Type':selectedImage.type||'application/octet-stream','X-Catalog-Skill-Name':activeRecord.name,'X-Catalog-Relative-Path':primaryRelativePath(activeRecord)},body:selectedImage});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'保存失败');status.textContent='已保存，正在重载目录…';location.reload()}catch(error){status.textContent=`无法保存：${error.message||'请通过本地服务打开页面'}`;save.disabled=false}});$('#image-remove').addEventListener('click',async()=>{const status=$('#image-editor-status');if(!activeRecord)return;const remove=$('#image-remove');remove.disabled=true;status.textContent='正在恢复自动图…';try{const response=await fetch('/api/image',{method:'DELETE',headers:{'X-Catalog-Relative-Path':primaryRelativePath(activeRecord)}});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'恢复失败');location.reload()}catch(error){status.textContent=`无法恢复：${error.message||'请通过本地服务打开页面'}`;remove.disabled=false}});$('#detail').addEventListener('cancel',event=>{event.preventDefault();closeDetail()});</script>",
+    ).replace(
+        "</style>",
+        ".meta-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.open,.edit-image{width:auto;min-height:34px;padding:8px 11px;border:1px solid #b9cac4;border-radius:4px;color:#0f494d;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.edit-image{border-color:#f05a35;color:#9f3e27}.meta-actions button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(15,73,77,.12)}.image-editor.focus-target{outline:3px solid rgba(240,90,53,.35);outline-offset:8px}</style>",
+    ).replace(
+        "</script>",
+        "$('.image-editor').setAttribute('tabindex','-1');</script>",
     )
 
 
@@ -1223,36 +1319,51 @@ def validate_output_dir(output_dir: Path, specs: List[Dict[str, str]], refresh: 
         raise ValueError("Output already contains catalog.json; rerun with --refresh to replace it intentionally")
 
 
+def replace_with_retry(temporary: Path, path: Path) -> None:
+    for attempt in range(40):
+        try:
+            temporary.replace(path)
+            return
+        except PermissionError:
+            if attempt == 39:
+                raise
+            time.sleep(min(0.1 * (attempt + 1), 1.0))
+
+
 def atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False, suffix=".tmp") as handle:
         handle.write(content)
         temporary = Path(handle.name)
-    for attempt in range(15):
-        try:
-            temporary.replace(path)
-            return
-        except PermissionError:
-            if attempt == 14:
-                raise
-            time.sleep(0.2)
+    replace_with_retry(temporary, path)
+
+
+def atomic_write_bytes(path: Path, content: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("wb", dir=path.parent, delete=False, suffix=".tmp") as handle:
+        handle.write(content)
+        temporary = Path(handle.name)
+    replace_with_retry(temporary, path)
 
 
 def build(args: argparse.Namespace) -> Dict[str, Any]:
     config_path = Path(args.config).resolve() if args.config else DEFAULT_CONFIG
     config = load_config(config_path)
+    if getattr(args, "no_github_images", False):
+        config.setdefault("image", {})["github_repository_previews"] = False
     load_curation(getattr(args, "curation", None), config)
     cli_roots = args.root if args.root else None
     specs = root_specs(config, cli_roots)
     explicit_roots = bool(args.root)
-    curation_files = [str(Path(path).resolve()) for path in (args.curation or [])]
     include_absolute = bool(args.include_absolute_paths or config.get("include_absolute_paths", False))
-    items, raw_plugins, unresolved = scan(config, specs, include_absolute)
-    families = assign_families(items, config)
-    plugins = merge_plugins(raw_plugins, items, config)
     output_dir = Path(os.path.abspath(expand_path(args.output_dir or str(config.get("output_dir") or "agent-skill-catalog-output"))))
     validate_output_dir(output_dir, specs, args.refresh)
     output_dir = output_dir.resolve()
+    output_curation = ensure_output_curation(config, output_dir)
+    curation_files = [str(Path(path).resolve()) for path in (args.curation or [])] + [str(output_curation)]
+    items, raw_plugins, unresolved = scan(config, specs, include_absolute, output_dir / "github-image-cache")
+    families = assign_families(items, config)
+    plugins = merge_plugins(raw_plugins, items, config)
     previous = read_json(output_dir / "catalog.json", {}) if output_dir.is_dir() else {}
     images = image_summary(items)
     startup_curation_fingerprints = [file_fingerprint(Path(path)) for path in curation_files]
@@ -1274,14 +1385,15 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
         ],
         "refresh_policy": {
             "requires_explicit_roots": True,
-            "curation_count": len(curation_files),
+            "curation_count": len(args.curation or []),
+            "output_curation_file": output_curation.name,
             "absolute_paths_included": include_absolute,
             "startup_root_source": "cli" if explicit_roots else "config",
             "startup_root_specs": public_startup_specs(specs, include_absolute),
             "startup_root_fingerprints": root_fingerprints(specs),
             "startup_root_path_fingerprints": root_path_fingerprints(specs),
             "startup_config_fingerprint": file_fingerprint(config_path),
-            "startup_curation_fingerprints": startup_curation_fingerprints,
+            "startup_curation_fingerprints": startup_curation_fingerprints[:-1],
         },
         "summary": {
             "skill_count": len([item for item in items if item["kind"] == "skill"]),
@@ -1313,6 +1425,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--refresh", action="store_true", help="Intentional overwrite of the selected output directory")
     result.add_argument("--no-html", action="store_true", help="Write catalog.json without index.html")
     result.add_argument("--include-absolute-paths", action="store_true", help="Include absolute source paths in catalog items")
+    result.add_argument("--no-github-images", action="store_true", help="Do not fetch or reuse GitHub repository preview images for this build")
     return result
 
 

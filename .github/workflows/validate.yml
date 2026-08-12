@@ -15,8 +15,9 @@ jobs:
         with:
           python-version: "3.11"
       - run: python tools/validate_package.py .
-      - run: python -m py_compile skills/agent-skill-catalog/scripts/build_catalog.py skills/agent-skill-catalog/scripts/serve_catalog.py skills/agent-skill-catalog/scripts/import_legacy_catalog.py tools/validate_package.py tools/package_skill.py
+      - run: python -m py_compile skills/agent-skill-catalog/scripts/build_catalog.py skills/agent-skill-catalog/scripts/github_preview.py skills/agent-skill-catalog/scripts/serve_catalog.py skills/agent-skill-catalog/scripts/import_legacy_catalog.py tools/validate_package.py tools/package_skill.py
       - run: python tests/test_build_catalog.py
+      - run: python tests/test_package_skill.py
       - run: python tools/package_skill.py .
       - uses: actions/upload-artifact@v4
         with:

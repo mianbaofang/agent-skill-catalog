@@ -30,8 +30,8 @@ The default output hides absolute paths. Use `--include-absolute-paths` only for
 python scripts/serve_catalog.py --output-dir <output-dir> --root <skills-root> --root <plugin-root> --curation <curation.json>
 ```
 
-The server binds to localhost and rejects a refresh when explicit roots are missing or the curation count does not match the startup catalog.
+The server binds to localhost and rejects a refresh when explicit roots are missing or the curation count does not match the startup catalog. In the detail panel, `选择图片` copies a supported image into `<output-dir>/curated-images/`, writes the matching override to `<output-dir>/catalog-curation.json`, and rebuilds immediately. `恢复自动图` removes that output-owned override. Neither action writes to a scanned root.
 
 ## Boundaries
 
-Scanning is read-only, network-free, and never executes discovered skills. Remote image URLs remain metadata-only. No category or family is inferred from a guessed repository or description-only ecosystem marker.
+Scanning is read-only for discovered Skills and never executes them. When a local GitHub repository URL is available, the default image pass may read the public repository page and cache one size-limited, signature-checked GitHub image in `<output-dir>/github-image-cache/`. Use `--no-github-images` for an offline build. Remote image URLs found only in a Skill frontmatter remain metadata-only. No category or family is inferred from a guessed repository or description-only ecosystem marker.

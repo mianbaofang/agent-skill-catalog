@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=960, height=540, initial-scale=1">
+  <title>Agent Skill Catalog Demo Storyboard</title>
+  <style>
+    :root {
+      --paper: #f5f7f5;
+      --ink: #142127;
+      --muted: #587076;
+      --line: #c9d5d0;
+      --teal: #0f494d;
+      --teal-2: #235258;
+      --slate: #3d5160;
+      --ochre: #5b492f;
+      --coral: #f05a35;
+      --white: #ffffff;
+      --ease: cubic-bezier(.32,.72,0,1);
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 960px; height: 540px; margin: 0; overflow: hidden; }
+    body { background: var(--paper); color: var(--ink); font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+    .stage { position: relative; width: 960px; height: 540px; overflow: hidden; }
+    .chrome { position: absolute; inset: 0; padding: 22px 30px; pointer-events: none; }
+    .topline { display: flex; align-items: center; justify-content: space-between; height: 36px; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 760; letter-spacing: .2px; }
+    .mark { display: inline-grid; width: 27px; height: 27px; place-items: center; border-radius: 5px; color: var(--white); background: var(--teal); font-size: 12px; }
+    .chapter { color: var(--muted); font-size: 11px; letter-spacing: .7px; text-transform: uppercase; }
+    .scene { position: absolute; inset: 0; padding: 88px 30px 30px; opacity: 0; pointer-events: none; }
+    .scene.active { opacity: 1; pointer-events: auto; }
+    h1, h2, p { margin: 0; }
+    h1 { max-width: 680px; font-size: 39px; line-height: 1.06; letter-spacing: -.3px; }
+    h2 { font-size: 25px; line-height: 1.1; }
+    .kicker { margin-bottom: 13px; color: var(--coral); font-size: 12px; font-weight: 760; letter-spacing: .7px; }
+    .lead { max-width: 610px; margin-top: 14px; color: var(--muted); font-size: 15px; line-height: 1.65; }
+    .rule { width: 265px; height: 3px; margin: 19px 0 0; background: var(--coral); }
+    .pill { display: inline-flex; align-items: center; min-height: 25px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.7); font-size: 11px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 7px; }
+    .intro-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 32px; align-items: end; height: 210px; }
+    .intro-note { align-self: center; padding: 18px; border-left: 3px solid var(--coral); color: var(--muted); background: rgba(255,255,255,.7); font-size: 13px; line-height: 1.65; }
+    .scatter { position: relative; height: 170px; border: 1px solid var(--line); background: rgba(255,255,255,.52); overflow: hidden; }
+    .scatter::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 36px 36px; opacity: .35; }
+    .mini { position: absolute; width: 118px; padding: 10px; border: 1px solid var(--line); color: var(--ink); background: var(--white); box-shadow: 0 8px 16px rgba(29,52,54,.07); font-size: 11px; line-height: 1.35; animation: float 3.2s ease-in-out infinite; }
+    .mini strong { display: block; margin-bottom: 5px; color: var(--teal); font-size: 12px; }
+    .mini:nth-child(1) { left: 17px; top: 16px; transform: rotate(-4deg); }
+    .mini:nth-child(2) { right: 24px; top: 20px; transform: rotate(3deg); animation-delay: -.8s; }
+    .mini:nth-child(3) { left: 164px; bottom: 12px; transform: rotate(2deg); animation-delay: -1.4s; }
+    .mini:nth-child(4) { right: 145px; bottom: 12px; transform: rotate(-3deg); animation-delay: -2s; }
+    @keyframes float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 46px; }
+    .flow-step { position: relative; min-height: 144px; padding: 17px 15px; border: 1px solid var(--line); background: var(--white); box-shadow: 0 8px 18px rgba(29,52,54,.06); }
+    .flow-step:not(:last-child)::after { content: "→"; position: absolute; right: -18px; top: 54px; z-index: 2; color: var(--coral); font-size: 22px; font-weight: 760; }
+    .flow-step b { display: block; margin-bottom: 15px; color: var(--teal); font-size: 12px; letter-spacing: .5px; }
+    .flow-step strong { display: block; font-size: 17px; line-height: 1.2; }
+    .flow-step span { display: block; margin-top: 9px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .boundary { display: flex; gap: 8px; margin-top: 24px; }
+    .boundary .pill { border-color: #e8b9ab; color: #9b3f28; background: #fff8f5; }
+    .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 35px; }
+    .map-panel { min-height: 255px; padding: 17px; border: 1px solid var(--line); background: rgba(255,255,255,.78); }
+    .map-panel h3 { margin: 0 0 13px; font-size: 15px; }
+    .parent { padding: 11px 12px; border: 2px solid var(--teal); color: var(--white); background: var(--teal); font-weight: 760; }
+    .children { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 13px; }
+    .child { padding: 10px 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 11px; text-align: center; }
+    .child::before { content: "↳"; display: block; margin-bottom: 4px; color: var(--coral); font-size: 15px; }
+    .plugin-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--line); background: #fffaf2; }
+    .plugin-head strong { color: var(--ochre); }
+    .plugin-list { display: grid; gap: 7px; margin-top: 12px; }
+    .plugin-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .plugin-row b { color: var(--ink); font-size: 12px; }
+    .confidence { display: flex; align-items: center; gap: 15px; margin-top: 20px; color: var(--muted); font-size: 12px; }
+    .bar { flex: 1; height: 8px; background: #dbe5e0; overflow: hidden; }
+    .bar i { display: block; width: 86%; height: 100%; background: var(--teal); animation: grow 1.4s var(--ease) both; }
+    @keyframes grow { from { width: 0; } to { width: 86%; } }
+    .image-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 26px; margin-top: 35px; }
+    .image-stack { display: grid; gap: 8px; }
+    .image-source { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); background: var(--white); }
+    .image-source .icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 4px; color: var(--white); background: var(--teal); font-size: 12px; font-weight: 760; }
+    .image-source:nth-child(2) .icon { background: var(--slate); }
+    .image-source:nth-child(3) .icon { background: var(--ochre); }
+    .image-source:nth-child(4) .icon { color: #a3482f; background: #fff0eb; }
+    .image-source strong { display: block; font-size: 13px; }
+    .image-source span { color: var(--muted); font-size: 11px; }
+    .image-source em { color: var(--muted); font-size: 10px; font-style: normal; }
+    .image-preview { position: relative; min-height: 235px; padding: 16px; border: 1px solid var(--line); background: #edf3f0; overflow: hidden; }
+    .image-preview::before { content: "图片证据"; display: block; margin-bottom: 14px; color: var(--teal); font-size: 12px; font-weight: 760; letter-spacing: .5px; }
+    .preview-card { position: absolute; width: 142px; padding: 11px; border: 1px solid var(--line); background: var(--white); box-shadow: 0 8px 20px rgba(29,52,54,.08); }
+    .preview-card .pic { height: 74px; margin-bottom: 9px; background: var(--teal-2); }
+    .preview-card:nth-child(2) { left: 28px; top: 74px; transform: rotate(-4deg); }
+    .preview-card:nth-child(3) { right: 25px; top: 96px; transform: rotate(4deg); }
+    .preview-card strong { display: block; font-size: 11px; }
+    .preview-card span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .missing { position: absolute; left: 95px; bottom: 16px; padding: 7px 9px; border: 1px dashed #c78470; color: #9b3f28; background: #fff8f5; font-size: 10px; }
+    .product { padding: 0; }
+    .product-frame { position: absolute; inset: 67px 30px 24px; border: 1px solid var(--line); background: var(--white); box-shadow: 0 14px 32px rgba(29,52,54,.12); overflow: hidden; }
+    .product-frame iframe { width: 100%; height: 100%; border: 0; background: var(--paper); }
+    .product-fallback { display: none; width: 100%; height: 100%; object-fit: cover; }
+    .result { display: grid; grid-template-columns: 1fr .9fr; gap: 34px; align-items: center; height: 382px; }
+    .result-card { padding: 19px; border: 1px solid var(--line); background: var(--white); box-shadow: 0 10px 24px rgba(29,52,54,.07); }
+    .result-card h3 { margin: 0 0 13px; font-size: 18px; }
+    .result-card p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .result-list { display: grid; gap: 9px; margin-top: 16px; }
+    .result-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 11px; border-left: 3px solid var(--teal); background: #eef3f0; font-size: 12px; }
+    .result-row:nth-child(2) { border-color: var(--coral); }
+    .result-row:nth-child(3) { border-color: var(--ochre); }
+    .closeout { align-self: center; }
+    .closeout h2 { max-width: 480px; font-size: 33px; }
+    .closeout .lead { max-width: 470px; }
+    .foot { position: absolute; left: 30px; right: 30px; bottom: 15px; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+    .scene[data-scene="4"] .product-frame { animation: frame-in .7s var(--ease) both; }
+    @keyframes frame-in { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="stage" data-scene="0">
+    <div class="chrome">
+      <div class="topline"><div class="brand"><span class="mark">AC</span>Agent Skill Catalog</div><div class="chapter" id="chapter">01 / Problem</div></div>
+    </div>
+
+    <section class="scene active" data-scene="0">
+      <div class="intro-grid">
+        <div>
+          <div class="kicker">01 / 复杂的 Skill 库</div>
+          <h1>Skill 越来越多，查找也越来越困难。</h1>
+          <p class="lead">主 Skill、子 Skill、插件和图片散在不同目录里。清单能列出名字，却看不出归属、调用方式和分类依据。</p>
+          <div class="rule"></div>
+        </div>
+        <div class="intro-note">目录把归属、分类依据和调用方式放在一起，打开条目就能看到。</div>
+      </div>
+      <div class="scatter" aria-hidden="true">
+        <div class="mini"><strong>视觉与图片</strong>同类名称很多，边界不清</div>
+        <div class="mini"><strong>hyperframes</strong>主 Skill 与子 Skill 混在一起</div>
+        <div class="mini"><strong>插件缓存</strong>携带多个 Skill，需要单独显示</div>
+        <div class="mini"><strong>图片来源</strong>分类封面不能代替 Skill 预览</div>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="1">
+      <div class="kicker">02 / Read-only pipeline</div>
+      <h2>先确定扫描范围，再生成目录。</h2>
+      <p class="lead">扫描器只读取传入的根目录，结果保留来源和中间判断。</p>
+      <div class="flow">
+        <div class="flow-step"><b>INPUT</b><strong>传入根目录</strong><span>Skill 根目录<br>插件缓存根目录</span></div>
+        <div class="flow-step"><b>READ</b><strong>读取 SKILL.md</strong><span>说明、manifest、来源路径和本地图片</span></div>
+        <div class="flow-step"><b>REASON</b><strong>整理关系</strong><span>分类候选、家族关系、插件归属、图片状态</span></div>
+        <div class="flow-step"><b>OUTPUT</b><strong>生成目录</strong><span>catalog.json + 自包含 index.html</span></div>
+      </div>
+      <div class="boundary"><span class="pill">不安装</span><span class="pill">不执行</span><span class="pill">GitHub 预览受限缓存</span><span class="pill">默认隐藏绝对路径</span></div>
+    </section>
+
+    <section class="scene" data-scene="2">
+      <div class="kicker">03 / Family and plugin map</div>
+      <h2>主 Skill 保留一个条目，子 Skill 放进详情；插件单独列出。</h2>
+      <div class="map-grid">
+        <div class="map-panel">
+          <h3>主 / 子 Skill 家族</h3>
+          <div class="parent">hyperframes · 主 Skill</div>
+          <div class="children"><div class="child">animation</div><div class="child">creative</div><div class="child">gsap</div></div>
+          <div class="confidence"><span>分类置信度</span><div class="bar"><i></i></div><b>86%</b></div>
+        </div>
+        <div class="map-panel">
+          <h3>插件聚合</h3>
+          <div class="plugin-head"><strong>hyperframes 插件</strong><span class="pill">独立视图</span></div>
+          <div class="plugin-list"><div class="plugin-row"><b>hyperframes</b><span>主入口</span></div><div class="plugin-row"><b>hyperframes-cli</b><span>插件子技能</span></div><div class="plugin-row"><b>registry</b><span>插件子技能</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="3">
+      <div class="kicker">04 / Image evidence</div>
+      <h2>预览图按证据强弱选择，也可以手工替换。</h2>
+      <p class="lead">人工图、GitHub 仓库图和 Skill 本地图分别标注；没有证据时才使用说明封面。</p>
+      <div class="image-grid">
+        <div class="image-stack">
+          <div class="image-source"><span class="icon">01</span><div><strong>手工预览图</strong><span>只保存在目录输出，不改源 Skill</span></div><em>最高优先</em></div>
+          <div class="image-source"><span class="icon">02</span><div><strong>GitHub 仓库图</strong><span>公开仓库页面与允许的图片域名</span></div><em>已验证</em></div>
+          <div class="image-source"><span class="icon">03</span><div><strong>Skill 自带预览</strong><span>frontmatter 或 assets/preview.png</span></div><em>已验证</em></div>
+          <div class="image-source"><span class="icon">04</span><div><strong>说明封面</strong><span>没有真实图片证据时使用</span></div><em>缺证据</em></div>
+        </div>
+        <div class="image-preview">
+          <div class="preview-card"><div class="pic"></div><strong>GitHub 仓库图片</strong><span>verified repository preview</span></div>
+          <div class="preview-card"><div class="pic" style="background:var(--slate)"></div><strong>手工替换</strong><span>output-owned override</span></div>
+          <div class="missing">说明封面会标记 missing evidence</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene product" data-scene="4">
+      <div class="kicker">05 / Product result</div>
+      <div class="product-frame">
+        <iframe title="Generated Agent Skill Catalog" src="http://127.0.0.1:8765/index.html"></iframe>
+        <img class="product-fallback" src="agent-skill-catalog-overview.png" alt="目录总览备用画面">
+      </div>
+    </section>
+
+    <section class="scene" data-scene="5">
+      <div class="result">
+        <div class="closeout">
+          <div class="kicker">06 / Start with evidence</div>
+          <h2>打开 Skill，就能看到归属和调用方式。</h2>
+          <p class="lead">页面支持搜索、筛选、刷新和手工换图。找到 GitHub 仓库的 Skill 会直接显示链接。</p>
+          <div class="pills" style="margin-top:18px"><span class="pill">搜索</span><span class="pill">家族</span><span class="pill">插件</span><span class="pill">手工改图</span></div>
+        </div>
+        <div class="result-card"><h3>详情里要回答的问题</h3><p>它属于哪个 Skill 或插件？包含哪些子 Skill？怎么调用？图片和 GitHub 地址来自哪里？需要时怎样手工换图？</p><div class="result-list"><div class="result-row"><span>独立 Skill / 家族</span><b>归属清楚</b></div><div class="result-row"><span>插件聚合</span><b>单独查看</b></div><div class="result-row"><span>图片来源与替换</span><b>可以追溯</b></div></div></div>
+      </div>
+    </section>
+
+    <div class="foot"><span>READ-ONLY · EVIDENCE-BACKED · LOCAL-FIRST</span><span id="counter">01 / 06</span></div>
+  </main>
+  <script>
+    const stage = document.querySelector('.stage');
+    const scenes = [...document.querySelectorAll('.scene')];
+    const chapter = document.querySelector('#chapter');
+    const counter = document.querySelector('#counter');
+    const labels = ['01 / Problem','02 / Pipeline','03 / Structure','04 / Image evidence','05 / Product result','06 / Start with evidence'];
+    const sceneDuration = 6000;
+    const cycleDuration = sceneDuration * scenes.length;
+    const startedAt = performance.now();
+    let index = -1;
+    function showScene(next, sceneStartedAt) {
+      index = next;
+      stage.dataset.scene = String(index);
+      scenes.forEach((scene, i) => scene.classList.toggle('active', i === index));
+      chapter.textContent = labels[index];
+      counter.textContent = `${String(index + 1).padStart(2, '0')} / ${String(scenes.length).padStart(2, '0')}`;
+      window.dispatchEvent(new CustomEvent('demo-scene', { detail: { index } }));
+      window.__demoScene = index;
+      window.__demoSceneStartedAt = sceneStartedAt;
+    }
+    function tick() {
+      const elapsed = performance.now() - startedAt;
+      const cycleOffset = elapsed % cycleDuration;
+      const next = Math.floor(cycleOffset / sceneDuration);
+      const sceneStartedAt = startedAt + Math.floor(elapsed / sceneDuration) * sceneDuration;
+      if (next !== index) showScene(next, sceneStartedAt);
+      const remaining = sceneDuration - (cycleOffset % sceneDuration);
+      window.setTimeout(tick, Math.max(20, remaining));
+    }
+    window.__demoScene = -1;
+    window.__demoSceneStartedAt = startedAt;
+    const catalogUrl = new URLSearchParams(window.location.search).get('catalog');
+    if (catalogUrl) document.querySelector('.product-frame iframe').src = catalogUrl;
+    tick();
+  </script>
+</body>
+</html>

@@ -1,48 +1,93 @@
-# Agent Skill Catalog
+# Agent Skill Catalog 本地 Skill 与插件目录
 
-[English](README.md) | 面向 Codex 和其他 AI 编程 Agent 的本地 Skill 与插件目录生成器。
+给 Codex 和其他 AI 编程 Agent 用的本地 Skill 目录。它扫描明确指定的 `SKILL.md` 根目录，把同一主 Skill 下的子 Skill 收进一个条目，插件单独展示，并在详情里列出用途、调用方式和图片来源。
 
-`Agent Skill Catalog` 只扫描你明确指定的 `SKILL.md` 根目录，生成可搜索的桌面目录。它以可审查的证据进行分类，聚合真实的主/子 Skill 家族，把插件与独立 Skill 分开，并在详情中展示调用方式、GitHub 元数据、图片证据与来源位置。
+<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub 星标"></a></td></tr></table>
 
-它不会安装、执行、修改或上传被扫描的 Skill。
+<p align="center">
+  <a href="docs/DEMO.md">
+    <img src="docs/media/agent-skill-catalog-demo.gif" alt="Agent Skill Catalog 产品演示，浏览分类、搜索 Skill 家族并查看插件详情" width="100%">
+  </a>
+</p>
 
-## 产品演示
+<p align="center">
+  <a href="README.md">English</a>
+  &middot;
+  <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
+  &middot;
+  <a href="docs/DEMO.md">产品演示</a>
+  &middot;
+  <a href="DISCLAIMER.md">免责声明</a>
+  &middot;
+  <a href="ACKNOWLEDGEMENTS.md">致谢</a>
+  &middot;
+  <a href="CHANGELOG.md">更新记录</a>
+  &middot;
+  <a href="SECURITY.md">安全说明</a>
+</p>
 
-以下动画由项目真实生成的页面录制，使用的是公开演示 Skill 数据。它依次展示分类总览、按类别筛选和打开 Skill 详情。
+## 快速开始
 
-![Agent Skill Catalog：浏览分类、筛选视频 Skill、打开详情](docs/media/agent-skill-catalog-demo.gif)
-
-| 目录总览 | Skill 详情 |
-| --- | --- |
-| ![Agent Skill Catalog 分类筛选和 Skill 卡片总览](docs/media/agent-skill-catalog-overview.png) | ![Agent Skill Catalog 的调用方式和分类证据详情](docs/media/agent-skill-catalog-detail.png) |
-
-## 安装
-
-通过 GitHub CLI 安装已发布的 Skill：
+通过 GitHub CLI 安装已发布的 Skill。
 
 ```powershell
 gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --agent codex --scope user
 ```
 
-发布版本后，可固定到指定版本：
-
-```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.2.1 --agent codex --scope user
-```
-
-可安装内容位于 [`skills/agent-skill-catalog`](skills/agent-skill-catalog)。这是 GitHub Agent Skills 的发现路径；仓库根目录只放介绍文档、测试、发布证据与演示媒体。
-
-## 在 Agent 中使用
-
-给 Agent 明确任务和本地根目录，例如：
+安装后直接告诉 Agent 要扫描哪些目录。
 
 ```text
-Use $agent-skill-catalog to scan my local Skill root and Codex plugin cache, build a searchable catalog, keep standalone Skills and plugins separate, and report low-confidence classifications and missing image evidence. Do not install, edit, or execute scanned Skills.
+请使用 agent-skill-catalog 扫描我的本地 Skill 根目录和 Codex 插件缓存。
+独立 Skill 与插件分开，真实主/子 Skill 家族聚合显示；标出低置信度分类和缺失图片证据。
+不要安装、修改或执行任何被扫描内容。
 ```
 
-## 从源码生成目录
+## 为什么做这个 Skill
 
-要求：Python 3.10+，只使用标准库。
+我装了很多图片、视频、研究和搜索 Skill。想做一张图或查一个网页时，明明记得装过类似工具，却得在几个目录之间来回找，确认它是独立 Skill、某个主 Skill 的子项，还是插件携带的能力。找到名字后，还要翻 `SKILL.md`，确认能不能用、该怎么说。
+
+平铺文件列表会把主 Skill、子 Skill、插件携带的 Skill 和独立 Skill 放在一起。图片也有同样的问题，分类封面不一定是 Skill 自己的预览图。这个项目只读取选定的根目录，把目录关系、分类依据、调用方式、图片来源和 GitHub 地址放进同一份本地索引。
+
+Agent Skill Catalog 是一个只读的本地目录工具，给维护大量本地 Skill 和插件的人用。它不安装、不执行、不修改，也不上传被扫描的内容。
+
+> 使用前请阅读[免责声明](DISCLAIMER.md)。本项目独立维护，与 Codex、GitHub 以及目录中列出的 Skill、插件、服务商和仓库不存在从属、授权或背书关系。
+
+## 一眼看懂
+
+| 问题 | 回答 |
+|---|---|
+| 扫描什么？ | 只扫描操作者明确传入的本地根目录，也可以把插件缓存作为独立根目录标记。 |
+| 什么会显示为一个条目？ | 一个独立 Skill，或一个详情里列出子 Skill 的真实主 Skill/家族记录。 |
+| 插件怎么显示？ | 插件聚合有独立视图，不计入独立 Skill 的数量。 |
+| 保留哪些信息？ | 分类候选、置信度、胜出边际、来源位置、调用方式、图片来源，以及能够从本地证据确认的 GitHub 仓库地址。 |
+| 没有图片证据怎么办？ | 明确显示 `missing evidence`，不会把分类封面伪装成 Skill 专属图片。 |
+| 安全边界是什么？ | 被扫描目录保持只读。可选网络访问只用于已确认 GitHub 仓库的公开预览图，缓存和手工选择的图片都留在输出目录。 |
+
+## 能做什么
+
+| 功能 | 页面里会看到什么 |
+|---|---|
+| 分类 | 列出候选分类、命中依据和置信度；低置信度条目会保留标记，也可以用整理文件覆盖。 |
+| 家族 | 主 Skill 只占一个条目，详情里列出来源一致的子 Skill。 |
+| 插件 | 按服务商和插件名聚合，在插件视图里单独查看，不计入独立 Skill 数量。 |
+| 搜索和筛选 | 可搜名称、说明、GitHub 信息和相对来源路径，再按分类或视图筛选。 |
+| 图片 | 先用输出目录中的人工覆盖图，再取 GitHub 仓库公开预览、Skill 自带本地图，最后才显示带缺证据标记的说明封面。 |
+| 手工改图 | 详情里可以选择图片并保存到目录输出，之后也能恢复自动图；不会改动源 Skill。 |
+| GitHub 地址 | 只有 frontmatter、本地 Git remote、manifest 或人工整理能确认仓库时才显示链接；点击预览图可直接打开仓库。 |
+| 刷新 | 本地服务沿用启动时的根目录和整理文件重建页面；输入被替换时会拒绝刷新。 |
+
+## 使用方式
+
+| 模式 | 什么时候用 | 输出 |
+|---|---|---|
+| 静态生成 | 只需要一个可分享的本地页面 | 确定性的 `catalog.json` 和自包含 `index.html`。 |
+| 本地服务 | 需要刷新和手工改图 | 静态目录加仅监听 localhost 的 `/api/refresh` 与 `/api/image` 接口。 |
+| 人工整理 | 自动证据存在歧义 | 单独 JSON 文件中的分类、家族、说明、GitHub 或图片覆盖；页面选择的图片写入输出目录自己的整理文件。 |
+| 插件清单 | 扫描插件缓存 | 独立插件视图，以及每个插件携带的 Skill 清单。 |
+
+### 从源码生成目录
+
+需要 Python 3.10+。以下命令只生成静态目录。
 
 ```powershell
 python skills/agent-skill-catalog/scripts/build_catalog.py `
@@ -50,15 +95,7 @@ python skills/agent-skill-catalog/scripts/build_catalog.py `
   --output-dir "$env:TEMP\agent-skill-catalog-output"
 ```
 
-扫描插件缓存时，复制平台示例配置，将对应根目录的 `kind` 设置为 `plugin`，再传入 `--config`：
-
-```powershell
-python skills/agent-skill-catalog/scripts/build_catalog.py `
-  --config .\my-catalog-config.json `
-  --output-dir "$env:TEMP\agent-skill-catalog-output"
-```
-
-生成后可直接打开 `index.html`。需要启用页面内“刷新索引”时，用同一批根目录和整理文件启动受限的本地服务：
+生成后直接打开 `index.html`。页面内需要“刷新索引”按钮时，使用同一批根目录启动本地服务。
 
 ```powershell
 python skills/agent-skill-catalog/scripts/serve_catalog.py `
@@ -66,41 +103,68 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
   --root "C:\path\to\skills"
 ```
 
-## 目录内容
+扫描到能够确认的 GitHub 仓库时，默认会缓存一张公开仓库预览图。完全离线生成时，给 `build_catalog.py` 增加 `--no-github-images`。本地服务模式下，可以在详情里手工替换预览图，也可以恢复自动图。
 
-| 范围 | 内容 |
-| --- | --- |
-| 分类 | 候选分类、命中证据、置信度、胜出边际和低置信度标记 |
-| Skill 家族 | 仅在嵌套目录、同名主 Skill 加至少两个来源一致的同前缀子 Skill，或人工整理证据存在时聚合主/子 Skill |
-| 插件 | 按 `provider:name` 聚合到独立视图，不与独立 Skill 混在一起 |
-| 调用 | Agent 调用提示与相对来源位置 |
-| 图片 | 已验证本地图片、整理后预览、远程元数据或明确标注的回退封面 |
-| GitHub | 仅在本地 Skill 元数据、Git 配置或整理文件提供时显示仓库地址 |
-
-## 隐私与边界
-
-- 只扫描操作者指定的根目录。
-- 扫描根目录保持只读。
-- 不抓取远程内容，不执行发现到的 Skill。
-- 默认隐藏绝对路径。
-- 刷新接口不接受网页传入的命令或路径。
-
-## 兼容与发现
-
-- GitHub Agent Skills：可安装包位于 `skills/agent-skill-catalog/SKILL.md`。
-- Codex：包含 UI 元数据 `agents/openai.yaml`，并保留 Yao Meta 接口契约 `agents/interface.yaml`。
-- 通用本地使用：使用明确的根目录直接运行 Python 脚本。
-
-## 验证
+固定到当前发布版本时使用下面的命令。
 
 ```powershell
-python tools/validate_package.py .
-python tests/test_build_catalog.py
-gh skill publish --dry-run
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.2.2 --agent codex --scope user
 ```
 
-截图使用的公开演示数据位于 [`docs/demo`](docs/demo)。其中的 `DEMO.md` 是刻意不参与 GitHub Skill 发现的示例文件，不含本机路径、私人目录或个人 Skill 清单。
+## 产品截图
 
-## 许可
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.png" alt="Agent Skill Catalog 总览图，技能和插件独立视图、分类计数、搜索与筛选" width="100%"></td></tr></table>
 
-MIT。详见 [LICENSE](LICENSE)。
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.png" alt="Agent Skill Catalog 搜索 agent-skill-catalog 后显示 Skill 卡片、GitHub 预览和预览图操作按钮" width="100%"></td></tr></table>
+
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.png" alt="Agent Skill Catalog 详情弹窗，高亮显示更换预览图、调用方式、来源位置和证据" width="100%"></td></tr></table>
+
+## 安全与责任边界
+
+- 扫描根目录由操作者明确给出，并保持只读；构建器不会遍历无关目录。
+- Skill 自己声明的远程图片地址仍然只保留为元数据。确认到 GitHub 仓库后，构建器只访问公开仓库页面和允许的 GitHub 图片域名，下载内容有大小限制并检查图片签名。
+- 手工预览图只写入输出目录的 `curated-images/` 与 `catalog-curation.json`。
+- 默认隐藏绝对路径；只有明确的本地诊断任务才使用 `--include-absolute-paths`。
+- 刷新只接受启动时记录的根目录、标签、类型、配置和整理文件。
+- 分类、家族、图片和 GitHub 说明都来自扫描结果或整理文件；无法确认的记录会保留复核标记。
+
+完整边界见[免责声明](DISCLAIMER.md)和[安全说明](SECURITY.md)。
+
+## 致谢
+
+项目遵循公开的 [Agent Skills 规范](https://agentskills.io/specification)，扫描、确定性 JSON 生成和本地 HTTP 服务只使用 Python 标准库。README 动画由原创信息图与真实目录 UI 录屏组成，录制使用不含个人清单的本地测试数据；这些测试 Skill、第三方私有提示词和私有资产都不会随仓库发布。
+
+完整归属与非从属说明见[致谢](ACKNOWLEDGEMENTS.md)。
+
+## 仓库结构
+
+```text
+skills/agent-skill-catalog/SKILL.md GitHub 可发现的 Skill 入口
+skills/agent-skill-catalog/       版本化可安装 Skill 包
+skills/agent-skill-catalog/agents 客户端和 Yao Meta 接口元数据
+skills/agent-skill-catalog/references 配置、Schema、整理和工作流
+skills/agent-skill-catalog/scripts   扫描器、HTML 渲染器和受限服务
+docs/media/                        README 截图和产品动画
+tests/                             确定性行为检查
+tools/                             包和发布校验
+.github/                           CI、Issue 和 PR 模板
+CHANGELOG.md                       版本记录
+```
+
+## 状态 / 发布
+
+- 当前已发布版本是 [`v0.2.2`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.2.2)。
+- 可安装包是 [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)。
+- 包校验文件是 [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)。
+- 校验范围包括 GitHub Skill 发现、安装包结构、Python 编译、目录测试和发布打包，CI 与发布前都会运行这些检查。
+- README 动画和截图只是产品预览，不是安装或运行依赖。
+
+版本历史见[更新记录](CHANGELOG.md)。
+
+## 作者
+
+Ethan <ethan.zl@hotmail.com>
+
+## License
+
+MIT.

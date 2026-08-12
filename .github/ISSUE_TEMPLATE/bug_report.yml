@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible catalog, classification, rendering, or refresh problem.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private Skill contents, or absolute private paths.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.2.2 or a commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Include the command, explicit roots, and the smallest example that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, agent host, and whether the page was static or served locally.
+    validations:
+      required: true
