@@ -8,6 +8,7 @@ import html
 import re
 import tempfile
 import time
+from http.client import HTTPException, IncompleteRead
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.error import HTTPError
@@ -78,7 +79,10 @@ def github_repository(url: str) -> Tuple[str, str]:
     if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() not in {"github.com", "www.github.com"}:
         return "", ""
     parts = [part for part in parsed.path.split("/") if part]
-    if len(parts) < 2:
+    # Only a repository root is a valid preview source.  Paths such as
+    # /tree, /blob, /archive, /issues, and /pull are references inside a
+    # repository, not repository URLs themselves.
+    if len(parts) != 2:
         return "", ""
     owner, repository = parts[0], parts[1].removesuffix(".git")
     if not GITHUB_REPOSITORY.fullmatch(owner) or not GITHUB_REPOSITORY.fullmatch(repository):
@@ -166,8 +170,11 @@ def github_readme_image_urls(repository_url: str, image_config: Dict[str, Any]) 
             final_url = response.geturl()
             if github_repository(final_url) != (owner, repository):
                 return []
-            body = response.read(limit + 1)
-    except OSError:
+            try:
+                body = response.read(limit + 1)
+            except IncompleteRead as exc:
+                body = exc.partial
+    except (OSError, HTTPException):
         return []
     if len(body) > limit:
         return []
@@ -193,7 +200,7 @@ def fetch_github_image(url: str, image_config: Dict[str, Any]) -> Tuple[bytes, s
                 return b"", ""
             body = response.read(limit + 1)
             content_type = response.headers.get("Content-Type", "")
-    except OSError:
+    except (OSError, HTTPException):
         return b"", ""
     suffix = image_extension_for_content_type(content_type, final_url)
     if len(body) > limit or not suffix or suffix == ".svg":

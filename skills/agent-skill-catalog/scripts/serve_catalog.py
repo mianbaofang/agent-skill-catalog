@@ -71,6 +71,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: localhost only)")
     parser.add_argument("--port", type=int, default=8765, help="Port to listen on")
     parser.add_argument("--refresh-timeout", type=int, default=300, help="Maximum seconds for one refresh")
+    parser.add_argument(
+        "--require-complete-descriptions",
+        action="store_true",
+        help="Fail refreshes while the Agent-owned Chinese description queue is incomplete",
+    )
     return parser.parse_args()
 
 
@@ -143,6 +148,7 @@ def make_handler(
     curation_paths: list[str],
     refresh_timeout: int,
     startup_root_source: str,
+    require_complete_descriptions: bool,
 ):
     refresh_lock = threading.Lock()
     root_source = str(startup_root_source)
@@ -157,6 +163,8 @@ def make_handler(
             str(output_dir),
             "--refresh",
         ]
+        if require_complete_descriptions:
+            command.append("--require-complete-descriptions")
         if root_source == "cli":
             for root_path in startup_root_paths:
                 command.extend(["--root", root_path])
@@ -411,6 +419,7 @@ def main() -> int:
             curation_paths,
             args.refresh_timeout,
             startup_root_source,
+            args.require_complete_descriptions,
         ),
     )
     print(f"Serving Agent Skill Catalog at http://{args.host}:{args.port}/index.html")

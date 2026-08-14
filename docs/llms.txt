@@ -1,0 +1,31 @@
+# Agent Skill Catalog
+
+> A local-first, read-only catalog for Agent Skills and Codex plugins.
+
+## Canonical pages
+
+- English overview: https://mianbaofang.github.io/agent-skill-catalog/
+- Chinese overview: https://mianbaofang.github.io/agent-skill-catalog/index-zh.html
+- Source repository: https://github.com/mianbaofang/agent-skill-catalog
+- Installable Skill: https://github.com/mianbaofang/agent-skill-catalog/tree/main/skills/agent-skill-catalog
+- Latest release: https://github.com/mianbaofang/agent-skill-catalog/releases/latest
+
+## What it does
+
+- Scans only explicit local `SKILL.md` roots and optional plugin roots.
+- Keeps standalone Skills, parent-child families, and plugin aggregates distinct.
+- Shows invocation wording, classification evidence, GitHub repository links, and image provenance.
+- Generates a self-contained desktop HTML catalog and can refresh it through a localhost-only server.
+
+## Boundaries
+
+- It does not install, execute, edit, or upload scanned Skills.
+- It does not infer a GitHub repository when evidence is ambiguous.
+- Missing image or description evidence stays labeled as missing evidence.
+- Read the repository disclaimer and Skill contract before use.
+
+## Install
+
+```powershell
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.1 --agent codex --scope user
+```

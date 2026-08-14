@@ -14,11 +14,21 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from validate_package import PORTABLE_REPORTS, PRIVATE_PATH, SKILL_RELATIVE, validate
+from validate_package import PRIVATE_PATH, SKILL_RELATIVE, validate
 
 
 PACKAGE_NAME = "agent-skill-catalog"
-EXCLUDED_DIRS = {"__pycache__", ".pytest_cache", ".venv", "venv", "build", "dist", "node_modules"}
+EXCLUDED_DIRS = {
+    "__pycache__",
+    ".pytest_cache",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "node_modules",
+    "evals",
+    "reports",
+}
 EXCLUDED_FILES = {"catalog.json", "index.html", "catalog-data.js", ".env"}
 EXCLUDED_SUFFIXES = {".log", ".pyc", ".pyo", ".tmp"}
 
@@ -29,8 +39,6 @@ def package_paths(skill_root: Path):
             continue
         relative = path.relative_to(skill_root)
         if any(part in EXCLUDED_DIRS for part in relative.parts):
-            continue
-        if relative.parts and relative.parts[0] == "reports" and relative.as_posix() not in PORTABLE_REPORTS:
             continue
         if relative.name in EXCLUDED_FILES or relative.suffix.lower() in EXCLUDED_SUFFIXES:
             continue

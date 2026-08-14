@@ -1,6 +1,6 @@
 # Agent Skill Catalog
 
-A local skill manager and Codex Skill catalog for AI coding agents. It scans explicit `SKILL.md` roots, keeps parent and child Skills together, lists plugins separately, and shows how each entry is invoked.
+A local skill catalog and manager for Codex and other AI coding agents. It scans explicit `SKILL.md` roots, keeps parent and child Skills together, lists plugins separately, and shows how each entry is invoked.
 
 <table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub stars"></a></td></tr></table>
 
@@ -20,6 +20,8 @@ A local skill manager and Codex Skill catalog for AI coding agents. It scans exp
 
 <p align="center">
   <a href="README.zh-CN.md">中文</a>
+  &middot;
+  <a href="https://mianbaofang.github.io/agent-skill-catalog/">Project site</a>
   &middot;
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
   &middot;
@@ -80,10 +82,10 @@ Agent Skill Catalog is a read-only local catalog for people who maintain a large
 | Families | One parent entry with its source-consistent child Skills listed in the detail view. |
 | Plugins | Plugin-provided Skills grouped by provider and plugin name in a separate view. |
 | Search and filtering | Search names, descriptions, GitHub metadata, and source-relative paths, then filter by category or view. |
-| Description enrichment | `description-enrichment.json` identifies missing, short, or non-Chinese descriptions; the invoking Agent writes reviewed Chinese copy to output-owned curation and rebuilds until the queue closes. |
-| Images | Manual output-owned overrides first, then public GitHub repository previews, Skill-provided local images, and a clearly labeled generated fallback. |
+| Description enrichment | `description-enrichment.json` identifies missing, short, or non-Chinese descriptions; the invoking Agent must write the reviewed Chinese copy itself and pass the final completion gate before reporting success. |
+| Images | Manual output-owned overrides first, then public GitHub repository previews resolved from installer/package evidence, Skill-provided local images, and a clearly labeled generated fallback. Family and plugin cards keep the best verified member image. |
 | Manual image replacement | The detail view can save a selected image to the catalog output and restore the automatic image later without editing the source Skill. |
-| GitHub URLs | A repository link appears when `gh skill install` metadata, frontmatter, a Skill-body link, a local Git remote, a manifest, or reviewed curation provides it. Clicking a preview opens that repository. |
+| GitHub URLs | A repository link appears when installer locks, injected frontmatter, package/plugin metadata, a Skill-body link, a local Git remote, a manifest, or reviewed curation provides it. Clicking a preview opens that repository. |
 | Refresh | The local server rebuilds from the roots and curation files recorded at startup and rejects replacement inputs. |
 
 ## Operating Modes
@@ -102,7 +104,8 @@ Use Python 3.10+ to create a static catalog:
 ```powershell
 python skills/agent-skill-catalog/scripts/build_catalog.py `
   --root "C:\path\to\skills" `
-  --output-dir "$env:TEMP\agent-skill-catalog-output"
+  --output-dir "$env:TEMP\agent-skill-catalog-output" `
+  --require-complete-descriptions
 ```
 
 Open the generated `index.html`. To use the in-page refresh action, start the local server with the same roots:
@@ -110,15 +113,16 @@ Open the generated `index.html`. To use the in-page refresh action, start the lo
 ```powershell
 python skills/agent-skill-catalog/scripts/serve_catalog.py `
   --output-dir "$env:TEMP\agent-skill-catalog-output" `
-  --root "C:\path\to\skills"
+  --root "C:\path\to\skills" `
+  --require-complete-descriptions
 ```
 
-When a scanned Skill has an observed GitHub repository, the default build caches one public repository preview. The first build also writes `description-enrichment.json`; complete that queue in `catalog-curation.json` with reviewed Chinese descriptions, then rerun with `--refresh`. Add `--no-github-images` to `build_catalog.py` for a fully offline build. In server mode, the detail view can replace a preview manually and later restore the automatic image.
+When a scanned Skill has an observed GitHub repository, the default build caches one public repository preview. The recommended first command deliberately returns exit code 3 after writing `description-enrichment.json` when Chinese copy still needs work. When this project is invoked as a Skill, the Agent must complete that queue in `catalog-curation.json` itself, then rerun with `--refresh --require-complete-descriptions` until it exits 0; it must not hand that task to the user. Running the builder directly still does not call a text-generation model. Add `--no-github-images` for a fully offline build. In server mode, the same gate prevents the refresh endpoint from falsely reporting a complete catalog.
 
 To pin the current release:
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.0 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.1 --agent codex --scope user
 ```
 
 ## Product Screenshots
@@ -154,6 +158,7 @@ skills/agent-skill-catalog/       versioned installable Skill package
 skills/agent-skill-catalog/agents client and Yao Meta interface metadata
 skills/agent-skill-catalog/references config, schemas, curation, and workflow
 skills/agent-skill-catalog/scripts  scanner, HTML renderer, and bounded server
+governance/agent-skill-catalog/ maintainer-only evaluation cases and release evidence
 docs/media/                        README screenshots and product animation
 tests/                             deterministic behavior checks
 tools/                             package and release validation
@@ -163,7 +168,7 @@ CHANGELOG.md                       release history
 
 ## Status / Release
 
-- Current published release: [`v0.3.0`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.0)
+- Current published release: [`v0.3.1`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.1)
 - Installable package: [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)
 - Package checksum: [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)
 - Validation: GitHub Skill discovery, package structure, Python compilation, deterministic catalog tests, and release packaging are run in CI and before release.

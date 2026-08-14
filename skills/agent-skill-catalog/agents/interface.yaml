@@ -1,7 +1,7 @@
 interface:
   display_name: "Agent Skill Catalog"
   short_description: "扫描本地 SKILL.md，按分类、家族和插件生成可检索目录，并优先显示 GitHub 仓库预览图"
-  default_prompt: "Use $agent-skill-catalog to scan these explicit local skill roots, separate standalone skills from plugins, aggregate parent/child families, retrieve cached public GitHub repository previews from observed sources including gh skill install metadata, and complete the output-owned Chinese description enrichment queue before reporting category coverage, image evidence, GitHub metadata, output paths, and unresolved inputs. Do not install or edit scanned skills."
+  default_prompt: "Use $agent-skill-catalog to scan these explicit local skill roots. Start with --require-complete-descriptions, resolve observed GitHub sources from installer locks and package/plugin metadata, keep the best verified family/plugin preview, then complete the output-owned Chinese description queue yourself when exit code 3 occurs. Rebuild until it exits 0; do not report success or hand the queue to the user while items remain. Do not install or edit scanned skills."
 compatibility:
   canonical_format: "agent-skills"
   adapter_targets:

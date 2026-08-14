@@ -10,7 +10,7 @@
 把结果写到 <输出目录>，运行：
 python scripts/build_catalog.py --root <根目录 1> --output-dir <输出目录>
 
-只读扫描，不安装、不修改、不删除任何被扫描的 Skill。完成后先检查 `description-enrichment.json`；逐项读取对应 `SKILL.md`，有 `github_url` 时对照公开仓库 README，用自然中文补写用途、适用场景、输入/输出或限制，写入输出目录的 `catalog-curation.json`，再用 `--refresh` 重建，直到 `summary.pending_description_count` 为 0；证据不足的项保留 `missing evidence`，不要编造。最后报告：实际扫描根、catalog.json、description-enrichment.json、index.html、独立 Skill/插件 Skill/插件/家族数量、分类覆盖、低置信度项、图片状态、GitHub 元数据来源和未找到的根目录。
+只读扫描，不安装、不修改、不删除任何被扫描的 Skill。首次构建就带上 `--require-complete-descriptions`。退出码 3 表示说明队列未完成；这是你必须自行完成的工作队列，不要让用户手工补。逐项读取对应 `SKILL.md`，有 `github_url` 时对照公开仓库 README，用自然中文写清用途、适用场景、输入输出或限制，保存到输出目录的 `catalog-curation.json`，再用 `--refresh --require-complete-descriptions` 重建，直到退出码为 0。证据不足的项保留 `missing evidence`，不要编造。最后报告：实际扫描根、catalog.json、description-enrichment.json、index.html、独立 Skill/插件 Skill/插件/家族数量、分类覆盖、低置信度项、图片状态、GitHub 元数据来源和未找到的根目录。
 ```
 
 ## 刷新已有 Agent Skill Catalog
@@ -19,7 +19,7 @@ python scripts/build_catalog.py --root <根目录 1> --output-dir <输出目录>
 请在确认输出目录属于当前 Agent Skill Catalog 后，使用 `--refresh` 刷新：
 python scripts/build_catalog.py --config references/catalog-config.json --output-dir <已有输出目录> --refresh
 
-刷新只允许覆盖该输出目录。不要清理源目录，不要凭空补分类或图片。先检查 `catalog.json` 的 `previous_generated_at`、`category_coverage.uncovered`、`families`、`plugins` 和 `unresolved_roots`，再打开 HTML。若希望网页按钮自动刷新，请用 `python scripts/serve_catalog.py --config <配置> --curation <整理文件，可选> --output-dir <已有输出目录>` 启动服务。
+刷新只允许覆盖该输出目录。不要清理源目录，不要凭空补分类或图片。先检查 `catalog.json` 的 `previous_generated_at`、`category_coverage.uncovered`、`families`、`plugins` 和 `unresolved_roots`，再打开 HTML。若希望网页按钮自动刷新，请用 `python scripts/serve_catalog.py --config <配置> --curation <整理文件，可选> --output-dir <已有输出目录> --require-complete-descriptions` 启动服务；说明队列未完成时不能把刷新报告为成功。
 ```
 
 ## 分类争议

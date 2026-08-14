@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Skill Catalog | Local Skill Manager for Codex and AI Agents</title>
+  <meta name="description" content="Organize local Agent Skills and Codex plugins by category, family, invocation, GitHub source, and preview image in a read-only desktop catalog.">
+  <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/">
+  <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/">
+  <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/index-zh.html">
+  <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Agent Skill Catalog | Local Skill Manager">
+  <meta property="og:description" content="A read-only catalog for finding Agent Skills, parent-child families, plugins, invocation text, GitHub sources, and real preview images.">
+  <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/">
+  <meta property="og:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Agent Skill Catalog | Local Skill Manager">
+  <meta name="twitter:description" content="Find the right local Agent Skill or Codex plugin without opening every SKILL.md file.">
+  <meta name="twitter:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
+  <link rel="stylesheet" href="assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "Agent Skill Catalog",
+    "description": "A local read-only catalog for Agent Skills and Codex plugins.",
+    "url": "https://mianbaofang.github.io/agent-skill-catalog/",
+    "codeRepository": "https://github.com/mianbaofang/agent-skill-catalog",
+    "programmingLanguage": "Python",
+    "runtimePlatform": "Windows, macOS, Linux",
+    "license": "https://github.com/mianbaofang/agent-skill-catalog/blob/main/LICENSE",
+    "applicationCategory": "DeveloperApplication",
+    "image": "https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png",
+    "author": {"@type": "Person", "name": "Ethan"}
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="#workflow">Workflow</a>
+      <a href="#screens">Screens</a>
+      <a href="index-zh.html">中文</a>
+      <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">View on GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Local Skill manager for AI coding agents</p>
+        <h1 id="hero-title">Agent Skill Catalog</h1>
+        <p>Organize a large local library of Agent Skills and Codex plugins by category, family, invocation, GitHub source, and real preview image.</p>
+        <div class="hero-actions">
+          <a class="button" href="#install">Install the Skill</a>
+          <a class="button secondary" href="https://github.com/mianbaofang/agent-skill-catalog">Read the repository</a>
+        </div>
+        <p class="proof-line">Read-only scan · desktop HTML · explicit roots · evidence labels</p>
+      </div>
+    </section>
+
+    <section class="section-band" id="install">
+      <div class="install-strip">
+        <div>
+          <h2>Start with one command</h2>
+          <p class="lede">Install the published Skill, then tell your Agent which local roots to inspect.</p>
+        </div>
+        <code class="command">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.1 --agent codex --scope user</code>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Why it exists</p>
+        <h2>Find the right capability without opening every SKILL.md</h2>
+        <p class="lede">A flat folder list hides the difference between a standalone Skill, a child of a larger family, and a plugin-provided capability. The catalog makes that difference visible before you invoke anything.</p>
+      </div>
+      <div class="three-up">
+        <article class="accent-teal">
+          <h3>Families stay together</h3>
+          <p>Real parent and child Skills appear as one family entry, with the child list available in the detail view.</p>
+        </article>
+        <article class="accent-coral">
+          <h3>Plugins stay separate</h3>
+          <p>Plugin-provided Skills are shown under their provider and plugin instead of inflating the standalone count.</p>
+        </article>
+        <article class="accent-yellow">
+          <h3>Evidence stays visible</h3>
+          <p>Classification confidence, invocation text, GitHub URLs, image provenance, and missing evidence remain inspectable.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-band" id="workflow">
+      <div class="section-heading">
+        <p class="eyebrow">From folders to a usable index</p>
+        <h2>A small, reviewable workflow</h2>
+      </div>
+      <div class="steps">
+        <article class="step"><span class="step-number">01 / SCAN</span><h3>Choose explicit roots</h3><p>Point the builder at the Skill folders and optional plugin caches you actually want to inspect.</p></article>
+        <article class="step"><span class="step-number">02 / REVIEW</span><h3>Keep uncertainty honest</h3><p>Review low-confidence categories, family evidence, descriptions, GitHub sources, and image status.</p></article>
+        <article class="step"><span class="step-number">03 / USE</span><h3>Search before invoking</h3><p>Open one local desktop page to compare purpose, invocation, child Skills, and source links.</p></article>
+      </div>
+      <figure class="visual-frame">
+        <img src="media/agent-skill-catalog-filter.png" alt="Agent Skill Catalog filtered view showing categories, search results, and a Skill preview" width="1440" height="1024">
+        <figcaption class="visual-caption">The filter view keeps category counts, search results, GitHub preview evidence, and manual image controls in one desktop workspace.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section" id="screens">
+      <div class="section-heading">
+        <p class="eyebrow">What a detail view contains</p>
+        <h2>Purpose, invocation, source, and image evidence in one place</h2>
+        <p class="lede">The catalog is designed for repeated lookup: search a name, compare similar entries, then open the detail panel before you ask an Agent to use one.</p>
+      </div>
+      <div class="screens">
+        <figure><img src="media/agent-skill-catalog-overview.png" alt="Agent Skill Catalog overview with category tabs, Skill families, plugin separation, and preview images" width="1440" height="1024"><figcaption>Overview: categories, family grouping, plugin separation, and image provenance.</figcaption></figure>
+        <figure><img src="media/agent-skill-catalog-detail.png" alt="Agent Skill Catalog detail panel showing GitHub repository, invocation text, source path, and image evidence" width="1440" height="1024"><figcaption>Detail: GitHub repository, invocation wording, source location, and evidence state.</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Questions people actually ask</p>
+        <h2>Built for a growing Skill library</h2>
+      </div>
+      <div class="faq">
+        <details open><summary>Does the catalog modify or execute scanned Skills?</summary><p>No. The builder reads only the roots you supply. It keeps source folders read-only and writes generated JSON, cached previews, and manual image overrides to the selected output directory.</p></details>
+        <details><summary>Can it distinguish a plugin from a standalone Skill?</summary><p>Yes, when the configured roots and package evidence make that distinction observable. Plugin aggregates have their own view and are not counted as standalone Skills.</p></details>
+        <details><summary>Where do Skill preview images come from?</summary><p>Manual output-owned overrides take priority. Otherwise the catalog uses verified public GitHub repository previews, Skill-provided local images, or a clearly labeled fallback when real image evidence is unavailable.</p></details>
+        <details><summary>Can I refresh the catalog after installing a new Skill?</summary><p>Run the local server with the same roots recorded at startup and use the refresh action. The server rejects replacement inputs so a refresh cannot silently scan a different library.</p></details>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="cta-inner">
+        <div><h2>Make the next Skill easy to find.</h2><p>Keep the folders local. Put the evidence, invocation, and relationships where you can search them.</p></div>
+        <a class="button" href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest">Open the latest release</a>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="footer-inner"><span>Agent Skill Catalog · MIT · Independent open-source project</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> · <a href="index-zh.html">中文页面</a> · Ethan</span></div></footer>
+</body>
+</html>

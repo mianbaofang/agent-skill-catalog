@@ -1,3 +1,4 @@
+import http.client
 import json
 import socket
 import subprocess
@@ -453,6 +454,198 @@ def test_gh_install_metadata_and_skill_body_urls_drive_github_previews() -> None
         assert ambiguous == ""
 
 
+def test_github_sources_are_canonical_repository_roots() -> None:
+    builder = load_builder()
+    preview = sys.modules["github_preview"]
+    assert preview.github_repository("https://github.com/example/repo") == ("example", "repo")
+    assert preview.github_repository("https://github.com/example/repo.git") == ("example", "repo")
+    for path in ("archive/refs/heads/main.zip", "tree/main/docs", "blob/main/SKILL.md", "issues/1", "pull/2"):
+        assert preview.github_repository(f"https://github.com/example/repo/{path}") == ("", "")
+    assert builder.github_from_values(["https://github.com/example/repo/tree/main/docs`\n"]) == ""
+    assert builder.github_from_values(["https://github.com/example/repo/archive/refs/heads/main.zip"]) == ""
+    assert builder.github_from_skill_text(
+        "Docs: https://github.com/example/repo/tree/main/docs`\n"
+        "Source: https://github.com/example/repo\n"
+    ) == "https://github.com/example/repo"
+
+
+def test_local_git_remote_wins_over_referenced_readme_repository() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        skill = root / "cangjie-skill"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: cangjie-skill\ndescription: 将长内容提炼为可复用的技能流程说明。\n---\n",
+            encoding="utf-8",
+        )
+        (skill / "README.md").write_text(
+            "来源仓库：https://github.com/example/referenced-source\n",
+            encoding="utf-8",
+        )
+        (skill / ".git").mkdir()
+        (skill / ".git" / "config").write_text(
+            '[remote "origin"]\nurl = https://github.com/example/cangjie-skill.git\n',
+            encoding="utf-8",
+        )
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, _, _ = module.scan(
+            config,
+            [{"path": str(root), "label": "Root 1", "kind": "skill"}],
+            False,
+            fixture / "cache",
+        )
+        assert items[0]["github"] == {
+            "url": "https://github.com/example/cangjie-skill",
+            "source": "git-config",
+            "verification": "observed-local",
+        }
+
+
+def test_gh_install_lock_drives_github_preview_when_frontmatter_has_no_metadata() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / ".agents" / "skills"
+        installed = root / "installed-from-lock"
+        installed.mkdir(parents=True)
+        (installed / "SKILL.md").write_text(
+            "---\n"
+            "name: installed-from-lock\n"
+            "description: 这是一个通过 GitHub CLI 安装但源文件没有注入仓库元数据的技能。\n"
+            "---\n",
+            encoding="utf-8",
+        )
+        (root.parent / ".skill-lock.json").write_text(
+            json.dumps(
+                {
+                    "version": 3,
+                    "skills": {
+                        "installed-from-lock": {
+                            "source": "example/installed-from-lock",
+                            "sourceType": "github",
+                            "sourceUrl": "https://github.com/example/installed-from-lock.git",
+                            "skillPath": "skills/installed-from-lock/SKILL.md",
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        module.github_preview_image = lambda repository, *_: {
+            "status": "github-social-preview",
+            "source": "test",
+            "value": "data:image/png;base64,dGVzdA==",
+            "repository": repository,
+            "missing_evidence": False,
+        }
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, _, _ = module.scan(
+            config,
+            [{"path": str(root), "label": "Root 1", "kind": "skill"}],
+            False,
+            fixture / "cache",
+        )
+        item = items[0]
+        assert item["github"]["url"] == "https://github.com/example/installed-from-lock"
+        assert item["github"]["source"] == "install-lock"
+        assert item["image"]["status"] == "github-social-preview"
+
+
+def test_github_readme_partial_response_still_yields_image_candidates() -> None:
+    load_builder()
+    module = sys.modules["github_preview"]
+    globals_ = module.github_readme_image_urls.__globals__
+    original = globals_["open_allowed"]
+
+    class PartialResponse:
+        headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def geturl(self):
+            return "https://github.com/example/catalog"
+
+        def read(self, _):
+            raise http.client.IncompleteRead(
+                b'<img src="https://raw.githubusercontent.com/example/catalog/main/preview.png">',
+                100,
+            )
+
+    try:
+        globals_["open_allowed"] = lambda *_: PartialResponse()
+        urls = module.github_readme_image_urls("https://github.com/example/catalog", {})
+    finally:
+        globals_["open_allowed"] = original
+    assert urls == ["https://raw.githubusercontent.com/example/catalog/main/preview.png"]
+
+
+def test_family_and_plugin_aggregates_use_best_verified_member_image() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        for name, repository in (
+            ("research", ""),
+            ("research-deep", "https://github.com/example/research"),
+            ("research-report", "https://github.com/example/research"),
+        ):
+            skill = root / name
+            skill.mkdir(parents=True)
+            metadata = f"metadata: {repository}\n" if repository else ""
+            (skill / "SKILL.md").write_text(
+                f"---\nname: {name}\ndescription: 处理研究资料并输出可复查的结果说明。\n{metadata}---\n",
+                encoding="utf-8",
+            )
+        module.github_preview_image = lambda repository, *_: {
+            "status": "github-social-preview",
+            "source": "test",
+            "value": "data:image/png;base64,dGVzdA==",
+            "repository": repository,
+            "missing_evidence": False,
+        }
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, _, _ = module.scan(
+            config,
+            [{"path": str(root), "label": "Root 1", "kind": "skill"}],
+            False,
+            fixture / "family-cache",
+        )
+        family = next(family for family in module.assign_families(items, config) if family["name"] == "research")
+        assert family["primary_id"] == next(item["id"] for item in items if item["name"] == "research")
+        assert family["image"]["status"] == "github-social-preview"
+        assert family["image_source_member_id"] != family["primary_id"]
+        assert family["github"]["url"] == "https://github.com/example/research"
+
+        plugin_root = fixture / "plugins"
+        for name, repository in (("primary", ""), ("preview", "https://github.com/example/plugin")):
+            skill = plugin_root / "provider" / "tool" / "1.0" / name
+            skill.mkdir(parents=True)
+            metadata = f"metadata: {repository}\n" if repository else ""
+            (skill / "SKILL.md").write_text(
+                f"---\nname: {name}\ndescription: 提供插件能力并输出可复查的处理结果。\n{metadata}---\n",
+                encoding="utf-8",
+            )
+        plugin_items, raw_plugins, _ = module.scan(
+            config,
+            [{"path": str(plugin_root), "label": "Plugins", "kind": "plugin"}],
+            False,
+            fixture / "plugin-cache",
+        )
+        by_name = {item["name"]: item for item in plugin_items}
+        by_name["primary"]["confidence"] = 1.0
+        by_name["preview"]["confidence"] = 0.1
+        plugin = module.merge_plugins(raw_plugins, plugin_items, config)[0]
+        assert plugin["image"]["status"] == "github-social-preview"
+        assert plugin["image_source_member_id"] == by_name["preview"]["id"]
+        assert plugin["github"]["url"] == "https://github.com/example/plugin"
+
+
 def test_description_enrichment_queue_closes_after_curation() -> None:
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp)
@@ -479,6 +672,57 @@ def test_description_enrichment_queue_closes_after_curation() -> None:
         second = run_builder(root, output, refresh=True)
         assert second["summary"]["pending_description_count"] == 0
         assert second["items"][0]["description_source"] == "curation"
+
+
+def test_require_complete_descriptions_blocks_premature_success() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        skill = root / "english"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: english\ndescription: Search public sources and produce a cited research brief.\n---\n",
+            encoding="utf-8",
+        )
+        output = fixture / "output"
+        first = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--root",
+                str(root),
+                "--output-dir",
+                str(output),
+                "--require-complete-descriptions",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert first.returncode == 3
+        assert "pending description" in first.stderr.casefold()
+        assert (output / "description-enrichment.json").is_file()
+
+        curation_path = output / "catalog-curation.json"
+        curation = json.loads(curation_path.read_text(encoding="utf-8"))
+        curation["description_overrides"]["english/SKILL.md"] = (
+            "检索公开来源并整理为带引用的研究简报，适合需要核对事实、保留出处并形成可复查结论的任务。"
+        )
+        curation_path.write_text(json.dumps(curation, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        second = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--root",
+                str(root),
+                "--output-dir",
+                str(output),
+                "--refresh",
+                "--require-complete-descriptions",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert second.returncode == 0
 
 
 def test_import_legacy_catalog_curation() -> None:
@@ -668,7 +912,11 @@ if __name__ == "__main__":
     test_malformed_config_fails()
     test_folded_frontmatter_description()
     test_gh_install_metadata_and_skill_body_urls_drive_github_previews()
+    test_gh_install_lock_drives_github_preview_when_frontmatter_has_no_metadata()
+    test_github_readme_partial_response_still_yields_image_candidates()
+    test_family_and_plugin_aggregates_use_best_verified_member_image()
     test_description_enrichment_queue_closes_after_curation()
+    test_require_complete_descriptions_blocks_premature_success()
     test_import_legacy_catalog_curation()
     test_explainable_classification_scoped_override_and_plugin_providers()
     test_config_root_refresh_and_privacy_contract()

@@ -1,6 +1,6 @@
 interface:
   display_name: "Agent Skill Catalog"
   short_description: "Build a searchable local skills catalog"
-  default_prompt: "Use $agent-skill-catalog to catalog explicit local Skill and plugin roots, collect observed GitHub previews, and complete the Chinese description enrichment queue before reporting success."
+  default_prompt: "Use $agent-skill-catalog to catalog explicit local Skill and plugin roots. Start with --require-complete-descriptions, resolve GitHub sources from installer and package metadata, keep the best verified family/plugin preview, and complete the Chinese description queue yourself when exit code 3 occurs. Rebuild until it exits 0; never report success while items remain."
 policy:
   allow_implicit_invocation: false

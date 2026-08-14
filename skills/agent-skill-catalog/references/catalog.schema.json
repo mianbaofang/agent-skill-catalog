@@ -16,10 +16,12 @@
     "category_coverage": {"$ref": "category-coverage.schema.json"},
     "description_enrichment": {
       "type": "object",
-      "required": ["locale", "pending_count", "completion_rule", "items"],
+      "required": ["locale", "pending_count", "execution_owner", "builder_generates_copy", "completion_rule", "items"],
       "properties": {
         "locale": {"type": "string"},
         "pending_count": {"type": "integer", "minimum": 0},
+        "execution_owner": {"type": "string", "enum": ["invoking-agent"]},
+        "builder_generates_copy": {"type": "boolean"},
         "completion_rule": {"type": "string"},
         "items": {"type": "array", "items": {"type": "object"}}
       }

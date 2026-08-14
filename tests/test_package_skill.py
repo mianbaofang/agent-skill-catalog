@@ -22,14 +22,21 @@ def load_module():
     return module
 
 
-def test_report_allowlist() -> None:
+def test_install_package_excludes_maintenance_evidence() -> None:
     module = load_module()
     skill_root = ROOT / "skills" / "agent-skill-catalog"
     included = {relative.as_posix() for _, relative in module.package_paths(skill_root)}
-    assert "reports/output_quality_scorecard.md" in included
-    assert "reports/security_trust_report.md" in included
-    assert "reports/install_simulation.md" not in included
-    assert "reports/review-studio.html" not in included
+    assert "scripts/build_catalog.py" in included
+    assert "scripts/github_preview.py" in included
+    assert "references/workflow.md" in included
+    assert not any(relative.split("/", 1)[0] in {"build", "evals", "reports"} for relative in included)
+
+
+def test_governance_evidence_stays_outside_the_install_boundary() -> None:
+    governance = ROOT / "governance" / "agent-skill-catalog"
+    assert (governance / "evals" / "trigger_cases.json").is_file()
+    assert (governance / "reports" / "output_quality_scorecard.md").is_file()
+    assert not (ROOT / "skills" / "agent-skill-catalog" / "evals").exists()
 
 
 def test_repository_has_one_github_discoverable_skill() -> None:
@@ -51,10 +58,9 @@ def test_release_archive_is_portable() -> None:
             names = set(handle.namelist())
             assert "agent-skill-catalog/SKILL.md" in names
             assert "agent-skill-catalog/LICENSE" in names
-            assert "agent-skill-catalog/reports/output_quality_scorecard.md" in names
-            assert "agent-skill-catalog/reports/install_simulation.md" not in names
+            assert "agent-skill-catalog/scripts/github_preview.py" in names
             assert sum(name.endswith("/SKILL.md") for name in names) == 1
-            assert not any("demo" in Path(name).parts for name in names)
+            assert not any(part in {"build", "evals", "reports", "__pycache__"} for name in names for part in Path(name).parts)
             for name in names:
                 if Path(name).suffix.lower() not in {".md", ".json", ".py", ".yaml", ".yml", ".txt"}:
                     continue
@@ -63,7 +69,8 @@ def test_release_archive_is_portable() -> None:
 
 
 def main() -> None:
-    test_report_allowlist()
+    test_install_package_excludes_maintenance_evidence()
+    test_governance_evidence_stays_outside_the_install_boundary()
     test_repository_has_one_github_discoverable_skill()
     test_release_archive_is_portable()
     print("ok")

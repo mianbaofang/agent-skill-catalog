@@ -33,6 +33,7 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 ASCII_WORD = re.compile(r"[a-z0-9]")
 GITHUB_URL = re.compile(r"https?://(?:www\.)?github\.com/[^\s'\")<>]+", re.I)
 GITHUB_SSH_URL = re.compile(r"git@github\.com:([^\s'\")<>]+)", re.I)
+GITHUB_SLUG = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?$")
 CJK_TEXT = re.compile(r"[\u3400-\u9fff]")
 SVG_NAMESPACE = "http:" + "//www.w3.org/2000/svg"
 COVER_STYLES = {
@@ -59,6 +60,7 @@ from github_preview import (
     AllowedRedirectHandler,
     github_cache_key,
     github_preview_image,
+    github_repository,
     image_data_uri,
     image_data_uri_from_bytes,
 )
@@ -381,19 +383,124 @@ def curation_value(mapping: Any, name: str, relative_path: str) -> str:
     return ""
 
 
-def github_from_values(values: Iterable[Any]) -> str:
+def github_from_values(values: Iterable[Any], allow_shorthand: bool = False) -> str:
     for value in values:
         if isinstance(value, dict):
-            nested = github_from_values(value.values())
+            nested = github_from_values(value.values(), allow_shorthand=allow_shorthand)
             if nested:
                 return nested
             continue
-        match = GITHUB_URL.search(str(value or ""))
+        text = str(value or "").strip()
+        if text.lower().startswith("git+https://"):
+            text = text[4:]
+        match = GITHUB_URL.search(text)
         if match:
-            return match.group(0).rstrip(".,;:)]}")
-        ssh_match = GITHUB_SSH_URL.search(str(value or ""))
+            owner, repository = github_repository(match.group(0).rstrip(".,;:)]}`"))
+            if owner and repository:
+                return f"https://github.com/{owner}/{repository}"
+        ssh_match = GITHUB_SSH_URL.search(text)
         if ssh_match:
-            return "https://github.com/" + ssh_match.group(1).rstrip(".,;:)]}").removesuffix(".git")
+            text = ssh_match.group(1).rstrip(".,;:)]}`").removesuffix(".git")
+            if GITHUB_SLUG.fullmatch(text):
+                return "https://github.com/" + text
+        shorthand = text.removeprefix("github:").strip().removesuffix(".git")
+        if allow_shorthand and GITHUB_SLUG.fullmatch(shorthand):
+            return "https://github.com/" + shorthand
+    return ""
+
+
+def install_lock_entries(root: Path) -> Dict[str, Dict[str, Any]]:
+    entries: Dict[str, Dict[str, Any]] = {}
+    candidates = (
+        root.parent / ".skill-lock.json",
+        root / ".skill-lock.json",
+        root / "skills-lock.json",
+        root.parent / "skills-lock.json",
+    )
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate.resolve()).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        payload = read_json(candidate, {})
+        skills = payload.get("skills") if isinstance(payload, dict) else None
+        if not isinstance(skills, dict):
+            continue
+        for name, metadata in skills.items():
+            normalized = normalize_for_match(str(name))
+            if normalized and normalized not in entries and isinstance(metadata, dict):
+                entries[normalized] = metadata
+    return entries
+
+
+def github_from_install_lock(
+    entries: Dict[str, Dict[str, Any]],
+    name: str,
+    relative_path: str,
+    root: Path,
+) -> str:
+    parts = Path(relative_path).parts
+    candidates = [name]
+    if parts and parts[0].casefold() != "skill.md":
+        candidates.append(parts[0])
+    if len(parts) == 1:
+        candidates.append(root.name)
+    for candidate in candidates:
+        metadata = entries.get(normalize_for_match(candidate))
+        if not isinstance(metadata, dict):
+            continue
+        source_type = str(metadata.get("sourceType") or metadata.get("source_type") or "").casefold()
+        repository = github_from_values(
+            [
+                metadata.get("sourceUrl"),
+                metadata.get("source_url"),
+                metadata.get("repository"),
+                metadata.get("source"),
+            ],
+            allow_shorthand=True,
+        )
+        if repository and (not source_type or source_type == "github"):
+            return repository
+    return ""
+
+
+def github_from_nearby_metadata(skill_path: Path, root: Path, include_readmes: bool = True) -> str:
+    current = skill_path.parent
+    resolved_root = root.resolve()
+    for _ in range(8):
+        try:
+            current.resolve().relative_to(resolved_root)
+        except ValueError:
+            break
+        json_candidates = (
+            current / "installation.json",
+            current / "package.json",
+            current / ".claude-plugin" / "plugin.json",
+            current / ".claude-plugin" / "marketplace.json",
+            current / ".codex-plugin" / "plugin.json",
+            current / ".codex-plugin" / "marketplace.json",
+        )
+        for candidate in json_candidates:
+            payload = read_json(candidate, {})
+            if isinstance(payload, dict):
+                repository = github_from_values(payload.values())
+                if repository:
+                    return repository
+        if include_readmes:
+            for readme_name in ("README.md", "README.zh-CN.md", "README.en.md"):
+                candidate = current / readme_name
+                try:
+                    if not candidate.is_file() or candidate.stat().st_size > 512 * 1024:
+                        continue
+                    repository = github_from_skill_text(candidate.read_text(encoding="utf-8", errors="replace"))
+                except OSError:
+                    repository = ""
+                if repository:
+                    return repository
+        if current == resolved_root:
+            break
+        current = current.parent
     return ""
 
 
@@ -406,11 +513,15 @@ def github_from_skill_text(text: str) -> str:
                 return url
     urls: List[str] = []
     for match in GITHUB_URL.finditer(text):
-        url = match.group(0).rstrip(".,;:)]}")
+        url = github_from_values([match.group(0).rstrip(".,;:)]}`")])
+        if not url:
+            continue
         if url not in urls:
             urls.append(url)
     for match in GITHUB_SSH_URL.finditer(text):
-        url = "https://github.com/" + match.group(1).rstrip(".,;:)]}").removesuffix(".git")
+        url = github_from_values([match.group(0).rstrip(".,;:)]}`")])
+        if not url:
+            continue
         if url not in urls:
             urls.append(url)
     return urls[0] if len(urls) == 1 else ""
@@ -447,6 +558,7 @@ def github_for(
     skill_path: Path,
     root: Path,
     skill_text: str = "",
+    install_locks: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Tuple[str, str]:
     override = curation_value(curation.get("github_overrides"), name, relative_path)
     if override:
@@ -454,15 +566,24 @@ def github_for(
     frontmatter_url = github_from_values(frontmatter.values())
     if frontmatter_url:
         return frontmatter_url, "frontmatter"
+    install_url = github_from_install_lock(install_locks or {}, name, relative_path, root)
+    if install_url:
+        return install_url, "install-lock"
     manifest_url = github_from_values(manifest.values())
     if manifest_url:
         return manifest_url, "manifest"
+    sidecar_url = github_from_nearby_metadata(skill_path, root, include_readmes=False)
+    if sidecar_url:
+        return sidecar_url, "sidecar-metadata"
     skill_body_url = github_from_skill_text(skill_text)
     if skill_body_url:
         return skill_body_url, "skill-body"
     git_url = github_from_git_config(skill_path, root)
     if git_url:
         return git_url, "git-config"
+    readme_url = github_from_nearby_metadata(skill_path, root, include_readmes=True)
+    if readme_url:
+        return readme_url, "sidecar-metadata"
     return "", ""
 
 
@@ -837,6 +958,7 @@ def scan(
         if not root.is_dir():
             unresolved.append({"path": str(root), "label": spec["label"], "reason": "root does not exist or is not a directory"})
             continue
+        install_locks = install_lock_entries(root)
         for skill_path in iter_skill_files(root, skip_dirs, max_depth):
             resolved = str(skill_path.resolve()).casefold()
             if resolved in seen:
@@ -864,7 +986,17 @@ def scan(
                 root_label=spec["label"],
                 root_path=str(root),
             )
-            github_url, github_source = github_for(frontmatter, manifest, curation, name, relative, skill_path, root, text)
+            github_url, github_source = github_for(
+                frontmatter,
+                manifest,
+                curation,
+                name,
+                relative,
+                skill_path,
+                root,
+                text,
+                install_locks,
+            )
             review = description_review(
                 description,
                 "curation" if curated_description else source_description_origin,
@@ -1105,6 +1237,36 @@ def family_identity(
     return f"family:{source}:{family_slug}", root_name, str(item["category"])
 
 
+def best_image_member(members: List[Dict[str, Any]], primary: Dict[str, Any]) -> Dict[str, Any]:
+    status_rank = {
+        "curated-local": 5,
+        "github-repository": 4,
+        "github-social-preview": 3,
+        "verified-local": 2,
+    }
+
+    def rank(item: Dict[str, Any]) -> Tuple[int, int, float, str]:
+        image = item.get("image") if isinstance(item.get("image"), dict) else {}
+        status = str(image.get("status") or "")
+        evidence_rank = status_rank.get(status, 1 if not image.get("missing_evidence", True) else 0)
+        return (
+            -evidence_rank,
+            0 if item.get("id") == primary.get("id") else 1,
+            -float(item.get("confidence", 0.0)),
+            str(item.get("name") or "").casefold(),
+        )
+
+    return sorted(members, key=rank)[0]
+
+
+def aggregate_github(primary: Dict[str, Any], image_member: Dict[str, Any], members: List[Dict[str, Any]]) -> Dict[str, Any]:
+    for item in (image_member, primary, *members):
+        github = item.get("github") if isinstance(item.get("github"), dict) else {}
+        if github.get("url"):
+            return github
+    return {}
+
+
 def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List[Dict[str, Any]]:
     buckets: Dict[str, List[Dict[str, Any]]] = {}
     inferred = rooted_sibling_families(items)
@@ -1138,6 +1300,7 @@ def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List
             member["family_size"] = len(members)
             member["is_family_primary"] = member["id"] == primary["id"]
         category = str(primary.get("family_category") or primary["category"])
+        image_member = best_image_member(members, primary)
         families.append({
             "id": family_id,
             "name": str(primary.get("family_name") or primary["name"]),
@@ -1145,8 +1308,9 @@ def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List
             "description": primary["description"],
             "description_source": primary.get("description_source", "source"),
             "source": primary.get("source", "unknown"),
-            "image": primary["image"],
-            "github": primary.get("github", {}),
+            "image": image_member["image"],
+            "image_source_member_id": image_member["id"],
+            "github": aggregate_github(primary, image_member, members),
             "invocation": primary["invocation"],
             "category_evidence": primary.get("category_evidence", []),
             "category_candidates": primary.get("category_candidates", []),
@@ -1233,13 +1397,15 @@ def merge_plugins(raw_plugins: List[Dict[str, Any]], items: List[Dict[str, Any]]
         explicit = curation_value(curation.get("description_overrides"), str(plugin["name"]), str(plugin["name"]))
         primary = sorted(skills, key=lambda skill: (-float(skill["confidence"]), str(skill["name"]).casefold()))[0]
         description = explicit or primary["description"]
-        github = next((skill.get("github") for skill in skills if skill.get("github", {}).get("url")), {})
-        image = primary["image"]
+        image_member = best_image_member(skills, primary)
+        github = aggregate_github(primary, image_member, skills)
+        image = image_member["image"]
         plugin.update({
             "category": category,
             "description": description,
             "description_source": "curation" if explicit else primary.get("description_source", "source"),
             "image": image,
+            "image_source_member_id": image_member["id"],
             "github": github,
             "invocation": f"在你的 Agent 中直接说明任务；插件 {plugin['name']} 会路由到它携带的技能。",
             "category_candidates": candidate_rows,
@@ -1341,7 +1507,12 @@ def description_enrichment(items: List[Dict[str, Any]], locale: str) -> Dict[str
     return {
         "locale": locale,
         "pending_count": len(pending),
-        "completion_rule": "Write reviewed descriptions to catalog-curation.json and rebuild until pending_count is zero or missing evidence is reported.",
+        "execution_owner": "invoking-agent",
+        "builder_generates_copy": False,
+        "completion_rule": (
+            "The invoking Agent must write evidence-backed Chinese descriptions to catalog-curation.json, "
+            "rerun with --refresh --require-complete-descriptions, and must not report success while exit code 3 remains."
+        ),
         "items": pending,
     }
 
@@ -1547,6 +1718,11 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--no-html", action="store_true", help="Write catalog.json without index.html")
     result.add_argument("--include-absolute-paths", action="store_true", help="Include absolute source paths in catalog items")
     result.add_argument("--no-github-images", action="store_true", help="Do not fetch or reuse GitHub repository preview images for this build")
+    result.add_argument(
+        "--require-complete-descriptions",
+        action="store_true",
+        help="Write outputs but return exit code 3 while the Agent-owned Chinese description queue is incomplete",
+    )
     return result
 
 
@@ -1565,6 +1741,13 @@ def main() -> int:
     )
     if catalog.get("unresolved_roots"):
         print(f"Unresolved roots: {len(catalog['unresolved_roots'])}", file=sys.stderr)
+    if args.require_complete_descriptions and summary["pending_description_count"]:
+        print(
+            f"Pending description enrichment: {summary['pending_description_count']} item(s). "
+            "The invoking Agent must complete catalog-curation.json and rerun with --refresh.",
+            file=sys.stderr,
+        )
+        return 3
     return 0
 
 

@@ -4,6 +4,15 @@
 
 No unreleased changes.
 
+## 0.3.1 - 2026-08-14
+
+- Restored GitHub repository discovery from installation locks, plugin and package metadata, explicit Skill links, and local Git remotes so installed Skills can use observed repository evidence instead of a category placeholder.
+- Cache a verified public GitHub repository preview for observed sources, recover from partial GitHub README responses, and keep the strongest verified member image on family and plugin aggregate cards.
+- Require the invoking Agent to complete the Chinese description queue before reporting a catalog complete; the documented first build and local refresh endpoint now use `--require-complete-descriptions`.
+- Moved maintainer-only evaluation fixtures and release evidence outside the GitHub-installed Skill boundary, so source installs and release ZIPs contain runtime files only.
+- Added a bilingual GitHub Pages discovery surface with canonical metadata, Open Graph/Twitter previews, JSON-LD, robots.txt, sitemap.xml, and llms.txt.
+- Added a Pages metadata regression check and a deploy workflow; the public site uses only the repository's sanitized demo media.
+
 ## 0.3.0 - 2026-08-14
 
 - Added separate factual capability labels beneath the four operational status badges in both READMEs.

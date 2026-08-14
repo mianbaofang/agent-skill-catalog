@@ -28,20 +28,7 @@ REQUIRED_SKILL_FILES = (
     "references/catalog-config.posix.example.json",
     "security/network_policy.json",
     "security/permission_policy.json",
-    "reports/output_quality_scorecard.md",
-    "reports/security_trust_report.md",
 )
-PORTABLE_REPORTS = {
-    "reports/architecture_maintainability.md",
-    "reports/compiled_targets.md",
-    "reports/conformance_matrix.md",
-    "reports/output_quality_scorecard.md",
-    "reports/python_compatibility.md",
-    "reports/review_annotations.md",
-    "reports/review_waivers.md",
-    "reports/runtime_permission_probes.md",
-    "reports/security_trust_report.md",
-}
 PRIVATE_PATH = re.compile(r"(?:[A-Za-z]:\\(?:Users|Object)\\|/(?:Users|home)/)", re.I)
 
 
@@ -67,18 +54,11 @@ def frontmatter_text(path: Path) -> str:
 
 def text_files(root: Path):
     allowed = {".md", ".json", ".py", ".yaml", ".yml", ".txt"}
-    ignored = {".git", "dist", "reports", "__pycache__", ".pytest_cache", ".venv", "venv"}
+    ignored = {".git", "dist", "governance", "reports", "__pycache__", ".pytest_cache", ".venv", "venv"}
     for path in root.rglob("*"):
         if not path.is_file() or any(part in ignored for part in path.relative_to(root).parts):
             continue
         if path.suffix.lower() in allowed:
-            yield path
-
-
-def portable_report_files(skill: Path):
-    for relative in sorted(PORTABLE_REPORTS):
-        path = skill / relative
-        if path.is_file():
             yield path
 
 
@@ -151,7 +131,7 @@ def validate(root: Path) -> list[str]:
         if (skill / forbidden).exists():
             failures.append(f"Generated output must not be committed inside the Skill: {forbidden}")
 
-    for path in [*text_files(root), *portable_report_files(skill)]:
+    for path in text_files(root):
         try:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
