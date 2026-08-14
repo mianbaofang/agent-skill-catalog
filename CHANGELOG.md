@@ -2,9 +2,18 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.3.0 - 2026-08-14
+
 - Added separate factual capability labels beneath the four operational status badges in both READMEs.
 - Added a fully English README animation while keeping the Chinese animation for `README.zh-CN.md`.
 - Made the demo recorder support explicit language, storyboard, catalog, and output arguments, with Chinese-text guards for English recordings.
+- Fixed GitHub repository detection for the nested `metadata.github-repo` fields injected by `gh skill install`.
+- Added explicit GitHub URL discovery from local `SKILL.md` body text without guessing a repository.
+- Added `description-enrichment.json`, per-item review reasons, and a required Agent curation loop for missing, short, or non-Chinese descriptions.
+- Accepted UTF-8 BOM in Windows-edited JSON configuration and curation files.
+- Added clean-install regression coverage proving that observed GitHub sources drive repository previews and that the description queue closes after output-owned curation.
 
 ## 0.2.2 - 2026-08-12
 

@@ -59,6 +59,12 @@ def frontmatter(path: Path) -> dict[str, str]:
     return values
 
 
+def frontmatter_text(path: Path) -> str:
+    content = path.read_text(encoding="utf-8")
+    match = re.match(r"\A---\s*\r?\n([\s\S]*?)\r?\n---(?:\r?\n|\Z)", content)
+    return match.group(1) if match else ""
+
+
 def text_files(root: Path):
     allowed = {".md", ".json", ".py", ".yaml", ".yml", ".txt"}
     ignored = {".git", "dist", "reports", "__pycache__", ".pytest_cache", ".venv", "venv"}
@@ -99,7 +105,7 @@ def validate(root: Path) -> list[str]:
             failures.append("SKILL.md requires a description")
         if fields.get("license") != "MIT":
             failures.append("SKILL.md must declare license: MIT")
-        if re.search(r"metadata\.github-[A-Za-z0-9_-]+", skill_md.read_text(encoding="utf-8")):
+        if re.search(r"^\s*(?:metadata\.)?github-[A-Za-z0-9_-]+\s*:", frontmatter_text(skill_md), re.MULTILINE):
             failures.append("Published SKILL.md must not contain metadata.github-* install fields")
     manifest = skill / "manifest.json"
     if manifest.is_file():

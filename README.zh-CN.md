@@ -79,9 +79,10 @@ Agent Skill Catalog 是一个只读的本地目录工具，给维护大量本地
 | 家族 | 主 Skill 只占一个条目，详情里列出来源一致的子 Skill。 |
 | 插件 | 按服务商和插件名聚合，在插件视图里单独查看，不计入独立 Skill 数量。 |
 | 搜索和筛选 | 可搜名称、说明、GitHub 信息和相对来源路径，再按分类或视图筛选。 |
+| 说明补全 | `description-enrichment.json` 标出缺失、过短或非中文说明；调用本 Skill 的 Agent 会读取源文件和公开仓库证据，把审核后的中文说明写入输出目录整理文件并重建。 |
 | 图片 | 先用输出目录中的人工覆盖图，再取 GitHub 仓库公开预览、Skill 自带本地图，最后才显示带缺证据标记的说明封面。 |
 | 手工改图 | 详情里可以选择图片并保存到目录输出，之后也能恢复自动图；不会改动源 Skill。 |
-| GitHub 地址 | 只有 frontmatter、本地 Git remote、manifest 或人工整理能确认仓库时才显示链接；点击预览图可直接打开仓库。 |
+| GitHub 地址 | `gh skill install` 注入的 `metadata.github-repo`、frontmatter、Skill 正文链接、本地 Git remote、manifest 或人工整理都可以作为确认来源；点击预览图可直接打开仓库。 |
 | 刷新 | 本地服务沿用启动时的根目录和整理文件重建页面；输入被替换时会拒绝刷新。 |
 
 ## 使用方式
@@ -111,12 +112,12 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
   --root "C:\path\to\skills"
 ```
 
-扫描到能够确认的 GitHub 仓库时，默认会缓存一张公开仓库预览图。完全离线生成时，给 `build_catalog.py` 增加 `--no-github-images`。本地服务模式下，可以在详情里手工替换预览图，也可以恢复自动图。
+扫描到能够确认的 GitHub 仓库时，默认会缓存一张公开仓库预览图。首次生成还会写出 `description-enrichment.json`；请逐项对照源 `SKILL.md` 和公开仓库 README，把自然中文说明写入输出目录的 `catalog-curation.json`，再用 `--refresh` 重建，直到待补数量归零或明确标记缺少证据。完全离线生成时，给 `build_catalog.py` 增加 `--no-github-images`。本地服务模式下，可以在详情里手工替换预览图，也可以恢复自动图。
 
 固定到当前发布版本时使用下面的命令。
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.2.2 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.0 --agent codex --scope user
 ```
 
 ## 产品截图
@@ -161,7 +162,7 @@ CHANGELOG.md                       版本记录
 
 ## 状态 / 发布
 
-- 当前已发布版本是 [`v0.2.2`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.2.2)。
+- 当前已发布版本是 [`v0.3.0`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.0)。
 - 可安装包是 [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)。
 - 包校验文件是 [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)。
 - 校验范围包括 GitHub Skill 发现、安装包结构、Python 编译、目录测试和发布打包，CI 与发布前都会运行这些检查。

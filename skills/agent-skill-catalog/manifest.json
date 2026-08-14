@@ -1,9 +1,9 @@
 {
   "name": "agent-skill-catalog",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "license": "MIT",
   "owner": "mianbaofang",
-  "updated_at": "2026-08-12",
+  "updated_at": "2026-08-14",
   "status": "active",
   "maturity_tier": "governed",
   "lifecycle_stage": "governed",
@@ -13,8 +13,8 @@
   "complexity_tier": "moderate",
   "target_platforms": ["openai", "claude", "generic", "agent-skills", "vscode"],
   "factory_components": ["references", "scripts", "evals", "reports"],
-  "input_contract": "One or more explicit local roots containing SKILL.md files, plus optional scoped overrides and image metadata. Public GitHub preview retrieval applies only to observed GitHub repository URLs unless disabled.",
-  "output_contract": "Deterministic catalog.json and self-contained index.html with skills, plugin aggregates, families, category evidence, confidence, image evidence, invocation, GitHub metadata, cached GitHub previews, and output-owned manual image overrides.",
+  "input_contract": "One or more explicit local roots containing SKILL.md files, plus optional scoped overrides and image metadata. Public GitHub preview retrieval applies only to observed GitHub repository URLs from install metadata, frontmatter, manifests, Skill text, curation, or local Git configuration unless disabled.",
+  "output_contract": "Deterministic catalog.json, description-enrichment.json, and self-contained index.html with skills, plugin aggregates, families, category evidence, confidence, reviewed descriptions, image evidence, invocation, GitHub metadata, cached GitHub previews, and output-owned manual overrides.",
   "rollback_boundary": "Only the selected output directory may be overwritten. GitHub preview cache and manual image overrides stay inside that directory; scanned roots are read-only.",
   "network_policy": "Allow HTTPS reads of observed GitHub repository pages and allowlisted GitHub image hosts for size-limited, signature-checked preview caching. Remote image URLs from Skill frontmatter remain metadata-only.",
   "review_notes": "For every public release, review trigger behavior, output quality, permission scope, trust evidence, package contents, and clean-install results."

@@ -33,6 +33,7 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 ASCII_WORD = re.compile(r"[a-z0-9]")
 GITHUB_URL = re.compile(r"https?://(?:www\.)?github\.com/[^\s'\")<>]+", re.I)
 GITHUB_SSH_URL = re.compile(r"git@github\.com:([^\s'\")<>]+)", re.I)
+CJK_TEXT = re.compile(r"[\u3400-\u9fff]")
 SVG_NAMESPACE = "http:" + "//www.w3.org/2000/svg"
 COVER_STYLES = {
     "visual": ("#164e63", "#f97316"),
@@ -65,7 +66,7 @@ from github_preview import (
 
 def read_json(path: Path, fallback: Any, strict: bool = False) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8-sig"))
     except FileNotFoundError:
         return fallback
     except (OSError, json.JSONDecodeError) as exc:
@@ -255,6 +256,13 @@ def ensure_output_curation(config: Dict[str, Any], output_dir: Path) -> Path:
     return path
 
 
+def frontmatter_scalar(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
 def parse_frontmatter(text: str) -> Dict[str, Any]:
     if not text.startswith("---"):
         return {}
@@ -287,19 +295,43 @@ def parse_frontmatter(text: str) -> Dict[str, Any]:
                 index += 1
             fields[key] = (" " if folded else "\n").join(part for part in block_lines if part).strip()
             continue
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-            value = value[1:-1]
-        fields[key] = value
+        if not value:
+            nested: Dict[str, str] = {}
+            child_index = index + 1
+            while child_index < len(lines):
+                child = lines[child_index]
+                if child.strip() == "---" or (child and not child[0].isspace()):
+                    break
+                child_match = re.match(r"^\s+([A-Za-z0-9_-]+)\s*:\s*(.*)$", child)
+                if child_match:
+                    child_key, child_value = child_match.groups()
+                    nested[child_key] = frontmatter_scalar(child_value)
+                child_index += 1
+            if nested:
+                fields[key] = nested
+                index = child_index
+                continue
+        fields[key] = frontmatter_scalar(value)
         index += 1
     return fields
 
 
 def body_description(text: str) -> str:
     body = re.sub(r"^---[\s\S]*?---\s*", "", text, count=1)
-    for line in body.splitlines():
-        candidate = line.strip()
-        if candidate and not candidate.startswith("#") and not candidate.startswith("-"):
-            return re.sub(r"^>\s*", "", candidate)
+    body = re.sub(r"```[\s\S]*?```", " ", body)
+    for block in re.split(r"\n\s*\n", body):
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        prose = [line for line in lines if not line.startswith(("#", "-", "*", "|", "<"))]
+        if not prose:
+            continue
+        candidate = " ".join(prose)
+        candidate = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", candidate)
+        candidate = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", candidate)
+        candidate = re.sub(r"[`*_]", "", candidate)
+        candidate = re.sub(r"^>\s*", "", candidate)
+        candidate = re.sub(r"\s+", " ", candidate).strip()
+        if candidate:
+            return candidate[:320].rstrip()
     return "Open the skill instructions to learn its use case and procedure."
 
 
@@ -311,6 +343,26 @@ def skill_name(path: Path, frontmatter: Dict[str, Any]) -> str:
 def description_for(text: str, frontmatter: Dict[str, Any]) -> str:
     value = str(frontmatter.get("description") or "").strip()
     return value or body_description(text)
+
+
+def description_origin(frontmatter: Dict[str, Any], description: str) -> str:
+    if str(frontmatter.get("description") or "").strip():
+        return "frontmatter"
+    if description == "Open the skill instructions to learn its use case and procedure.":
+        return "generated-fallback"
+    return "skill-body"
+
+
+def description_review(description: str, origin: str, locale: str) -> Dict[str, Any]:
+    compact = re.sub(r"\s+", " ", str(description or "")).strip()
+    reasons: List[str] = []
+    if origin == "generated-fallback":
+        reasons.append("missing-source-description")
+    if len(compact) < 24:
+        reasons.append("too-short")
+    if str(locale or "").lower().startswith("zh") and not CJK_TEXT.search(compact):
+        reasons.append("not-zh-CN")
+    return {"needed": bool(reasons), "reasons": reasons}
 
 
 def curation_value(mapping: Any, name: str, relative_path: str) -> str:
@@ -345,6 +397,25 @@ def github_from_values(values: Iterable[Any]) -> str:
     return ""
 
 
+def github_from_skill_text(text: str) -> str:
+    labeled = re.compile(r"(?:\bgithub\b(?!\.com)|\brepository\b|\brepo\b|\bsource\b|项目仓库|代码仓库|源码|项目主页)", re.I)
+    for line in text.splitlines():
+        if labeled.search(line):
+            url = github_from_values([line])
+            if url:
+                return url
+    urls: List[str] = []
+    for match in GITHUB_URL.finditer(text):
+        url = match.group(0).rstrip(".,;:)]}")
+        if url not in urls:
+            urls.append(url)
+    for match in GITHUB_SSH_URL.finditer(text):
+        url = "https://github.com/" + match.group(1).rstrip(".,;:)]}").removesuffix(".git")
+        if url not in urls:
+            urls.append(url)
+    return urls[0] if len(urls) == 1 else ""
+
+
 def github_from_git_config(skill_path: Path, root: Path) -> str:
     current = skill_path.parent
     resolved_root = root.resolve()
@@ -367,7 +438,16 @@ def github_from_git_config(skill_path: Path, root: Path) -> str:
     return ""
 
 
-def github_for(frontmatter: Dict[str, Any], manifest: Dict[str, Any], curation: Dict[str, Any], name: str, relative_path: str, skill_path: Path, root: Path) -> Tuple[str, str]:
+def github_for(
+    frontmatter: Dict[str, Any],
+    manifest: Dict[str, Any],
+    curation: Dict[str, Any],
+    name: str,
+    relative_path: str,
+    skill_path: Path,
+    root: Path,
+    skill_text: str = "",
+) -> Tuple[str, str]:
     override = curation_value(curation.get("github_overrides"), name, relative_path)
     if override:
         return override, "curation"
@@ -377,6 +457,9 @@ def github_for(frontmatter: Dict[str, Any], manifest: Dict[str, Any], curation: 
     manifest_url = github_from_values(manifest.values())
     if manifest_url:
         return manifest_url, "manifest"
+    skill_body_url = github_from_skill_text(skill_text)
+    if skill_body_url:
+        return skill_body_url, "skill-body"
     git_url = github_from_git_config(skill_path, root)
     if git_url:
         return git_url, "git-config"
@@ -767,6 +850,7 @@ def scan(
             frontmatter = parse_frontmatter(text)
             name = skill_name(skill_path, frontmatter)
             source_description = description_for(text, frontmatter)
+            source_description_origin = description_origin(frontmatter, source_description)
             manifest, manifest_path = nearest_manifest(skill_path, root)
             curation = config.get("curation", {})
             curated_description = curation_value(curation.get("description_overrides"), name, relative)
@@ -780,13 +864,20 @@ def scan(
                 root_label=spec["label"],
                 root_path=str(root),
             )
-            github_url, github_source = github_for(frontmatter, manifest, curation, name, relative, skill_path, root)
+            github_url, github_source = github_for(frontmatter, manifest, curation, name, relative, skill_path, root, text)
+            review = description_review(
+                description,
+                "curation" if curated_description else source_description_origin,
+                str(config.get("locale") or ""),
+            )
             item: Dict[str, Any] = {
                 "id": stable_id(root, relative),
                 "name": name,
                 "description": description,
                 "description_source": "curation" if curated_description else "source",
                 "source_description": source_description,
+                "source_description_origin": source_description_origin,
+                "description_review": review,
                 "category": category,
                 "category_evidence": evidence,
                 "confidence": round(confidence, 3),
@@ -1229,6 +1320,32 @@ def image_summary(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def description_enrichment(items: List[Dict[str, Any]], locale: str) -> Dict[str, Any]:
+    pending = []
+    for item in items:
+        review = item.get("description_review") if isinstance(item.get("description_review"), dict) else {}
+        if not review.get("needed"):
+            continue
+        github = item.get("github") if isinstance(item.get("github"), dict) else {}
+        pending.append(
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "source": item.get("source"),
+                "relative_path": item.get("relative_path"),
+                "current_description": item.get("description"),
+                "reasons": review.get("reasons", []),
+                "github_url": github.get("url", ""),
+            }
+        )
+    return {
+        "locale": locale,
+        "pending_count": len(pending),
+        "completion_rule": "Write reviewed descriptions to catalog-curation.json and rebuild until pending_count is zero or missing evidence is reported.",
+        "items": pending,
+    }
+
+
 def fingerprint(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -1366,6 +1483,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
     plugins = merge_plugins(raw_plugins, items, config)
     previous = read_json(output_dir / "catalog.json", {}) if output_dir.is_dir() else {}
     images = image_summary(items)
+    descriptions = description_enrichment(items, str(config.get("locale") or "zh-CN"))
     startup_curation_fingerprints = [file_fingerprint(Path(path)) for path in curation_files]
     catalog: Dict[str, Any] = {
         "schema_version": "1.1",
@@ -1378,6 +1496,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
         "plugins": plugins,
         "categories": config.get("categories", {}),
         "category_coverage": coverage(items, config),
+        "description_enrichment": descriptions,
         "unresolved_roots": public_unresolved(unresolved, include_absolute),
         "warnings": [
             {"type": "invalid-category-override", **entry}
@@ -1403,6 +1522,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
             "category_count": len(config.get("categories", {})),
             "low_confidence_count": sum(1 for item in items if float(item["confidence"]) < 0.5),
             "missing_image_count": sum(1 for item in items if item["image"].get("missing_evidence", True)),
+            "pending_description_count": descriptions["pending_count"],
             "image_evidence": images,
         },
     }
@@ -1410,6 +1530,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
         catalog["previous_generated_at"] = previous["generated_at"]
     output_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_text(output_dir / "catalog.json", json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
+    atomic_write_text(output_dir / "description-enrichment.json", json.dumps(descriptions, ensure_ascii=False, indent=2) + "\n")
     if not args.no_html:
         atomic_write_text(output_dir / "index.html", render_html(catalog))
         atomic_write_text(output_dir / "favicon.svg", FAVICON_SVG)

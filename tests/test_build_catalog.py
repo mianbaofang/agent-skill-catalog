@@ -400,6 +400,87 @@ def test_folded_frontmatter_description() -> None:
     assert fields["description"] == "First sentence. Second sentence."
 
 
+def test_gh_install_metadata_and_skill_body_urls_drive_github_previews() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        installed = root / "installed"
+        installed.mkdir(parents=True)
+        (installed / "SKILL.md").write_text(
+            "---\n"
+            "name: installed\n"
+            "description: 这是通过 GitHub CLI 安装的目录技能，会读取安装器注入的仓库来源并获取预览图。\n"
+            "metadata:\n"
+            "    github-path: skills/installed\n"
+            "    github-repo: https://github.com/example/installed\n"
+            "    github-ref: refs/tags/v1.0.0\n"
+            "---\n",
+            encoding="utf-8",
+        )
+        body_link = root / "body-link"
+        body_link.mkdir()
+        (body_link / "SKILL.md").write_text(
+            "---\nname: body-link\ndescription: 这个技能在正文中明确给出项目仓库，并用该仓库的公开图片作为目录预览。\n---\n"
+            "# Body Link\n\n项目仓库：https://github.com/example/body-link\n",
+            encoding="utf-8",
+        )
+        module.github_preview_image = lambda repository, *_: {
+            "status": "github-social-preview",
+            "source": "test",
+            "value": "data:image/png;base64,dGVzdA==",
+            "repository": repository,
+            "missing_evidence": False,
+        }
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, _, _ = module.scan(
+            config,
+            [{"path": str(root), "label": "Root 1", "kind": "skill"}],
+            False,
+            fixture / "cache",
+        )
+        by_name = {item["name"]: item for item in items}
+        assert by_name["installed"]["github"]["url"] == "https://github.com/example/installed"
+        assert by_name["installed"]["github"]["source"] == "frontmatter"
+        assert by_name["installed"]["image"]["status"] == "github-social-preview"
+        assert by_name["body-link"]["github"]["url"] == "https://github.com/example/body-link"
+        assert by_name["body-link"]["github"]["source"] == "skill-body"
+        assert by_name["body-link"]["image"]["missing_evidence"] is False
+
+        ambiguous = module.github_from_skill_text(
+            "See https://github.com/example/dependency-one and https://github.com/example/dependency-two for related tools."
+        )
+        assert ambiguous == ""
+
+
+def test_description_enrichment_queue_closes_after_curation() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        skill = root / "english"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: english\ndescription: Search public sources and produce a cited research brief.\n---\n",
+            encoding="utf-8",
+        )
+        output = fixture / "output"
+        first = run_builder(root, output)
+        assert first["summary"]["pending_description_count"] == 1
+        queue = json.loads((output / "description-enrichment.json").read_text(encoding="utf-8"))
+        assert queue["items"][0]["reasons"] == ["not-zh-CN"]
+
+        curation_path = output / "catalog-curation.json"
+        curation = json.loads(curation_path.read_text(encoding="utf-8"))
+        curation["description_overrides"]["english/SKILL.md"] = (
+            "检索公开来源并整理为带引用的研究简报。适合需要核对事实、保留出处并形成可复查结论的任务。"
+        )
+        curation_path.write_text("\ufeff" + json.dumps(curation, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        second = run_builder(root, output, refresh=True)
+        assert second["summary"]["pending_description_count"] == 0
+        assert second["items"][0]["description_source"] == "curation"
+
+
 def test_import_legacy_catalog_curation() -> None:
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp)
@@ -586,6 +667,8 @@ if __name__ == "__main__":
     test_github_redirect_policy_rejects_non_github_hosts()
     test_malformed_config_fails()
     test_folded_frontmatter_description()
+    test_gh_install_metadata_and_skill_body_urls_drive_github_previews()
+    test_description_enrichment_queue_closes_after_curation()
     test_import_legacy_catalog_curation()
     test_explainable_classification_scoped_override_and_plugin_providers()
     test_config_root_refresh_and_privacy_contract()

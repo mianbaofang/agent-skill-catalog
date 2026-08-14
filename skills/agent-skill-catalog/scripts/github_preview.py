@@ -159,7 +159,7 @@ def github_readme_image_urls(repository_url: str, image_config: Dict[str, Any]) 
     limit = max(1, int(image_config.get("github_max_page_bytes", 1024 * 1024) or 1024 * 1024))
     request = Request(
         f"https://github.com/{owner}/{repository}",
-        headers={"Accept": "text/html", "User-Agent": "agent-skill-catalog/0.2"},
+        headers={"Accept": "text/html", "User-Agent": "agent-skill-catalog/0.3"},
     )
     try:
         with open_allowed(request, timeout, {"github.com", "www.github.com"}) as response:
@@ -185,7 +185,7 @@ def fetch_github_image(url: str, image_config: Dict[str, Any]) -> Tuple[bytes, s
         return b"", ""
     timeout = max(1, int(image_config.get("github_request_timeout_seconds", 15) or 15))
     limit = max(1, int(image_config.get("github_max_download_bytes", 2 * 1024 * 1024) or 2 * 1024 * 1024))
-    request = Request(url, headers={"Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8", "User-Agent": "agent-skill-catalog/0.2"})
+    request = Request(url, headers={"Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8", "User-Agent": "agent-skill-catalog/0.3"})
     try:
         with open_allowed(request, timeout, GITHUB_IMAGE_HOSTS) as response:
             final_url = response.geturl()

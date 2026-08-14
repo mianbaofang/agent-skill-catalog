@@ -3,7 +3,7 @@
   "$id": "https://example.invalid/agent-skill-catalog/catalog.schema.json",
   "title": "Portable Agent Skill Catalog",
   "type": "object",
-  "required": ["schema_version", "generated_at", "roots", "items", "families", "plugins", "categories", "category_coverage", "summary"],
+  "required": ["schema_version", "generated_at", "roots", "items", "families", "plugins", "categories", "category_coverage", "description_enrichment", "summary"],
   "properties": {
     "schema_version": {"const": "1.1"},
     "generated_at": {"type": "string"},
@@ -14,6 +14,16 @@
     "plugins": {"type": "array", "items": {"type": "object"}},
     "categories": {"type": "object"},
     "category_coverage": {"$ref": "category-coverage.schema.json"},
+    "description_enrichment": {
+      "type": "object",
+      "required": ["locale", "pending_count", "completion_rule", "items"],
+      "properties": {
+        "locale": {"type": "string"},
+        "pending_count": {"type": "integer", "minimum": 0},
+        "completion_rule": {"type": "string"},
+        "items": {"type": "array", "items": {"type": "object"}}
+      }
+    },
     "summary": {"type": "object", "required": ["skill_count", "plugin_count", "family_count", "category_count"]}
   },
   "$defs": {
@@ -26,6 +36,8 @@
         "description": {"type": "string"},
         "description_source": {"enum": ["source", "curation"]},
         "source_description": {"type": "string"},
+        "source_description_origin": {"enum": ["frontmatter", "skill-body", "generated-fallback"]},
+        "description_review": {"type": "object", "required": ["needed", "reasons"]},
         "category": {"type": "string"},
         "category_evidence": {"type": "array"},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},

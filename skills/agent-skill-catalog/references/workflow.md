@@ -11,6 +11,8 @@ python scripts/build_catalog.py --config <config.json> --output-dir <output-dir>
 
 Use `--root` repeatedly for multiple roots. A root is a skill root by default; plugin caches must be declared with `{"kind":"plugin"}` in a config file.
 
+The first build also writes `description-enrichment.json`. Treat this as a required review queue, not an optional report. For every pending item, read the corresponding `SKILL.md` and, when `github_url` is present, the public repository README. Write a factual Chinese description covering purpose, typical use, and important output or limits to the output-owned `catalog-curation.json`, then rebuild with `--refresh`. Do not edit the scanned Skill. A completed build has `summary.pending_description_count == 0`; if the source is genuinely insufficient, keep the item marked as missing evidence and report it instead of inventing details.
+
 ## Review
 
 Inspect `catalog.json` before opening the page:
@@ -18,6 +20,7 @@ Inspect `catalog.json` before opening the page:
 - `summary` and `category_coverage`
 - `category_candidates`, `category_winner_margin`, `category_tie_reason`, and `low_confidence`
 - `image.missing_evidence` and image status
+- `description_enrichment.pending_count` and its reasons
 - `families`, `plugins`, `unresolved_roots`, and `warnings`
 
 The default output hides absolute paths. Use `--include-absolute-paths` only for a local diagnostic build.
@@ -34,4 +37,4 @@ The server binds to localhost and rejects a refresh when explicit roots are miss
 
 ## Boundaries
 
-Scanning is read-only for discovered Skills and never executes them. When a local GitHub repository URL is available, the default image pass may read the public repository page and cache one size-limited, signature-checked GitHub image in `<output-dir>/github-image-cache/`. Use `--no-github-images` for an offline build. Remote image URLs found only in a Skill frontmatter remain metadata-only. No category or family is inferred from a guessed repository or description-only ecosystem marker.
+Scanning is read-only for discovered Skills and never executes them. GitHub source detection accepts explicit curation, `metadata.github-repo` and other frontmatter values injected by `gh skill install`, manifest values, an explicit GitHub URL in the Skill body, or a local Git remote. When a local GitHub repository URL is available, the default image pass may read the public repository page and cache one size-limited, signature-checked GitHub image in `<output-dir>/github-image-cache/`. Use `--no-github-images` for an offline build. Remote image URLs found only in a Skill frontmatter remain metadata-only. No category or family is inferred from a guessed repository or description-only ecosystem marker.

@@ -10,7 +10,7 @@
 把结果写到 <输出目录>，运行：
 python scripts/build_catalog.py --root <根目录 1> --output-dir <输出目录>
 
-只读扫描，不安装、不修改、不删除任何被扫描的 Skill。完成后报告：实际扫描根、catalog.json、index.html、独立 Skill/插件 Skill/插件/家族数量、分类覆盖、低置信度项、图片状态、GitHub 元数据来源和未找到的根目录。
+只读扫描，不安装、不修改、不删除任何被扫描的 Skill。完成后先检查 `description-enrichment.json`；逐项读取对应 `SKILL.md`，有 `github_url` 时对照公开仓库 README，用自然中文补写用途、适用场景、输入/输出或限制，写入输出目录的 `catalog-curation.json`，再用 `--refresh` 重建，直到 `summary.pending_description_count` 为 0；证据不足的项保留 `missing evidence`，不要编造。最后报告：实际扫描根、catalog.json、description-enrichment.json、index.html、独立 Skill/插件 Skill/插件/家族数量、分类覆盖、低置信度项、图片状态、GitHub 元数据来源和未找到的根目录。
 ```
 
 ## 刷新已有 Agent Skill Catalog
