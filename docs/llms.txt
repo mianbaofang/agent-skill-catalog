@@ -32,5 +32,5 @@ Updated: 2026-08-15
 ## Install
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.2 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.3 --agent codex --scope user
 ```

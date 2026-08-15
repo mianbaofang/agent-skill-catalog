@@ -598,6 +598,46 @@ def test_github_preview_uses_readme_image() -> None:
         assert result["value"].startswith("data:image/png;base64,")
 
 
+def test_github_preview_timeout_defaults_to_15_and_honors_config_override() -> None:
+    module = load_builder()
+    preview = sys.modules["github_preview"]
+    with tempfile.TemporaryDirectory() as temp:
+        config_path = Path(temp) / "config.json"
+        config_path.write_text("{}", encoding="utf-8")
+        default_config = module.load_config(config_path)
+        assert default_config["image"]["github_request_timeout_seconds"] == 15
+
+        config_path.write_text(
+            json.dumps({"image": {"github_request_timeout_seconds": 4}}),
+            encoding="utf-8",
+        )
+        explicit_config = module.load_config(config_path)
+        assert explicit_config["image"]["github_request_timeout_seconds"] == 4
+
+        calls: list[int] = []
+        original_open_allowed = preview.open_allowed
+
+        def blocked_open_allowed(_request, timeout, _allowed_hosts):
+            calls.append(timeout)
+            raise OSError("offline test stub")
+
+        preview.open_allowed = blocked_open_allowed
+        try:
+            repository = "https://github.com/example/catalog"
+            assert preview.github_preview_image(repository, {}, None) == {}
+            assert calls == [15, 15]
+
+            calls.clear()
+            assert preview.github_preview_image(
+                repository,
+                {"github_request_timeout_seconds": 4},
+                None,
+            ) == {}
+            assert calls == [4, 4]
+        finally:
+            preview.open_allowed = original_open_allowed
+
+
 def test_github_preview_falls_back_to_social_image() -> None:
     module = load_builder()
     with tempfile.TemporaryDirectory() as temp:

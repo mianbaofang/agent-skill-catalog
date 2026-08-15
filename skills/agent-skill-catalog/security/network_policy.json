@@ -22,7 +22,7 @@
       ],
       "requires_https": true,
       "custom_url_policy": "not supported; repository pages must be github.com URLs already observed in scanned metadata",
-      "timeout_seconds": 6,
+      "timeout_seconds": 15,
       "auth": "none"
     },
     "scripts\\description_queue.py": {
@@ -35,7 +35,7 @@
       ],
       "requires_https": true,
       "custom_url_policy": "not supported; repository URLs must already be observed in the catalog queue",
-      "timeout_seconds": 8,
+      "timeout_seconds": 15,
       "max_response_bytes": 262144,
       "auth": "none"
     }

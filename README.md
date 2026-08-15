@@ -126,7 +126,7 @@ When a scanned Skill has an observed GitHub repository, the default build caches
 To pin the current release:
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.2 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.3 --agent codex --scope user
 ```
 
 ## Product Screenshots
@@ -172,7 +172,7 @@ CHANGELOG.md                       release history
 
 ## Status / Release
 
-- Current published release: [`v0.3.2`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.2)
+- Current published release: [`v0.3.3`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.3)
 - Installable package: [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)
 - Package checksum: [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)
 - Validation: GitHub Skill discovery, package structure, Python compilation, deterministic catalog tests, and release packaging are run in CI and before release.

@@ -144,7 +144,7 @@ def load_config(path: Path) -> Dict[str, Any]:
     payload["image"].setdefault("category_cover_fallback", True)
     payload["image"].setdefault("github_repository_previews", True)
     payload["image"].setdefault("github_image_cache_ttl_hours", 168)
-    payload["image"].setdefault("github_request_timeout_seconds", 6)
+    payload["image"].setdefault("github_request_timeout_seconds", 15)
     payload["image"].setdefault("github_max_page_bytes", 1024 * 1024)
     payload["image"].setdefault("github_max_download_bytes", 2 * 1024 * 1024)
     payload["image"].setdefault("github_image_candidate_limit", 3)

@@ -150,7 +150,7 @@ def cached_readme(cache_dir: Path, repository_url: str) -> dict[str, Any] | None
     return payload
 
 
-def fetch_github_readme(repository_url: str, cache_dir: Path, timeout: int = 8) -> dict[str, Any]:
+def fetch_github_readme(repository_url: str, cache_dir: Path, timeout: int = 15) -> dict[str, Any]:
     owner, repository = github_repository(repository_url)
     if not owner or not repository:
         return {"status": "missing-evidence", "repository_url": repository_url, "excerpt": "", "truncated": False}

@@ -1,7 +1,9 @@
+import importlib.util
 import json
 import subprocess
 import sys
 import tempfile
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -9,6 +11,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = REPO_ROOT / "skills" / "agent-skill-catalog"
 BUILD_SCRIPT = SKILL_ROOT / "scripts" / "build_catalog.py"
 QUEUE_SCRIPT = SKILL_ROOT / "scripts" / "description_queue.py"
+
+
+def load_description_queue():
+    spec = importlib.util.spec_from_file_location("description_queue_test", QUEUE_SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -126,6 +136,35 @@ def test_description_batches_resume_and_close_the_builder_gate() -> None:
         catalog = json.loads((output / "catalog.json").read_text(encoding="utf-8"))
         assert catalog["summary"]["pending_description_count"] == 0
         assert {item["description_source"] for item in catalog["items"]} == {"curation"}
+
+
+def test_github_readme_fetch_uses_15_second_default_timeout() -> None:
+    module = load_description_queue()
+    calls: list[int] = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self, _limit: int) -> bytes:
+            return b"# Catalog\n\nEvidence-backed README excerpt."
+
+    def open_allowed(_request, timeout, _allowed_hosts):
+        calls.append(timeout)
+        return Response()
+
+    with tempfile.TemporaryDirectory() as temp:
+        with patch.object(module, "open_allowed", open_allowed):
+            result = module.fetch_github_readme(
+                "https://github.com/example/catalog",
+                Path(temp),
+            )
+
+    assert result["status"] == "github-readme"
+    assert calls == [15]
 
 
 def test_description_apply_rejects_non_chinese_copy() -> None:
