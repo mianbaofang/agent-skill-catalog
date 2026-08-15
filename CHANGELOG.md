@@ -7,6 +7,7 @@ No unreleased changes.
 ## 0.3.3 - 2026-08-15
 
 - Increase bounded GitHub repository preview and README evidence request timeouts to 15 seconds while preserving explicit configuration overrides, host allowlists, response-size limits, and offline operation.
+- Pass the configured README timeout through the description queue and leave transient GitHub README failures retryable instead of caching them for seven days.
 - Make the invoking Agent explicitly responsible for completing the resumable Chinese description queue instead of handing batch writing or application back to the user.
 - Add regression coverage for the default preview and README timeouts and for explicit preview-timeout overrides. This improves tolerance of slower GitHub responses but does not guarantee retrieval when GitHub or the network is unavailable.
 

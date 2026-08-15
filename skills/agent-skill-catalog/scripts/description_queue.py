@@ -40,6 +40,7 @@ MAX_README_BYTES = 256 * 1024
 MAX_README_CHARS = 5000
 README_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 README_HOSTS = {"raw.githubusercontent.com"}
+CACHEABLE_README_STATUSES = {"github-readme", "oversize"}
 
 
 def utc_now() -> str:
@@ -194,8 +195,10 @@ def fetch_github_readme(repository_url: str, cache_dir: Path, timeout: int = 15)
         )
         break
 
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(readme_cache_path(cache_dir, repository_url), json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+    # Keep successful evidence, but leave transient failures retryable.
+    if result["status"] in CACHEABLE_README_STATUSES:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        atomic_write_text(readme_cache_path(cache_dir, repository_url), json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     return result
 
 
@@ -207,6 +210,8 @@ def prepare_batch(args: argparse.Namespace) -> int:
     config_path = Path(args.config).expanduser().resolve() if args.config else DEFAULT_CONFIG
     config = load_config(config_path)
     specs = root_specs(config, args.root or None)
+    image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
+    github_request_timeout = int(image_config.get("github_request_timeout_seconds", 15) or 15)
     pending = pending_items(queue, curation)
     batch_size = max(1, min(int(args.batch_size), MAX_BATCH_SIZE))
     selected = pending[:batch_size]
@@ -217,7 +222,7 @@ def prepare_batch(args: argparse.Namespace) -> int:
         github_evidence = (
             {"status": "disabled", "repository_url": github_url, "excerpt": "", "truncated": False}
             if args.no_github_readmes
-            else fetch_github_readme(github_url, readme_cache) if github_url else {
+            else fetch_github_readme(github_url, readme_cache, github_request_timeout) if github_url else {
                 "status": "missing-evidence",
                 "repository_url": "",
                 "excerpt": "",
