@@ -3,7 +3,7 @@
   "default_policy": {
     "require_https": true,
     "custom_hosts": "deny-by-default",
-    "review_rule": "GitHub preview retrieval is limited to observed repositories and the fixed image-host allowlist in scripts/github_preview.py."
+    "review_rule": "GitHub preview retrieval and README evidence are limited to observed repositories and the fixed GitHub host allowlist in scripts/github_preview.py and scripts/description_queue.py."
   },
   "scripts": {
     "scripts\\github_preview.py": {
@@ -23,6 +23,20 @@
       "requires_https": true,
       "custom_url_policy": "not supported; repository pages must be github.com URLs already observed in scanned metadata",
       "timeout_seconds": 6,
+      "auth": "none"
+    },
+    "scripts\\description_queue.py": {
+      "purpose": "Read a bounded README excerpt for an observed public GitHub repository while preparing an Agent-owned description batch.",
+      "allowed_hosts": [
+        "raw.githubusercontent.com"
+      ],
+      "allowed_path_prefixes": [
+        "/"
+      ],
+      "requires_https": true,
+      "custom_url_policy": "not supported; repository URLs must already be observed in the catalog queue",
+      "timeout_seconds": 8,
+      "max_response_bytes": 262144,
       "auth": "none"
     }
   }

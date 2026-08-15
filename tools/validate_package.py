@@ -20,6 +20,8 @@ REQUIRED_SKILL_FILES = (
     "agents/interface.yaml",
     "agents/openai.yaml",
     "scripts/build_catalog.py",
+    "scripts/catalog_aggregation.py",
+    "scripts/description_queue.py",
     "scripts/github_preview.py",
     "scripts/serve_catalog.py",
     "scripts/import_legacy_catalog.py",
@@ -65,6 +67,10 @@ def text_files(root: Path):
 def validate(root: Path) -> list[str]:
     failures: list[str] = []
     skill = root / SKILL_RELATIVE
+    version_path = root / "VERSION"
+    version = version_path.read_text(encoding="utf-8").strip() if version_path.is_file() else ""
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        failures.append("VERSION must contain a semantic version")
 
     if not skill.is_dir():
         failures.append(f"Missing GitHub-discoverable skill directory: {SKILL_RELATIVE}")
@@ -101,6 +107,18 @@ def validate(root: Path) -> list[str]:
                 failures.append(f"manifest.json name must be {NAME}")
             if data.get("license") != "MIT":
                 failures.append("manifest.json license must be MIT")
+            if version and data.get("version") != version:
+                failures.append("manifest.json version must match VERSION")
+
+    if version:
+        release_pin = f"v{version}"
+        for relative in ("README.md", "README.zh-CN.md", "docs/index.html", "docs/index-zh.html", "docs/llms.txt"):
+            path = root / relative
+            if path.is_file() and f"--pin {release_pin}" not in path.read_text(encoding="utf-8"):
+                failures.append(f"{relative} must reference the current release pin {release_pin}")
+        changelog = root / "CHANGELOG.md"
+        if changelog.is_file() and f"## {version} - " not in changelog.read_text(encoding="utf-8"):
+            failures.append("CHANGELOG.md must contain the current VERSION heading")
 
     config = skill / "references/catalog-config.json"
     if config.is_file():
@@ -113,8 +131,12 @@ def validate(root: Path) -> list[str]:
                 failures.append("Default catalog config must not contain machine-specific roots")
 
     interface = skill / "agents/interface.yaml"
-    if interface.is_file() and 'display_name: "Agent Skill Catalog"' not in interface.read_text(encoding="utf-8"):
-        failures.append("agents/interface.yaml must use the public display name")
+    if interface.is_file():
+        content = interface.read_text(encoding="utf-8")
+        if 'display_name: "Agent Skill Catalog"' not in content:
+            failures.append("agents/interface.yaml must use the public display name")
+        if "description_queue.py" not in content or "pending_description_count" not in content:
+            failures.append("agents/interface.yaml must enforce the resumable description completion gate")
 
     openai = skill / "agents/openai.yaml"
     if openai.is_file():
@@ -126,6 +148,13 @@ def validate(root: Path) -> list[str]:
             failures.append("agents/openai.yaml short_description must be 25-64 characters")
         if "$agent-skill-catalog" not in content:
             failures.append("agents/openai.yaml default_prompt must mention $agent-skill-catalog")
+        if "description_queue.py" not in content or "pending_description_count" not in content:
+            failures.append("agents/openai.yaml must enforce the resumable description completion gate")
+
+    if skill_md.is_file():
+        content = skill_md.read_text(encoding="utf-8")
+        if "description_queue.py next" not in content or "description_queue.py apply" not in content:
+            failures.append("SKILL.md must document the resumable description batch loop")
 
     for forbidden in ("catalog.json", "index.html", "catalog-data.js"):
         if (skill / forbidden).exists():

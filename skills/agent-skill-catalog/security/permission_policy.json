@@ -5,12 +5,14 @@
     "network": {
       "decision": "approved",
       "reviewer": "User-authorized product requirement",
-      "scope": "scripts/github_preview.py may read only an observed public GitHub repository page and images from the fixed GitHub host allowlist, with HTTPS, timeout, byte-limit, redirect-host, and image-signature checks. --no-github-images disables all such reads.",
+      "scope": "scripts/github_preview.py may read an observed public GitHub repository page and allowlisted preview images; scripts/description_queue.py may read one bounded README excerpt for the same observed repository. Both use HTTPS, fixed hosts, timeouts, and byte limits; --no-github-images disables preview reads and --no-github-readmes disables README reads.",
       "reason": "The catalog is required to use the corresponding project GitHub repository as the default preview-image source when one is available.",
       "expires_at": "2027-08-12",
       "evidence": [
         "scripts/github_preview.py",
+        "scripts/description_queue.py",
         "tests/test_build_catalog.py",
+        "tests/test_description_queue.py",
         "security/network_policy.json"
       ],
       "target_enforcement": {

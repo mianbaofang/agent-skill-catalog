@@ -134,7 +134,7 @@
           <p class="lead">主 Skill、子 Skill、插件和图片散在不同目录里。清单能列出名字，却看不出归属、调用方式和分类依据。</p>
           <div class="rule"></div>
         </div>
-        <div class="intro-note">目录把归属、分类依据和调用方式放在一起，打开条目就能看到。</div>
+        <div class="intro-note">目录把归属、分类依据、调用方式和说明证据放在一起，打开条目就能看到。</div>
       </div>
       <div class="scatter" aria-hidden="true">
         <div class="mini"><strong>视觉与图片</strong>同类名称很多，边界不清</div>
@@ -150,8 +150,8 @@
       <p class="lead">扫描器只读取传入的根目录，结果保留来源和中间判断。</p>
       <div class="flow">
         <div class="flow-step"><b>INPUT</b><strong>传入根目录</strong><span>Skill 根目录<br>插件缓存根目录</span></div>
-        <div class="flow-step"><b>READ</b><strong>读取 SKILL.md</strong><span>说明、manifest、来源路径和本地图片</span></div>
-        <div class="flow-step"><b>REASON</b><strong>整理关系</strong><span>分类候选、家族关系、插件归属、图片状态</span></div>
+        <div class="flow-step"><b>READ</b><strong>读取来源证据</strong><span>本地 SKILL.md、manifest、图片与 GitHub README</span></div>
+        <div class="flow-step"><b>REASON</b><strong>整理并补全</strong><span>去重、家族、插件归属；Agent 按证据写中文说明</span></div>
         <div class="flow-step"><b>OUTPUT</b><strong>生成目录</strong><span>catalog.json + 自包含 index.html</span></div>
       </div>
       <div class="boundary"><span class="pill">不安装</span><span class="pill">不执行</span><span class="pill">GitHub 预览受限缓存</span><span class="pill">默认隐藏绝对路径</span></div>
@@ -208,10 +208,10 @@
         <div class="closeout">
           <div class="kicker">06 / Start with evidence</div>
           <h2>打开 Skill，就能看到归属和调用方式。</h2>
-          <p class="lead">页面支持搜索、筛选、刷新和手工换图。找到 GitHub 仓库的 Skill 会直接显示链接。</p>
-          <div class="pills" style="margin-top:18px"><span class="pill">搜索</span><span class="pill">家族</span><span class="pill">插件</span><span class="pill">手工改图</span></div>
+          <p class="lead">页面支持搜索、筛选、刷新和手工换图。GitHub 链接、图片来源和中文说明都有可追溯的证据。</p>
+          <div class="pills" style="margin-top:18px"><span class="pill">搜索</span><span class="pill">家族</span><span class="pill">插件</span><span class="pill">中文说明</span><span class="pill">手工改图</span></div>
         </div>
-        <div class="result-card"><h3>详情里要回答的问题</h3><p>它属于哪个 Skill 或插件？包含哪些子 Skill？怎么调用？图片和 GitHub 地址来自哪里？需要时怎样手工换图？</p><div class="result-list"><div class="result-row"><span>独立 Skill / 家族</span><b>归属清楚</b></div><div class="result-row"><span>插件聚合</span><b>单独查看</b></div><div class="result-row"><span>图片来源与替换</span><b>可以追溯</b></div></div></div>
+        <div class="result-card"><h3>详情里要回答的问题</h3><p>它属于哪个 Skill 或插件？包含哪些子 Skill？怎么调用？中文说明、图片和 GitHub 地址分别来自哪里？需要时怎样手工换图？</p><div class="result-list"><div class="result-row"><span>独立 Skill / 家族</span><b>归属清楚</b></div><div class="result-row"><span>插件聚合</span><b>单独查看</b></div><div class="result-row"><span>说明、图片与 GitHub</span><b>证据可追溯</b></div></div></div>
       </div>
     </section>
 
@@ -224,7 +224,7 @@
       '01 / 复杂的 Skill 库': '01 / A crowded Skill library',
       'Skill 越来越多，查找也越来越困难。': 'As the Skill library grows, finding the right one gets harder.',
       '主 Skill、子 Skill、插件和图片散在不同目录里。清单能列出名字，却看不出归属、调用方式和分类依据。': 'Parent Skills, child Skills, plugins, and images are scattered across folders. A flat list shows names, but not ownership, invocation, or classification evidence.',
-      '目录把归属、分类依据和调用方式放在一起，打开条目就能看到。': 'The catalog keeps ownership, classification evidence, and invocation together in each entry.',
+      '目录把归属、分类依据、调用方式和说明证据放在一起，打开条目就能看到。': 'The catalog keeps ownership, classification, invocation, and description evidence together in each entry.',
       '视觉与图片': 'Visual and image',
       '同类名称很多，边界不清': 'Similar names, unclear boundaries',
       '主 Skill 与子 Skill 混在一起': 'Parent and child Skills mixed together',
@@ -237,10 +237,10 @@
       '传入根目录': 'Supply roots',
       'Skill 根目录': 'Skill roots',
       '插件缓存根目录': 'Plugin cache roots',
-      '读取 SKILL.md': 'Read SKILL.md',
-      '说明、manifest、来源路径和本地图片': 'Descriptions, manifests, source paths, and local images',
-      '整理关系': 'Resolve structure',
-      '分类候选、家族关系、插件归属、图片状态': 'Category candidates, families, plugin ownership, and image state',
+      '读取来源证据': 'Read source evidence',
+      '本地 SKILL.md、manifest、图片与 GitHub README': 'Local SKILL.md, manifests, images, and GitHub README',
+      '整理并补全': 'Organize and complete',
+      '去重、家族、插件归属；Agent 按证据写中文说明': 'Deduplication, families, plugin ownership, and Agent-written Chinese descriptions',
       '生成目录': 'Build catalog',
       'catalog.json + 自包含 index.html': 'catalog.json + self-contained index.html',
       '不安装': 'No install',
@@ -274,19 +274,20 @@
       '手工替换': 'Manual override',
       '说明封面会标记 missing evidence': 'Fallback covers are marked missing evidence',
       '打开 Skill，就能看到归属和调用方式。': 'Open a Skill to see where it belongs and how to invoke it.',
-      '页面支持搜索、筛选、刷新和手工换图。找到 GitHub 仓库的 Skill 会直接显示链接。': 'Search, filter, refresh, or replace a preview manually. A verified GitHub repository appears as a direct link.',
+      '页面支持搜索、筛选、刷新和手工换图。GitHub 链接、图片来源和中文说明都有可追溯的证据。': 'Search, filter, refresh, or replace a preview manually. GitHub links, image sources, and Chinese descriptions remain traceable to evidence.',
       '搜索': 'Search',
       '家族': 'Families',
       '插件': 'Plugins',
+      '中文说明': 'Chinese descriptions',
       '手工改图': 'Replace image',
       '详情里要回答的问题': 'Questions answered in the detail view',
-      '它属于哪个 Skill 或插件？包含哪些子 Skill？怎么调用？图片和 GitHub 地址来自哪里？需要时怎样手工换图？': 'Which Skill or plugin owns it? Which child Skills are included? How is it invoked? Where did the image and GitHub URL come from? How can the image be replaced?',
+      '它属于哪个 Skill 或插件？包含哪些子 Skill？怎么调用？中文说明、图片和 GitHub 地址分别来自哪里？需要时怎样手工换图？': 'Which Skill or plugin owns it? Which child Skills are included? How is it invoked? Where did the description, image, and GitHub URL come from? How can the image be replaced?',
       '独立 Skill / 家族': 'Standalone Skill / family',
       '归属清楚': 'Clear ownership',
       '插件聚合': 'Plugin aggregate',
       '单独查看': 'Separate view',
-      '图片来源与替换': 'Image source and override',
-      '可以追溯': 'Traceable',
+      '说明、图片与 GitHub': 'Descriptions, images, and GitHub',
+      '证据可追溯': 'Traceable evidence',
       '目录总览备用画面': 'Catalog overview fallback'
     }));
     function translateTextNodes(root) {

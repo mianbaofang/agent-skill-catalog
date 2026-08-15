@@ -10,7 +10,7 @@
 把结果写到 <输出目录>，运行：
 python scripts/build_catalog.py --root <根目录 1> --output-dir <输出目录>
 
-只读扫描，不安装、不修改、不删除任何被扫描的 Skill。首次构建就带上 `--require-complete-descriptions`。退出码 3 表示说明队列未完成；这是你必须自行完成的工作队列，不要让用户手工补。逐项读取对应 `SKILL.md`，有 `github_url` 时对照公开仓库 README，用自然中文写清用途、适用场景、输入输出或限制，保存到输出目录的 `catalog-curation.json`，再用 `--refresh --require-complete-descriptions` 重建，直到退出码为 0。证据不足的项保留 `missing evidence`，不要编造。最后报告：实际扫描根、catalog.json、description-enrichment.json、index.html、独立 Skill/插件 Skill/插件/家族数量、分类覆盖、低置信度项、图片状态、GitHub 元数据来源和未找到的根目录。
+只读扫描，不安装、不修改、不删除任何被扫描的 Skill。首次构建就带上 `--require-complete-descriptions`。退出码 3 表示说明队列未完成；这是你必须自行完成的工作队列，不要让用户手工补。使用相同的根目录或配置运行 `python scripts/description_queue.py next --output-dir <输出目录> --batch-size 12`，读取生成的 `description-batch.json`，根据本地 `SKILL.md` 证据和可用的 GitHub README 摘要，用自然中文写清用途、适用场景、输入输出或限制。按批次里的 `response_contract` 写入 `description-batch.responses.json`，再运行 `python scripts/description_queue.py apply --output-dir <输出目录> --input <输出目录>/description-batch.responses.json`。重复 next/apply，直到 `batch_count` 为 0；中途停止时直接继续，已完成内容保存在 `catalog-curation.json`。最后用 `--refresh --require-complete-descriptions` 重建，只有退出码为 0 且 `pending_description_count` 为 0 才算完成。证据不足的项保留 `missing evidence`，不要编造。最后报告：实际扫描根、catalog.json、description-enrichment.json、index.html、独立 Skill/插件 Skill/插件/家族数量、分类覆盖、低置信度项、图片状态、GitHub 元数据来源和未找到的根目录。
 ```
 
 ## 刷新已有 Agent Skill Catalog

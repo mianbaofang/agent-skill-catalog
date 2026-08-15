@@ -265,6 +265,34 @@ def test_rooted_sibling_family_inference_is_conservative() -> None:
         assert all(item["family_size"] == 1 for item in agent_items)
 
 
+def test_container_directories_do_not_become_inferred_families() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        repository = fixture / "repository"
+        for container in ("skills", "plugins", "packages", "extensions"):
+            for name in (f"{container}-alpha", f"{container}-beta"):
+                skill = repository / container / name
+                skill.mkdir(parents=True)
+                (skill / "SKILL.md").write_text(
+                    f"---\nname: {name}\ndescription: Independent {name} skill.\n---\n",
+                    encoding="utf-8",
+                )
+
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, _, _ = module.scan(
+            config,
+            [{"path": str(repository), "label": "Repository", "kind": "skill"}],
+            False,
+            fixture / "cache",
+        )
+        families = module.assign_families(items, config)
+
+        assert all(family["name"] not in {"skills", "plugins", "packages", "extensions"} for family in families)
+        assert len(families) == len(items) == 8
+        assert all(item["family_size"] == 1 for item in items)
+
+
 def test_repository_root_skill_hides_same_named_packaged_mirror() -> None:
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp)
@@ -280,6 +308,276 @@ def test_repository_root_skill_hides_same_named_packaged_mirror() -> None:
         matches = [item for item in catalog["items"] if item["name"] == "catalog-demo"]
         assert len(matches) == 1
         assert matches[0]["relative_path"] == "catalog-demo/SKILL.md"
+
+
+def test_same_skill_and_repository_is_deduplicated_across_roots_before_images() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        first_root = fixture / "first"
+        second_root = fixture / "second"
+        for root, description, repository in (
+            (first_root, "第一份研究入口。", "https://github.com/Example/Research.git"),
+            (second_root, "第二份研究入口。", "https://github.com/example/research"),
+        ):
+            skill = root / "research"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                f"---\nname: research\ndescription: {description}\nmetadata: {repository}\n---\n",
+                encoding="utf-8",
+            )
+
+        preview_calls: list[str] = []
+
+        def preview(repository: str, *_: object) -> dict:
+            preview_calls.append(repository)
+            return {
+                "status": "github-social-preview",
+                "source": "test",
+                "value": "data:image/png;base64,dGVzdA==",
+                "repository": repository,
+                "missing_evidence": False,
+            }
+
+        original_preview = module.github_preview_image
+        module.github_preview_image = preview
+        try:
+            config = module.load_config(ROOT / "references" / "catalog-config.json")
+            items, raw_plugins, _ = module.scan(
+                config,
+                [
+                    {"path": str(first_root), "label": "First", "kind": "skill"},
+                    {"path": str(second_root), "label": "Second", "kind": "skill"},
+                ],
+                False,
+                fixture / "cache",
+            )
+        finally:
+            module.github_preview_image = original_preview
+
+        assert len(items) == 1
+        item = items[0]
+        assert item["name"] == "research"
+        assert {location["source"] for location in item["location_evidence"]} == {"First", "Second"}
+        assert {location["relative_path"] for location in item["location_evidence"]} == {"research/SKILL.md"}
+        assert item["github_evidence"]
+        assert len(preview_calls) == 1
+        assert not raw_plugins
+
+
+def test_same_skill_name_with_conflicting_repositories_is_retained() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        roots = []
+        for index, repository in enumerate(
+            ("https://github.com/example/research", "https://github.com/other/research")
+        ):
+            root = fixture / f"root-{index}"
+            skill = root / "research"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                f"---\nname: research\ndescription: 研究入口。\nmetadata: {repository}\n---\n",
+                encoding="utf-8",
+            )
+            roots.append({"path": str(root), "label": f"Root {index}", "kind": "skill"})
+
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, _, _ = module.scan(config, roots, False, fixture / "cache")
+        assert len(items) == 2
+        assert {item["github"]["url"] for item in items} == {
+            "https://github.com/example/research",
+            "https://github.com/other/research",
+        }
+
+
+def test_plugin_members_stay_out_of_independent_families_and_keep_membership_evidence() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        skill_root = fixture / "skills"
+        standalone = skill_root / "helper"
+        standalone.mkdir(parents=True)
+        (standalone / "SKILL.md").write_text(
+            "---\nname: helper\ndescription: 独立技能。\nmetadata: https://github.com/example/tool\n---\n",
+            encoding="utf-8",
+        )
+
+        plugin_root = fixture / "plugins"
+        plugin_skill = plugin_root / "provider" / "tool" / "1.0.0" / "skills" / "helper"
+        plugin_skill.mkdir(parents=True)
+        (plugin_skill / "SKILL.md").write_text(
+            "---\nname: helper\ndescription: 插件成员技能。\nmetadata: https://github.com/example/tool\n---\n",
+            encoding="utf-8",
+        )
+
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, raw_plugins, _ = module.scan(
+            config,
+            [
+                {"path": str(skill_root), "label": "Skills", "kind": "skill"},
+                {"path": str(plugin_root), "label": "Plugins", "kind": "plugin"},
+            ],
+            False,
+            fixture / "cache",
+        )
+        families = module.assign_families(items, config)
+        plugins = module.merge_plugins(raw_plugins, items, config)
+
+        assert {item["kind"] for item in items} == {"skill", "plugin"}
+        assert len(families) == 1
+        assert all(items_id not in families[0]["skill_ids"] for items_id in [item["id"] for item in items if item["kind"] == "plugin"])
+        assert len(plugins) == 1
+        plugin = plugins[0]
+        assert len(plugin["skill_ids"]) == 1
+        plugin_member = next(item for item in items if item["kind"] == "plugin")
+        assert plugin["skill_ids"] == [plugin_member["id"]]
+        assert plugin["locations"] == ["provider/tool/1.0.0"]
+        assert plugin["category_evidence"]
+        assert plugin["image_source_member_id"] == plugin_member["id"]
+
+
+def test_same_repo_skill_name_stays_separate_across_plugins() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        plugin_root = fixture / "plugins"
+        repository = "https://github.com/example/shared-skills"
+        for plugin_name in ("alpha", "beta"):
+            skill = plugin_root / "provider" / plugin_name / "1.0.0" / "skills" / "helper"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                f"---\nname: helper\ndescription: {plugin_name} helper.\nmetadata: {repository}\n---\n",
+                encoding="utf-8",
+            )
+
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, raw_plugins, _ = module.scan(
+            config,
+            [{"path": str(plugin_root), "label": "Plugins", "kind": "plugin"}],
+            False,
+            fixture / "cache",
+        )
+        plugins = module.merge_plugins(raw_plugins, items, config)
+
+        assert len(items) == 2
+        assert {item["plugin_id"] for item in items} == {
+            "plugin:provider:alpha",
+            "plugin:provider:beta",
+        }
+        assert len(plugins) == 2
+        assert all(len(plugin["skill_ids"]) == 1 for plugin in plugins)
+        assert len({plugin["skill_ids"][0] for plugin in plugins}) == 2
+
+
+def test_same_provider_plugin_name_with_conflicting_repositories_stays_separate() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        roots = []
+        repositories = (
+            "https://github.com/example/provider-plugin",
+            "https://github.com/other/provider-plugin",
+        )
+        for index, repository in enumerate(repositories):
+            plugin_root = fixture / f"plugins-{index}"
+            skill = plugin_root / "provider" / "same-plugin" / "1.0.0" / "skills" / "helper"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                f"---\nname: helper\ndescription: Repository {index} helper.\nmetadata: {repository}\n---\n",
+                encoding="utf-8",
+            )
+            roots.append({"path": str(plugin_root), "label": f"Plugins {index}", "kind": "plugin"})
+
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, raw_plugins, _ = module.scan(config, roots, False, fixture / "cache")
+        plugins = module.merge_plugins(raw_plugins, items, config)
+
+        assert len(items) == 2
+        assert len(raw_plugins) == 2
+        assert len(plugins) == 2
+        assert len({plugin["id"] for plugin in plugins}) == 2
+        assert len({plugin["skill_ids"][0] for plugin in plugins}) == 2
+        assert len({item["plugin_id"] for item in items}) == 2
+
+
+def test_same_plugin_member_is_deduplicated_across_scan_roots() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        roots = []
+        repository = "https://github.com/example/shared-skills"
+        for index in range(2):
+            plugin_root = fixture / f"plugins-{index}"
+            skill = plugin_root / "provider" / "alpha" / "1.0.0" / "skills" / "helper"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                f"---\nname: helper\ndescription: helper workflow.\nmetadata: {repository}\n---\n",
+                encoding="utf-8",
+            )
+            roots.append({
+                "path": str(plugin_root),
+                "label": f"Plugins {index}",
+                "kind": "plugin",
+            })
+
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, raw_plugins, _ = module.scan(config, roots, False, fixture / "cache")
+        plugins = module.merge_plugins(raw_plugins, items, config)
+
+        assert len(items) == 1
+        assert items[0]["plugin_id"] == "plugin:provider:alpha"
+        assert items[0]["deduplication"]["copy_count"] == 2
+        assert len(items[0]["locations"]) == 2
+        assert len(plugins) == 1
+        assert plugins[0]["skill_ids"] == [items[0]["id"]]
+
+
+def test_repo_backed_root_families_aggregate_across_scan_roots() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        roots = []
+        families = {
+            "gsap": "https://github.com/greensock/gsap-skills.git",
+            "hyperframes": "https://github.com/heygen-com/hyperframes",
+            "research": "https://github.com/example/research-skills",
+            "story": "https://github.com/worldwonderer/oh-story-claudecode",
+        }
+        for index, (parent, repository) in enumerate(families.items()):
+            root = fixture / f"root-{index}"
+            root.mkdir()
+            names = [parent, f"{parent}-core", f"{parent}-report"]
+            for name in names[:2]:
+                skill = root / name
+                skill.mkdir()
+                (skill / "SKILL.md").write_text(
+                    f"---\nname: {name}\ndescription: {name} workflow.\nmetadata: {repository}\n---\n",
+                    encoding="utf-8",
+                )
+            second_root = fixture / f"root-{index}-second"
+            child = second_root / names[2]
+            child.mkdir(parents=True)
+            (child / "SKILL.md").write_text(
+                f"---\nname: {names[2]}\ndescription: {names[2]} workflow.\nmetadata: {repository}\n---\n",
+                encoding="utf-8",
+            )
+            roots.extend(
+                [
+                    {"path": str(root), "label": f"Root {index}", "kind": "skill"},
+                    {"path": str(second_root), "label": f"Root {index} second", "kind": "skill"},
+                ]
+            )
+
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        items, _, _ = module.scan(config, roots, False, fixture / "cache")
+        result = module.assign_families(items, config)
+        by_name = {family["name"]: family for family in result}
+        for parent in families:
+            assert parent in by_name
+            family = by_name[parent]
+            assert len(family["skill_ids"]) == 3
+            assert len(family["locations"]) == 3
 
 
 def test_github_preview_uses_readme_image() -> None:

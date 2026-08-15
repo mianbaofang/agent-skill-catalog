@@ -4,6 +4,14 @@
 
 No unreleased changes.
 
+## 0.3.2 - 2026-08-15
+
+- Deduplicate repository-backed copies of the same Skill across scan roots while preserving every observed location, and keep same-named members from different plugins separate.
+- Aggregate repository-backed `gsap`, `hyperframes`, `research`, `story`, and similar parent/child families even when their folders are split across roots.
+- Fetch each observed GitHub repository preview once per build and reuse that evidence for matching Skill, family, and plugin records.
+- Add a resumable `description_queue.py next/apply` workflow that supplies bounded local `SKILL.md` and GitHub README evidence, validates Agent-written Chinese descriptions, and stores completed batches under a unique curation key.
+- Require CI and package validation to include the description queue, its completion gate, and the complete test suite.
+
 ## 0.3.1 - 2026-08-14
 
 - Restored GitHub repository discovery from installation locks, plugin and package metadata, explicit Skill links, and local Git remotes so installed Skills can use observed repository evidence instead of a category placeholder.

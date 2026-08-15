@@ -64,6 +64,29 @@ from github_preview import (
     image_data_uri,
     image_data_uri_from_bytes,
 )
+from catalog_aggregation import (
+    aggregate_github,
+    assign_families,
+    best_image_member,
+    coverage,
+    curation_value,
+    deduplication_key,
+    deduplication_preference,
+    deduplicate_scan_records,
+    description_enrichment,
+    direct_skill_folder,
+    family_identity,
+    family_override,
+    family_override_for_structure,
+    github_key,
+    image_summary,
+    is_absolute_text,
+    merge_plugins,
+    normalize_for_match,
+    public_label,
+    rooted_sibling_families,
+    structural_family_root,
+)
 
 
 def read_json(path: Path, fallback: Any, strict: bool = False) -> Any:
@@ -367,22 +390,6 @@ def description_review(description: str, origin: str, locale: str) -> Dict[str, 
     return {"needed": bool(reasons), "reasons": reasons}
 
 
-def curation_value(mapping: Any, name: str, relative_path: str) -> str:
-    if not isinstance(mapping, dict):
-        return ""
-    normalized_name = normalize_for_match(name)
-    normalized_path = normalize_for_match(relative_path)
-    for key in (relative_path, normalized_path, name, normalized_name):
-        value = mapping.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-        if isinstance(value, dict):
-            localized = value.get("zh-CN") or value.get("description") or value.get("value")
-            if isinstance(localized, str) and localized.strip():
-                return localized.strip()
-    return ""
-
-
 def github_from_values(values: Iterable[Any], allow_shorthand: bool = False) -> str:
     for value in values:
         if isinstance(value, dict):
@@ -612,20 +619,6 @@ def generated_cover(name: str, description: str, category: str, category_label: 
         '</svg>'
     )
     return "data:image/svg+xml;utf8," + quote(svg, safe="")
-
-
-def normalize_for_match(value: str) -> str:
-    return re.sub(r"\s+", " ", str(value or "").replace("\\", "/").lower()).strip()
-
-
-def is_absolute_text(value: Any) -> bool:
-    text = str(value or "").strip().replace("\\", "/")
-    return bool(re.match(r"^(?:[A-Za-z]:/|//|/)", text))
-
-
-def public_label(value: Any, include_absolute_paths: bool) -> str:
-    text = str(value or "")
-    return text if include_absolute_paths or not is_absolute_text(text) else "<absolute path hidden>"
 
 
 def keyword_match(haystack: str, keyword: str) -> bool:
@@ -921,18 +914,25 @@ def stable_id(root: Path, relative_path: str) -> str:
     return "skill:" + hashlib.sha1(value).hexdigest()[:16]
 
 
-def plugin_info(spec: Dict[str, str], relative_path: str, skill_path: Path) -> Optional[Dict[str, str]]:
+def plugin_info(
+    spec: Dict[str, str],
+    relative_path: str,
+    skill_path: Path,
+    repository_url: str = "",
+) -> Optional[Dict[str, str]]:
     if spec.get("kind") != "plugin":
         return None
     parts = Path(relative_path).parts
     provider = parts[0] if parts else "unknown"
     name = parts[1] if len(parts) > 1 else skill_path.parent.name
     version = parts[2] if len(parts) > 2 else ""
+    repository_key = github_key({"github": {"url": repository_url}})
     return {
         "id": f"plugin:{provider}:{name}",
         "name": name,
         "version": version,
         "provider": provider,
+        "_repository_key": repository_key,
         "provider_source": "structural-path",
         "provider_evidence": {"type": "relative-path", "value": provider},
         "location": "/".join(parts[:3]),
@@ -975,7 +975,8 @@ def scan(
             source_description_origin = description_origin(frontmatter, source_description)
             manifest, manifest_path = nearest_manifest(skill_path, root)
             curation = config.get("curation", {})
-            curated_description = curation_value(curation.get("description_overrides"), name, relative)
+            item_id = stable_id(root, relative)
+            curated_description = curation_value(curation.get("description_overrides"), name, relative, item_id)
             description = curated_description or source_description
             category, evidence, confidence, classification = classify(
                 name,
@@ -1003,7 +1004,7 @@ def scan(
                 str(config.get("locale") or ""),
             )
             item: Dict[str, Any] = {
-                "id": stable_id(root, relative),
+                "id": item_id,
                 "name": name,
                 "description": description,
                 "description_source": "curation" if curated_description else "source",
@@ -1024,16 +1025,25 @@ def scan(
                 "image": {},
                 "root_basename": root.name,
             }
+            item["locations"] = [f"{item['source']}:{relative}"]
+            item["location_evidence"] = [{"source": item["source"], "relative_path": relative}]
             if github_url:
                 item["github"] = {"url": github_url, "source": github_source, "verification": "observed-local"}
+                item["github_evidence"] = [{
+                    "url": github_url,
+                    "source": github_source,
+                    "relative_path": relative,
+                }]
             if include_absolute_paths:
                 item["path"] = str(skill_path.resolve())
+                item["location_evidence"][0]["path"] = item["path"]
             if manifest_path and include_absolute_paths:
                 item["manifest_path"] = manifest_path
-            plugin = plugin_info(spec, relative, skill_path)
+            plugin = plugin_info(spec, relative, skill_path, github_url)
             if plugin:
                 item["plugin_id"] = plugin["id"]
-                bucket = plugins.setdefault(plugin["id"], {**plugin, "skills": []})
+                plugin_key = f"{plugin['id']}::{plugin.get('_repository_key') or '<missing>'}"
+                bucket = plugins.setdefault(plugin_key, {**plugin, "skills": []})
                 bucket.setdefault("locations", [])
                 if plugin.get("location") and plugin["location"] not in bucket["locations"]:
                     bucket["locations"].append(plugin["location"])
@@ -1046,8 +1056,19 @@ def scan(
             items.append(item)
             image_contexts.append((item, skill_path, frontmatter, category, name, relative, description, github_url))
 
+    items, raw_plugins, image_contexts = deduplicate_scan_records(
+        items,
+        raw_plugins=sorted(plugins.values(), key=lambda item: str(item["name"]).casefold()),
+        image_contexts=image_contexts,
+    )
     image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
-    repositories = sorted({context[-1] for context in image_contexts if context[-1]})
+    repository_urls: Dict[str, str] = {}
+    for context in image_contexts:
+        repository_url = str(context[-1] or "")
+        repository_key = github_key({"github": {"url": repository_url}})
+        if repository_key:
+            repository_urls.setdefault(repository_key, repository_key)
+    repositories = sorted(repository_urls.values())
     if image_cache_dir is not None and image_config.get("github_repository_previews", True) and repositories:
         worker_count = min(len(repositories), max(1, int(image_config.get("github_fetch_workers", 8) or 8)))
 
@@ -1062,6 +1083,9 @@ def scan(
                 github_previews[repository_url] = preview
 
     for item, skill_path, frontmatter, category, name, relative, description, github_url in image_contexts:
+        repository_key = github_key({"github": {"url": github_url}})
+        if repository_key and repository_key in github_previews:
+            github_previews[github_url] = github_previews[repository_key]
         image = choose_image(
             skill_path,
             frontmatter,
@@ -1077,379 +1101,7 @@ def scan(
         image["evidence"] = "missing" if image.get("missing_evidence", True) else "verified"
         item["image"] = image
     items.sort(key=lambda item: (str(item["category"]), str(item["name"]).casefold(), str(item["relative_path"]).casefold()))
-    return items, sorted(plugins.values(), key=lambda item: str(item["name"]).casefold()), unresolved
-
-
-def family_override(mapping: Any, item: Dict[str, Any]) -> Dict[str, Any]:
-    if not isinstance(mapping, dict):
-        return {}
-    name = normalize_for_match(item.get("name", ""))
-    relative = normalize_for_match(item.get("relative_path", ""))
-    for key in (item.get("relative_path", ""), relative, item.get("name", ""), name):
-        value = mapping.get(key)
-        if isinstance(value, dict):
-            return value
-    return {}
-
-
-def structural_family_root(item: Dict[str, Any]) -> str:
-    parts = Path(str(item.get("relative_path") or "")).parts
-    # A root SKILL.md is its own family; nested skills use their first directory.
-    return str(item.get("root_basename") or item.get("name") or "skill") if len(parts) <= 1 else str(parts[0])
-
-
-def family_override_for_structure(mapping: Any, item: Dict[str, Any]) -> Dict[str, Any]:
-    """Apply an explicit family id to structurally related paths only.
-
-    A curation entry such as ``tailwind -> ecosystem:hyperframes`` can cover
-    the root ``hyperframes`` and its ``hyperframes-*`` siblings.  This is still
-    path-derived and never inspects descriptions.
-    """
-    if not isinstance(mapping, dict):
-        return {}
-    root_name = normalize_for_match(structural_family_root(item))
-    relative = normalize_for_match(item.get("relative_path", ""))
-    for key, value in mapping.items():
-        if not isinstance(value, dict):
-            continue
-        family_id = str(value.get("id") or value.get("family") or "").strip()
-        if not family_id:
-            continue
-        slug = normalize_for_match(family_id.rsplit(":", 1)[-1])
-        if not slug:
-            continue
-        if root_name == slug or root_name.startswith(slug + "-"):
-            # Do not let an unrelated root-level entry inherit a sibling's
-            # family merely because its name happens to share a token.
-            selector = normalize_for_match(str(key))
-            if selector and (selector in relative or root_name == slug or root_name.startswith(slug + "-")):
-                return value
-    return {}
-
-
-def direct_skill_folder(item: Dict[str, Any]) -> str:
-    """Return the direct folder name for a root-level ``SKILL.md`` item."""
-    parts = Path(str(item.get("relative_path") or "")).parts
-    if len(parts) != 2 or parts[-1].casefold() != "skill.md":
-        return ""
-    folder = normalize_for_match(parts[0])
-    name = normalize_for_match(str(item.get("name") or ""))
-    return folder if folder and folder == name else ""
-
-
-def github_key(item: Dict[str, Any]) -> str:
-    github = item.get("github")
-    url = github.get("url") if isinstance(github, dict) else ""
-    value = normalize_for_match(str(url or "")).rstrip("/")
-    return re.sub(r"\.git$", "", value)
-
-
-def rooted_sibling_families(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    """Infer families installed as sibling root folders, conservatively.
-
-    A prefix is considered a family only when a same-named root Skill exists and
-    at least two sibling root Skills use that prefix. This catches repositories
-    installed as ``research``, ``research-deep`` and ``research-report`` while
-    avoiding loose prefix or description-based merges. Conflicting observed
-    GitHub repositories are kept separate.
-    """
-    buckets: Dict[Tuple[str, str], Dict[str, List[Dict[str, Any]]]] = {}
-    for item in items:
-        if item.get("kind") != "skill":
-            continue
-        folder = direct_skill_folder(item)
-        if not folder:
-            continue
-        bucket_key = (
-            normalize_for_match(str(item.get("source") or "skill")),
-            normalize_for_match(str(item.get("root_basename") or "")),
-        )
-        bucket = buckets.setdefault(bucket_key, {})
-        bucket.setdefault(folder, []).append(item)
-
-    inferred: Dict[str, Dict[str, Any]] = {}
-    assigned: set[str] = set()
-    for bucket in buckets.values():
-        for parent_name in sorted(bucket, key=lambda value: (-len(value), value)):
-            parents = bucket[parent_name]
-            if len(parents) != 1:
-                continue
-            parent = parents[0]
-            parent_id = str(parent.get("id") or "")
-            if not parent_id or parent_id in assigned:
-                continue
-            children: List[Dict[str, Any]] = []
-            prefix = parent_name + "-"
-            for child_name, candidates in bucket.items():
-                if not child_name.startswith(prefix) or len(candidates) != 1:
-                    continue
-                child = candidates[0]
-                child_id = str(child.get("id") or "")
-                if child_id and child_id not in assigned:
-                    children.append(child)
-            if len(children) < 2:
-                continue
-
-            members = [parent, *children]
-            observed_repositories = {github_key(member) for member in members if github_key(member)}
-            parent_repository = github_key(parent)
-            if len(observed_repositories) > 1:
-                if not parent_repository:
-                    continue
-                members = [member for member in members if not github_key(member) or github_key(member) == parent_repository]
-                if len(members) < 3:
-                    continue
-
-            source = normalize_for_match(str(parent.get("source") or "skill")) or "skill"
-            family_id = f"family:{source}:{parent_name}"
-            family = {
-                "id": family_id,
-                "name": str(parent.get("name") or parent_name),
-                "category": str(parent.get("category") or "other"),
-            }
-            for member in members:
-                member_id = str(member.get("id") or "")
-                if member_id:
-                    inferred[member_id] = family
-                    assigned.add(member_id)
-    return inferred
-
-
-def family_identity(
-    item: Dict[str, Any],
-    config: Dict[str, Any],
-    inferred: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> Tuple[str, str, str]:
-    mapping = config.get("curation", {}).get("family_overrides")
-    override = (
-        family_override(mapping, item)
-        or family_override_for_structure(mapping, item)
-        or (inferred or {}).get(str(item.get("id") or ""), {})
-    )
-    if override:
-        family_id = str(override.get("id") or override.get("family") or item["name"])
-        family_name = str(override.get("name") or family_id)
-        category = str(override.get("category") or item["category"])
-        return family_id, family_name, category
-    source = normalize_for_match(item.get("source", "skill")) or "skill"
-    root_name = structural_family_root(item)
-    family_slug = normalize_for_match(root_name).replace(" ", "-") or "skill"
-    return f"family:{source}:{family_slug}", root_name, str(item["category"])
-
-
-def best_image_member(members: List[Dict[str, Any]], primary: Dict[str, Any]) -> Dict[str, Any]:
-    status_rank = {
-        "curated-local": 5,
-        "github-repository": 4,
-        "github-social-preview": 3,
-        "verified-local": 2,
-    }
-
-    def rank(item: Dict[str, Any]) -> Tuple[int, int, float, str]:
-        image = item.get("image") if isinstance(item.get("image"), dict) else {}
-        status = str(image.get("status") or "")
-        evidence_rank = status_rank.get(status, 1 if not image.get("missing_evidence", True) else 0)
-        return (
-            -evidence_rank,
-            0 if item.get("id") == primary.get("id") else 1,
-            -float(item.get("confidence", 0.0)),
-            str(item.get("name") or "").casefold(),
-        )
-
-    return sorted(members, key=rank)[0]
-
-
-def aggregate_github(primary: Dict[str, Any], image_member: Dict[str, Any], members: List[Dict[str, Any]]) -> Dict[str, Any]:
-    for item in (image_member, primary, *members):
-        github = item.get("github") if isinstance(item.get("github"), dict) else {}
-        if github.get("url"):
-            return github
-    return {}
-
-
-def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    buckets: Dict[str, List[Dict[str, Any]]] = {}
-    inferred = rooted_sibling_families(items)
-    for item in items:
-        if item["kind"] != "skill":
-            continue
-        family_id, family_name, family_category = family_identity(item, config, inferred)
-        item["family_id"] = family_id
-        item["family_name"] = family_name
-        item["family_category"] = family_category
-        buckets.setdefault(family_id, []).append(item)
-
-    families: List[Dict[str, Any]] = []
-    for family_id, members in buckets.items():
-        members.sort(key=lambda item: (
-            0 if str(item["relative_path"]).casefold().endswith("/skill.md") else 1,
-            len(Path(str(item["relative_path"])).parts),
-            str(item["name"]).casefold(),
-        ))
-        expected_name = normalize_for_match(str(members[0].get("family_name") or ""))
-        primary = sorted(
-            members,
-            key=lambda item: (
-                0 if normalize_for_match(str(item.get("name") or "")) == expected_name else 1,
-                0 if str(item["relative_path"]).casefold().endswith("/skill.md") else 1,
-                len(Path(str(item["relative_path"])).parts),
-                str(item["name"]).casefold(),
-            ),
-        )[0]
-        for member in members:
-            member["family_size"] = len(members)
-            member["is_family_primary"] = member["id"] == primary["id"]
-        category = str(primary.get("family_category") or primary["category"])
-        image_member = best_image_member(members, primary)
-        families.append({
-            "id": family_id,
-            "name": str(primary.get("family_name") or primary["name"]),
-            "category": category,
-            "description": primary["description"],
-            "description_source": primary.get("description_source", "source"),
-            "source": primary.get("source", "unknown"),
-            "image": image_member["image"],
-            "image_source_member_id": image_member["id"],
-            "github": aggregate_github(primary, image_member, members),
-            "invocation": primary["invocation"],
-            "category_evidence": primary.get("category_evidence", []),
-            "category_candidates": primary.get("category_candidates", []),
-            "category_winner_margin": primary.get("category_winner_margin", 0),
-            "category_tie_reason": primary.get("category_tie_reason", "unknown"),
-            "confidence": primary.get("confidence", 0),
-            "low_confidence": primary.get("low_confidence", False),
-            "primary_id": primary["id"],
-            "skill_ids": [member["id"] for member in members],
-            "locations": [member["relative_path"] for member in members],
-        })
-    return sorted(families, key=lambda family: str(family["name"]).casefold())
-
-
-def merge_plugins(raw_plugins: List[Dict[str, Any]], items: List[Dict[str, Any]], config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    by_id = {item["id"]: item for item in items}
-    buckets: Dict[str, Dict[str, Any]] = {}
-    curation = config.get("curation", {})
-    for plugin in raw_plugins:
-        key = normalize_for_match(f"{plugin.get('provider') or 'unknown'}:{plugin['name']}")
-        bucket = buckets.setdefault(key, {
-            "id": f"plugin:{key}",
-            "name": plugin["name"],
-            "provider": plugin.get("provider") or "unknown",
-            "provider_source": plugin.get("provider_source") or "unknown",
-            "provider_evidence": plugin.get("provider_evidence") or {"type": "unknown"},
-            "providers": [],
-            "versions": [],
-            "locations": [],
-            "paths": [],
-            "skill_ids": [],
-        })
-        for field, target in (("provider", "providers"), ("version", "versions"), ("location", "locations"), ("path", "paths")):
-            value = plugin.get(field)
-            if value and value not in bucket[target]:
-                bucket[target].append(value)
-        for skill_id in plugin.get("skills", []):
-            if skill_id not in bucket["skill_ids"]:
-                bucket["skill_ids"].append(skill_id)
-
-    result: List[Dict[str, Any]] = []
-    for plugin in buckets.values():
-        skills = [by_id[skill_id] for skill_id in plugin["skill_ids"] if skill_id in by_id]
-        if not skills:
-            continue
-        counts: Dict[str, int] = {}
-        confidence_by_category: Dict[str, float] = {}
-        for skill in skills:
-            counts[skill["category"]] = counts.get(skill["category"], 0) + 1
-            confidence_by_category[skill["category"]] = confidence_by_category.get(skill["category"], 0.0) + float(skill.get("confidence", 0.0))
-        tie_break = [str(value) for value in (config.get("category_tie_break") or [])]
-        category = sorted(
-            counts,
-            key=lambda value: (-counts[value], -confidence_by_category[value], tie_break.index(value) if value in tie_break else len(tie_break), value),
-        )[0]
-        candidate_rows = [
-            {
-                "category": value,
-                "count": counts[value],
-                "confidence_sum": round(confidence_by_category[value], 3),
-                "evidence": [
-                    json.loads(encoded)
-                    for encoded in sorted({
-                        json.dumps(evidence, ensure_ascii=False, sort_keys=True)
-                        for skill in skills if skill["category"] == value
-                        for evidence in skill.get("category_evidence", [])
-                    })
-                ],
-            }
-            for value in sorted(
-                counts,
-                key=lambda value: (
-                    -counts[value],
-                    -confidence_by_category[value],
-                    tie_break.index(value) if value in tie_break else len(tie_break),
-                    value,
-                ),
-            )
-        ]
-        best_count = counts[category]
-        second_count = sorted(counts.values(), reverse=True)[1] if len(counts) > 1 else 0
-        plugin_margin = best_count - second_count
-        plugin_low_confidence = len(counts) > 1 and plugin_margin <= 1
-        explicit = curation_value(curation.get("description_overrides"), str(plugin["name"]), str(plugin["name"]))
-        primary = sorted(skills, key=lambda skill: (-float(skill["confidence"]), str(skill["name"]).casefold()))[0]
-        description = explicit or primary["description"]
-        image_member = best_image_member(skills, primary)
-        github = aggregate_github(primary, image_member, skills)
-        image = image_member["image"]
-        plugin.update({
-            "category": category,
-            "description": description,
-            "description_source": "curation" if explicit else primary.get("description_source", "source"),
-            "image": image,
-            "image_source_member_id": image_member["id"],
-            "github": github,
-            "invocation": f"在你的 Agent 中直接说明任务；插件 {plugin['name']} 会路由到它携带的技能。",
-            "category_candidates": candidate_rows,
-            "category_evidence": [{"type": "plugin-member-category", "value": value, "count": counts[value]} for value in sorted(counts)],
-            "category_winner_margin": plugin_margin,
-            "category_tie_reason": "small-margin" if plugin_low_confidence else "member-majority",
-            "confidence": round(sum(float(skill.get("confidence", 0.0)) for skill in skills) / len(skills), 3),
-            "low_confidence": plugin_low_confidence or any(bool(skill.get("low_confidence")) for skill in skills),
-        })
-        plugin["providers"].sort(key=str.casefold)
-        plugin["versions"].sort(key=str.casefold)
-        plugin["locations"].sort(key=str.casefold)
-        if plugin.get("paths"):
-            plugin["paths"].sort(key=str.casefold)
-        else:
-            plugin.pop("paths", None)
-        result.append(plugin)
-    return sorted(result, key=lambda plugin: (str(plugin["name"]).casefold(), str(plugin.get("provider") or "").casefold()))
-
-
-def coverage(items: List[Dict[str, Any]], config: Dict[str, Any]) -> Dict[str, Any]:
-    categories = config.get("categories") if isinstance(config.get("categories"), dict) else {}
-    rows = []
-    for category_id, metadata in categories.items():
-        members = [item for item in items if item["category"] == category_id]
-        confidence = sum(float(item["confidence"]) for item in members) / len(members) if members else 0.0
-        rows.append({
-            "id": category_id,
-            "label": str(metadata.get("label") or category_id) if isinstance(metadata, dict) else category_id,
-            "count": len(members),
-            "covered": bool(members),
-            "image_count": sum(1 for item in members if not item["image"].get("missing_evidence", True)),
-            "average_confidence": round(confidence, 3),
-        })
-    covered_count = sum(1 for row in rows if row["covered"])
-    category_count = len(rows)
-    return {
-        "schema_version": "1.0",
-        "categories": rows,
-        "covered_count": covered_count,
-        "category_count": category_count,
-        "coverage_ratio": round(covered_count / category_count, 3) if category_count else 1.0,
-        "uncovered": [row["id"] for row in rows if not row["covered"]],
-    }
+    return items, raw_plugins, unresolved
 
 
 def public_root_specs(specs: List[Dict[str, str]], include_absolute_paths: bool) -> List[Dict[str, str]]:
@@ -1468,53 +1120,6 @@ def public_unresolved(roots: List[Dict[str, str]], include_absolute_paths: bool)
         {**root, "path": "<absolute path hidden>", "label": public_label(root.get("label"), False)}
         for root in roots
     ]
-
-
-def image_summary(items: List[Dict[str, Any]]) -> Dict[str, Any]:
-    statuses: Dict[str, int] = {}
-    missing_evidence_count = 0
-    for item in items:
-        image = item.get("image", {}) if isinstance(item.get("image"), dict) else {}
-        status = str(image.get("status") or "unknown")
-        statuses[status] = statuses.get(status, 0) + 1
-        if bool(image.get("missing_evidence", True)):
-            missing_evidence_count += 1
-    return {
-        "status_counts": dict(sorted(statuses.items())),
-        "verified_count": len(items) - missing_evidence_count,
-        "missing_evidence_count": missing_evidence_count,
-    }
-
-
-def description_enrichment(items: List[Dict[str, Any]], locale: str) -> Dict[str, Any]:
-    pending = []
-    for item in items:
-        review = item.get("description_review") if isinstance(item.get("description_review"), dict) else {}
-        if not review.get("needed"):
-            continue
-        github = item.get("github") if isinstance(item.get("github"), dict) else {}
-        pending.append(
-            {
-                "id": item.get("id"),
-                "name": item.get("name"),
-                "source": item.get("source"),
-                "relative_path": item.get("relative_path"),
-                "current_description": item.get("description"),
-                "reasons": review.get("reasons", []),
-                "github_url": github.get("url", ""),
-            }
-        )
-    return {
-        "locale": locale,
-        "pending_count": len(pending),
-        "execution_owner": "invoking-agent",
-        "builder_generates_copy": False,
-        "completion_rule": (
-            "The invoking Agent must write evidence-backed Chinese descriptions to catalog-curation.json, "
-            "rerun with --refresh --require-complete-descriptions, and must not report success while exit code 3 remains."
-        ),
-        "items": pending,
-    }
 
 
 def fingerprint(value: str) -> str:

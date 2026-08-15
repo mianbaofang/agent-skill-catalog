@@ -6,10 +6,10 @@ The README preview is a 16:9 product story, not a sequence of unrelated screensh
 
 1. **The problem**: a growing Skill library hides the difference between a standalone Skill, a parent family, and a plugin bundle.
 2. **The scan contract**: explicit local roots enter a read-only pipeline; the roots themselves are never edited or executed.
-3. **The evidence map**: frontmatter, manifests, source paths, sibling structure, curation, and GitHub metadata are combined into reviewable classification evidence.
+3. **The evidence map**: frontmatter, manifests, source paths, sibling structure, curation, and GitHub metadata support classification; local `SKILL.md` and GitHub README excerpts support the resumable Chinese description queue.
 4. **The family and plugin map**: a parent Skill stays one catalog item while child Skills appear in its detail; plugin aggregates move to a separate view.
 5. **The image path**: output-owned manual override → verified public GitHub repository preview → Skill-provided local preview → generated fallback marked `missing evidence`. Skill-provided remote image URLs remain metadata-only.
-6. **The result**: the real generated catalog shows category filtering, search, family detail, invocation, evidence labels, plugin separation, GitHub links, and the manual image controls.
+6. **The result**: the real generated catalog shows category filtering, search, family detail, invocation, Agent-reviewed Chinese descriptions, evidence labels, plugin separation, GitHub links, and manual image controls.
 
 ## Animation acceptance
 

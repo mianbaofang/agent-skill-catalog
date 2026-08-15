@@ -1,6 +1,6 @@
 # Agent Skill Catalog
 
-A local skill catalog and manager for Codex and other AI coding agents. It scans explicit `SKILL.md` roots, keeps parent and child Skills together, lists plugins separately, and shows how each entry is invoked.
+Agent Skill Catalog is a local Skill manager and Codex Skill catalog for people using AI coding agents. It scans explicit `SKILL.md` roots, merges verified copies and parent-child families, keeps plugins separate, collects GitHub previews, and has the invoking Agent finish missing Chinese descriptions.
 
 <table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub stars"></a></td></tr></table>
 
@@ -21,11 +21,11 @@ A local skill catalog and manager for Codex and other AI coding agents. It scans
 <p align="center">
   <a href="README.zh-CN.md">中文</a>
   &middot;
-  <a href="https://mianbaofang.github.io/agent-skill-catalog/">Project site</a>
-  &middot;
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
   &middot;
   <a href="docs/DEMO.md">Product walkthrough</a>
+  &middot;
+  <a href="https://mianbaofang.github.io/agent-skill-catalog/">Project site</a>
   &middot;
   <a href="DISCLAIMER.md">Disclaimer</a>
   &middot;
@@ -49,8 +49,10 @@ Then give the agent the roots to scan:
 ```text
 Use agent-skill-catalog to scan my local Skill root and Codex plugin cache.
 Keep standalone Skills and plugins separate, group real parent/child families,
-show low-confidence classifications and missing image evidence, and do not
-install, edit, or execute anything that was scanned.
+resolve observed GitHub repositories for preview images, complete the Chinese
+description queue from local and GitHub evidence, show low-confidence
+classifications and missing image evidence, and do not install, edit, or
+execute anything that was scanned.
 ```
 
 ## Why I Built This Skill
@@ -69,6 +71,7 @@ Agent Skill Catalog is a read-only local catalog for people who maintain a large
 |---|---|
 | What does it scan? | Only the local roots explicitly supplied by the operator, including optional roots marked as plugin caches. |
 | What is shown as one item? | A standalone Skill or a real parent/family record with its child Skills listed in the detail view. |
+| What happens to duplicate installs? | Copies with the same observed GitHub repository and Skill name are shown once, while every source location remains available as evidence. |
 | How are plugins shown? | Plugin aggregates have their own view and are not counted as standalone Skills. |
 | What information is retained? | Category candidates, confidence, winner margin, source location, invocation text, image provenance, and an observed GitHub repository URL when available. |
 | What happens when evidence is missing? | The catalog says `missing evidence`; it does not present a category cover as proof of a Skill-specific image. |
@@ -80,9 +83,10 @@ Agent Skill Catalog is a read-only local catalog for people who maintain a large
 |---|---|
 | Classification | Category candidates, supporting notes, confidence, and a review flag for uncertain entries. Curation files can override a result. |
 | Families | One parent entry with its source-consistent child Skills listed in the detail view. |
+| Duplicate installs | Repository-backed copies of the same Skill are collapsed across scan roots without merging different plugins or conflicting repositories. |
 | Plugins | Plugin-provided Skills grouped by provider and plugin name in a separate view. |
 | Search and filtering | Search names, descriptions, GitHub metadata, and source-relative paths, then filter by category or view. |
-| Description enrichment | `description-enrichment.json` identifies missing, short, or non-Chinese descriptions; the invoking Agent must write the reviewed Chinese copy itself and pass the final completion gate before reporting success. |
+| Description enrichment | A resumable `description_queue.py next/apply` loop supplies local `SKILL.md` and GitHub README evidence, validates the invoking Agent's Chinese copy, and resumes from completed batches after an interruption. |
 | Images | Manual output-owned overrides first, then public GitHub repository previews resolved from installer/package evidence, Skill-provided local images, and a clearly labeled generated fallback. Family and plugin cards keep the best verified member image. |
 | Manual image replacement | The detail view can save a selected image to the catalog output and restore the automatic image later without editing the source Skill. |
 | GitHub URLs | A repository link appears when installer locks, injected frontmatter, package/plugin metadata, a Skill-body link, a local Git remote, a manifest, or reviewed curation provides it. Clicking a preview opens that repository. |
@@ -117,21 +121,21 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
   --require-complete-descriptions
 ```
 
-When a scanned Skill has an observed GitHub repository, the default build caches one public repository preview. The recommended first command deliberately returns exit code 3 after writing `description-enrichment.json` when Chinese copy still needs work. When this project is invoked as a Skill, the Agent must complete that queue in `catalog-curation.json` itself, then rerun with `--refresh --require-complete-descriptions` until it exits 0; it must not hand that task to the user. Running the builder directly still does not call a text-generation model. Add `--no-github-images` for a fully offline build. In server mode, the same gate prevents the refresh endpoint from falsely reporting a complete catalog.
+When a scanned Skill has an observed GitHub repository, the default build caches one public repository preview and reuses it for matching records. The recommended first command deliberately returns exit code 3 when Chinese copy still needs work. When invoked as a Skill, the Agent runs `description_queue.py next` to prepare bounded local and GitHub evidence, writes the Chinese response batch, applies it with `description_queue.py apply`, and resumes from `catalog-curation.json` until no items remain. It then rebuilds with `--refresh --require-complete-descriptions`; completion requires exit code 0 and `pending_description_count` equal to zero. The Python scripts do not call a hidden model or require a provider key. Add `--no-github-images` for a fully offline build. In server mode, the same gate prevents the refresh endpoint from falsely reporting a complete catalog.
 
 To pin the current release:
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.1 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.2 --agent codex --scope user
 ```
 
 ## Product Screenshots
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.png" alt="Agent Skill Catalog overview with categories, separate Skills and plugins tabs, search, and category counts" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.en.png" alt="Agent Skill Catalog English overview with categories, separate Skills and plugins tabs, search, and category counts" width="100%"></td></tr></table>
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.png" alt="Agent Skill Catalog search results for agent-skill-catalog with the Skill card, GitHub preview, and preview-image controls" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.en.png" alt="Agent Skill Catalog English search results for agent-skill-catalog with the Skill card, GitHub preview, and preview-image controls" width="100%"></td></tr></table>
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.png" alt="Agent Skill Catalog detail dialog highlighting the preview-image replacement controls, invocation text, source location, and evidence" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.en.png" alt="Agent Skill Catalog English detail dialog highlighting the replace-preview and restore-automatic-image controls, invocation text, source location, and evidence" width="100%"></td></tr></table>
 
 ## Safety And Responsible Use
 
@@ -168,7 +172,7 @@ CHANGELOG.md                       release history
 
 ## Status / Release
 
-- Current published release: [`v0.3.1`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.1)
+- Current published release: [`v0.3.2`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.2)
 - Installable package: [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)
 - Package checksum: [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)
 - Validation: GitHub Skill discovery, package structure, Python compilation, deterministic catalog tests, and release packaging are run in CI and before release.

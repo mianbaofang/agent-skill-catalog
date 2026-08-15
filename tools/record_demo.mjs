@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -14,7 +14,7 @@ function option(name, fallback = "") {
   const index = args.indexOf(name);
   return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
 }
-const optionValues = new Set(["--lang", "--output", "--storyboard", "--catalog"]
+const optionValues = new Set(["--lang", "--output", "--storyboard", "--catalog", "--screenshots-dir"]
   .map(name => args.indexOf(name))
   .filter(index => index >= 0 && args[index + 1])
   .map(index => args[index + 1]));
@@ -26,6 +26,8 @@ const output = resolve(repo, option(
     ? "docs/media/agent-skill-catalog-demo.en.gif"
     : "docs/media/agent-skill-catalog-demo.gif",
 ));
+const screenshotsDir = option("--screenshots-dir", "");
+const screenshotMode = Boolean(screenshotsDir);
 const captureDir = mkdtempSync(resolve(tmpdir(), "agent-skill-catalog-demo-"));
 const storyboard = resolve(repo, option("--storyboard", "docs/media/demo-storyboard.html"));
 const catalogUrl = option("--catalog", legacyCatalog || "http://127.0.0.1:8765/index.html");
@@ -33,14 +35,17 @@ const catalogOrigin = new URL(catalogUrl).origin;
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
-  viewport: { width: 960, height: 540 },
-  recordVideo: { dir: captureDir, size: { width: 960, height: 540 } },
+  viewport: screenshotMode ? { width: 1440, height: 1000 } : { width: 960, height: 540 },
+  ...(screenshotMode ? {} : { recordVideo: { dir: captureDir, size: { width: 960, height: 540 } } }),
 });
 const page = await context.newPage();
-await page.goto(`${pathToFileURL(storyboard).href}?lang=${language}&catalog=${encodeURIComponent(catalogUrl)}`);
-
-await page.waitForFunction(() => window.__demoScene === 4, null, { timeout: 50000 });
-const frame = page.frames().find((candidate) => candidate.url().startsWith(catalogOrigin));
+if (screenshotMode) {
+  await page.goto(pathToFileURL(resolve(repo, ".demo-preview/index.html")).href);
+} else {
+  await page.goto(`${pathToFileURL(storyboard).href}?lang=${language}&catalog=${encodeURIComponent(catalogUrl)}`);
+  await page.waitForFunction(() => window.__demoScene === 4, null, { timeout: 50000 });
+}
+const frame = screenshotMode ? page.mainFrame() : page.frames().find((candidate) => candidate.url().startsWith(catalogOrigin));
 if (!frame) throw new Error("The live catalog iframe did not load.");
 
 async function waitForSceneOffset(scene, offsetMs) {
@@ -124,13 +129,20 @@ if (language === "en") {
       "分类封面（缺证据）": "Category cover (missing evidence)",
       "生成封面（缺证据）": "Generated cover (missing evidence)",
       "扫描指定的 Skill 与插件目录，按分类、家族、调用方式和图片来源生成可检索页面。": "Scan selected Skill and plugin roots and build a searchable catalog with categories, families, invocation, and image provenance.",
+      "扫描指定的 Skill 与插件目录，按分类、家族、调用方式、中文说明和图片来源生成可检索页面。": "Scan selected Skill and plugin roots and build a searchable catalog with categories, families, invocation, Chinese descriptions, and image provenance.",
       "准备产品发布定位、文案版本和各渠道交付内容。": "Prepare product positioning, copy variants, and channel deliverables.",
+      "准备产品发布定位、文案版本和各渠道交付内容，适合统一发布页面与宣传材料。": "Prepare product positioning, copy variants, and channel deliverables for consistent launch pages and campaign materials.",
       "按主题生成概念、练习、阶段目标和复习安排。": "Build concepts, exercises, milestones, and review plans for a topic.",
+      "按主题生成概念、练习、阶段目标和复习安排，适合课程学习与阶段复盘。": "Build concepts, exercises, milestones, and review plans for a course or study review.",
       "整理公开市场数据、催化因素、风险和带日期的观察清单。": "Organize public market data, catalysts, risks, and dated watchlists.",
+      "整理公开市场数据、催化因素、风险和带日期的观察清单，不提供投资建议。": "Organize public market data, catalysts, risks, and dated watchlists without providing investment advice.",
       "规划短视频的镜头、时长、字幕和交付要求。": "Plan shots, timing, captions, and delivery requirements for short videos.",
+      "规划短视频的镜头、时长、字幕和交付要求，适合动效短片与产品演示。": "Plan shots, timing, captions, and delivery requirements for motion shorts and product demos.",
       "用一个主入口组织动效项目的动画设计与交付检查。": "Use one parent entry to organize motion design and delivery checks.",
+      "用一个主入口组织动效项目的动画设计、时间线和交付检查。": "Use one parent entry to organize motion design, timelines, and delivery checks.",
       "把创意需求整理成图片方向、参考信息和可执行的生成提示。": "Turn a creative brief into visual direction, references, and usable generation prompts.",
-      "搜索公开网页，比较证据并输出带来源的研究笔记。": "Search public web pages, compare evidence, and produce sourced research notes."
+      "搜索公开网页，比较证据并输出带来源的研究笔记。": "Search public web pages, compare evidence, and produce sourced research notes.",
+      "搜索公开网页、比较证据并输出带来源的研究笔记，适合事实核对与资料整理。": "Search public web pages, compare evidence, and produce sourced research notes for fact checking and source review."
     }));
     const replace = value => {
       const trimmed = value.trim();
@@ -184,6 +196,54 @@ if (language === "en") {
     const leftovers = [...new Set(chineseText.split(/\r?\n/).filter(line => /[㐀-鿿]/.test(line)))].slice(0, 12);
     throw new Error(`English demo catalog still contains Chinese UI text: ${leftovers.join(" | ")}`);
   }
+}
+
+if (screenshotMode) {
+  const targetDir = resolve(repo, screenshotsDir);
+  mkdirSync(targetDir, { recursive: true });
+  const applyEnglishPreviews = () => frame.evaluate(() => {
+    const escape = value => String(value ?? "").replace(/[&<>]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]));
+    const preview = (name, label, index) => {
+      const colors = [["#0f494d", "#5eead4"], ["#3d5160", "#93c5fd"], ["#5b492f", "#fde68a"]];
+      const [background, accent] = colors[index % colors.length];
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675"><rect width="1200" height="675" fill="${background}"/><rect x="72" y="112" width="190" height="10" fill="${accent}"/><text x="72" y="178" fill="${accent}" font-family="Segoe UI, sans-serif" font-size="24" font-weight="700">${escape(label)}</text><text x="72" y="232" fill="#d7f0f2" font-family="Segoe UI, sans-serif" font-size="17">AGENT SKILL CATALOG</text><text x="72" y="328" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="46" font-weight="700">${escape(name)}</text><rect x="854" y="152" width="210" height="210" rx="16" fill="none" stroke="${accent}" stroke-width="14"/><path d="M885 316l61-75 49 47 35-43 48 71" fill="none" stroke="${accent}" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    };
+    const images = [...document.querySelectorAll(".card .thumb img")];
+    images.forEach((image, index) => {
+      const card = image.closest(".card");
+      image.src = preview(card?.querySelector("h3")?.textContent || "Skill", card?.querySelector(".tag")?.textContent || "Skill", index);
+    });
+    return images[0]?.src || "";
+  });
+  const englishPreview = await applyEnglishPreviews();
+  const bodyText = await frame.locator("body").innerText();
+  if (/[㐀-鿿]/.test(bodyText)) {
+    const leftovers = [...new Set(bodyText.split(/\r?\n/).filter(line => /[㐀-鿿]/.test(line)))].slice(0, 12);
+    throw new Error(`English screenshot catalog still contains Chinese UI text: ${leftovers.join(" | ")}`);
+  }
+  await page.screenshot({ path: resolve(targetDir, "agent-skill-catalog-overview.en.png") });
+  await frame.locator("#search").fill("agent-skill-catalog");
+  await frame.waitForTimeout(250);
+  await applyEnglishPreviews();
+  await page.screenshot({ path: resolve(targetDir, "agent-skill-catalog-filter.en.png") });
+  const editButton = frame.locator(".edit-image").first();
+  await editButton.click();
+  await frame.locator("#detail").waitFor({ state: "visible" });
+  await frame.locator("#detail-image").evaluate((image, src) => { image.src = src; }, englishPreview);
+  await frame.locator("#image-remove").evaluate(button => { button.hidden = false; });
+  await frame.waitForTimeout(250);
+  const detailText = await frame.locator("#detail").innerText();
+  if (/[㐀-鿿]/.test(detailText)) {
+    const leftovers = [...new Set(detailText.split(/\r?\n/).filter(line => /[㐀-鿿]/.test(line)))].slice(0, 12);
+    throw new Error(`English screenshot detail still contains Chinese UI text: ${leftovers.join(" | ")}`);
+  }
+  await page.screenshot({ path: resolve(targetDir, "agent-skill-catalog-detail.en.png") });
+  await context.close();
+  await browser.close();
+  rmSync(captureDir, { recursive: true, force: true });
+  console.log(`Wrote English screenshots to ${targetDir}`);
+  process.exit(0);
 }
 
 let englishCatalogPreview = null;

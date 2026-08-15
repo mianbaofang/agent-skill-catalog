@@ -27,6 +27,8 @@ def test_install_package_excludes_maintenance_evidence() -> None:
     skill_root = ROOT / "skills" / "agent-skill-catalog"
     included = {relative.as_posix() for _, relative in module.package_paths(skill_root)}
     assert "scripts/build_catalog.py" in included
+    assert "scripts/catalog_aggregation.py" in included
+    assert "scripts/description_queue.py" in included
     assert "scripts/github_preview.py" in included
     assert "references/workflow.md" in included
     assert not any(relative.split("/", 1)[0] in {"build", "evals", "reports"} for relative in included)
@@ -42,7 +44,11 @@ def test_governance_evidence_stays_outside_the_install_boundary() -> None:
 def test_repository_has_one_github_discoverable_skill() -> None:
     assert not (ROOT / "SKILL.md").exists()
     assert (ROOT / "skills" / "agent-skill-catalog" / "SKILL.md").is_file()
-    discovered = [path for path in ROOT.rglob("SKILL.md") if ".demo-fixtures" not in path.parts]
+    discovered = [
+        path
+        for path in ROOT.rglob("SKILL.md")
+        if ".demo-fixtures" not in path.parts and "build" not in path.parts
+    ]
     assert discovered == [ROOT / "skills" / "agent-skill-catalog" / "SKILL.md"]
     demo_root = ROOT / "docs" / "demo"
     assert not demo_root.exists() or not any(path.is_file() for path in demo_root.rglob("*"))
@@ -59,6 +65,8 @@ def test_release_archive_is_portable() -> None:
             assert "agent-skill-catalog/SKILL.md" in names
             assert "agent-skill-catalog/LICENSE" in names
             assert "agent-skill-catalog/scripts/github_preview.py" in names
+            assert "agent-skill-catalog/scripts/catalog_aggregation.py" in names
+            assert "agent-skill-catalog/scripts/description_queue.py" in names
             assert sum(name.endswith("/SKILL.md") for name in names) == 1
             assert not any(part in {"build", "evals", "reports", "__pycache__"} for name in names for part in Path(name).parts)
             for name in names:
@@ -66,6 +74,28 @@ def test_release_archive_is_portable() -> None:
                     continue
                 content = handle.read(name).decode("utf-8", errors="ignore")
                 assert not module.PRIVATE_PATH.search(content), name
+
+
+def test_package_boundary_excludes_nested_skills_examples_and_symlinks() -> None:
+    module = load_module()
+    with tempfile.TemporaryDirectory() as temporary:
+        skill_root = Path(temporary)
+        (skill_root / "SKILL.md").write_text("---\nname: root\n---\n", encoding="utf-8")
+        (skill_root / "scripts").mkdir()
+        (skill_root / "scripts" / "kept.py").write_text("print('ok')\n", encoding="utf-8")
+        (skill_root / "skills" / "child").mkdir(parents=True)
+        (skill_root / "skills" / "child" / "SKILL.md").write_text("child\n", encoding="utf-8")
+        (skill_root / "examples").mkdir()
+        (skill_root / "examples" / "sample.md").write_text("sample\n", encoding="utf-8")
+        (skill_root / "nested").mkdir()
+        (skill_root / "nested" / "SKILL.md").write_text("nested\n", encoding="utf-8")
+        try:
+            (skill_root / "linked.txt").symlink_to(skill_root / "scripts" / "kept.py")
+        except (OSError, NotImplementedError):
+            pass
+
+        included = {relative.as_posix() for _, relative in module.package_paths(skill_root)}
+        assert included == {"SKILL.md", "scripts/kept.py"}
 
 
 def main() -> None:

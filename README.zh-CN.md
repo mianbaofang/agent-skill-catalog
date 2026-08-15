@@ -1,6 +1,6 @@
 # Agent Skill Catalog 本地 Skill 与插件目录
 
-给 Codex 和其他 AI 编程 Agent 用的本地 Skill 目录。它扫描明确指定的 `SKILL.md` 根目录，把同一主 Skill 下的子 Skill 收进一个条目，插件单独展示，并在详情里列出用途、调用方式和图片来源。
+给 Codex 和其他 AI 编程 Agent 用的本地 Skill 与插件目录。它扫描明确指定的 `SKILL.md` 根目录，合并有证据的重复副本和主子 Skill 家族，插件单独展示；识别到 GitHub 仓库时抓取预览图，并由调用它的 Agent 补齐中文说明。
 
 <table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub 星标"></a></td></tr></table>
 
@@ -21,11 +21,11 @@
 <p align="center">
   <a href="README.md">English</a>
   &middot;
-  <a href="https://mianbaofang.github.io/agent-skill-catalog/index-zh.html">项目主页</a>
-  &middot;
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
   &middot;
   <a href="docs/DEMO.md">产品演示</a>
+  &middot;
+  <a href="https://mianbaofang.github.io/agent-skill-catalog/index-zh.html">项目主页</a>
   &middot;
   <a href="DISCLAIMER.md">免责声明</a>
   &middot;
@@ -49,6 +49,7 @@ gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --agent cod
 ```text
 请使用 agent-skill-catalog 扫描我的本地 Skill 根目录和 Codex 插件缓存。
 独立 Skill 与插件分开，真实主/子 Skill 家族聚合显示；标出低置信度分类和缺失图片证据。
+识别到 GitHub 仓库时抓取预览图，并根据本地 SKILL.md 和 GitHub README 补齐中文说明。
 不要安装、修改或执行任何被扫描内容。
 ```
 
@@ -68,6 +69,7 @@ Agent Skill Catalog 是一个只读的本地目录工具，给维护大量本地
 |---|---|
 | 扫描什么？ | 只扫描操作者明确传入的本地根目录，也可以把插件缓存作为独立根目录标记。 |
 | 什么会显示为一个条目？ | 一个独立 Skill，或一个详情里列出子 Skill 的真实主 Skill/家族记录。 |
+| 重复安装怎么处理？ | GitHub 仓库和 Skill 名称相同的副本只显示一次，但所有来源位置都会保留下来。 |
 | 插件怎么显示？ | 插件聚合有独立视图，不计入独立 Skill 的数量。 |
 | 保留哪些信息？ | 分类候选、置信度、胜出边际、来源位置、调用方式、图片来源，以及能够从本地证据确认的 GitHub 仓库地址。 |
 | 没有图片证据怎么办？ | 明确显示 `missing evidence`，不会把分类封面伪装成 Skill 专属图片。 |
@@ -79,9 +81,10 @@ Agent Skill Catalog 是一个只读的本地目录工具，给维护大量本地
 |---|---|
 | 分类 | 列出候选分类、命中依据和置信度；低置信度条目会保留标记，也可以用整理文件覆盖。 |
 | 家族 | 主 Skill 只占一个条目，详情里列出来源一致的子 Skill。 |
+| 重复安装 | 同一 GitHub 仓库、同名 Skill 的副本可以跨根目录合并；不同插件或仓库冲突的条目不会误合并。 |
 | 插件 | 按服务商和插件名聚合，在插件视图里单独查看，不计入独立 Skill 数量。 |
 | 搜索和筛选 | 可搜名称、说明、GitHub 信息和相对来源路径，再按分类或视图筛选。 |
-| 说明补全 | `description-enrichment.json` 标出缺失、过短或非中文说明；调用本 Skill 的 Agent 必须自行读取证据、写好中文说明并通过完成校验，不能把待办清单丢给用户。 |
+| 说明补全 | 可续跑的 `description_queue.py next/apply` 流程会提供本地 `SKILL.md` 和 GitHub README 证据，校验 Agent 写出的中文说明；中断后会从已经完成的批次继续。 |
 | 图片 | 先用输出目录中的人工覆盖图，再按安装锁、项目清单等证据找到 GitHub 仓库公开预览，随后才用 Skill 自带本地图和缺证据说明封面；家族与插件卡片保留成员中证据最强的图片。 |
 | 手工改图 | 详情里可以选择图片并保存到目录输出，之后也能恢复自动图；不会改动源 Skill。 |
 | GitHub 地址 | `gh skill install` 的安装锁和注入元数据、项目或插件清单、Skill 正文链接、本地 Git remote、manifest 或人工整理都可以作为确认来源；点击预览图可直接打开仓库。 |
@@ -116,12 +119,12 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
   --require-complete-descriptions
 ```
 
-扫描到能够确认的 GitHub 仓库时，默认会缓存一张公开仓库预览图。推荐的首次命令会先写出 `description-enrichment.json`；若中文说明仍待补，故意以退出码 3 结束。通过 Skill 调用时，Agent 必须自行对照源 `SKILL.md` 和公开仓库 README，把自然中文说明写入输出目录的 `catalog-curation.json`，再用 `--refresh --require-complete-descriptions` 重建直到退出码为 0；不能把这项工作交给用户。单独运行构建脚本仍不会自行调用文本模型。完全离线生成时，给 `build_catalog.py` 增加 `--no-github-images`。本地服务模式下，同一门槛会阻止刷新接口把未完成的目录说成已完成。
+扫描到能够确认的 GitHub 仓库时，默认会缓存一张公开仓库预览图，并在相同来源的条目间复用。推荐的首次命令在中文说明仍待补时会以退出码 3 结束。通过 Skill 调用时，Agent 会运行 `description_queue.py next`，取得有长度限制的本地与 GitHub 证据，写完这一批中文说明后用 `description_queue.py apply` 校验并保存。进度保存在 `catalog-curation.json`，中断后接着做，不需要重来。队列清空后，Agent 再用 `--refresh --require-complete-descriptions` 重建；只有退出码为 0 且 `pending_description_count` 为 0 才算完成。Python 脚本不会暗中调用模型，也不需要额外的模型密钥。完全离线生成时，给 `build_catalog.py` 增加 `--no-github-images`。本地服务模式下，同一门槛会阻止刷新接口把未完成的目录说成已完成。
 
 固定到当前发布版本时使用下面的命令。
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.1 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.2 --agent codex --scope user
 ```
 
 ## 产品截图
@@ -167,7 +170,7 @@ CHANGELOG.md                       版本记录
 
 ## 状态 / 发布
 
-- 当前已发布版本是 [`v0.3.1`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.1)。
+- 当前已发布版本是 [`v0.3.2`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.2)。
 - 可安装包是 [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)。
 - 包校验文件是 [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)。
 - 校验范围包括 GitHub Skill 发现、安装包结构、Python 编译、目录测试和发布打包，CI 与发布前都会运行这些检查。
@@ -179,6 +182,6 @@ CHANGELOG.md                       版本记录
 
 Ethan <ethan.zl@hotmail.com>
 
-## License
+## 许可证
 
 MIT.

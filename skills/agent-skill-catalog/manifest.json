@@ -1,6 +1,6 @@
 {
   "name": "agent-skill-catalog",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "license": "MIT",
   "owner": "mianbaofang",
   "updated_at": "2026-08-14",
@@ -14,8 +14,8 @@
   "target_platforms": ["openai", "claude", "generic", "agent-skills", "vscode"],
   "factory_components": ["agents", "references", "scripts", "security"],
   "input_contract": "One or more explicit local roots containing SKILL.md files, plus optional scoped overrides and image metadata. Public GitHub preview retrieval applies only to observed repository URLs from installer locks, injected frontmatter, package or plugin metadata, manifests, Skill text, curation, or local Git configuration unless disabled.",
-  "output_contract": "Deterministic catalog.json, description-enrichment.json, and self-contained index.html with skills, plugin aggregates, families, category evidence, confidence, Agent-reviewed Chinese descriptions, best-evidence aggregate images, invocation, GitHub metadata, cached GitHub previews, and output-owned manual overrides. The final Agent run uses --require-complete-descriptions.",
+  "output_contract": "Deterministic catalog.json, description-enrichment.json, resumable description-batch.json workflow, and self-contained index.html with skills, plugin aggregates, families, category evidence, confidence, Agent-reviewed Chinese descriptions, best-evidence aggregate images, invocation, GitHub metadata, cached GitHub previews, and output-owned manual overrides. The final Agent run uses --require-complete-descriptions and requires pending_description_count to be zero.",
   "rollback_boundary": "Only the selected output directory may be overwritten. GitHub preview cache and manual image overrides stay inside that directory; scanned roots are read-only.",
-  "network_policy": "Allow HTTPS reads of observed GitHub repository pages and allowlisted GitHub image hosts for size-limited, signature-checked preview caching. Remote image URLs from Skill frontmatter remain metadata-only.",
+  "network_policy": "Allow HTTPS reads of observed GitHub repository pages, bounded README excerpts, and allowlisted GitHub image hosts for size-limited, signature-checked caching. Remote image URLs from Skill frontmatter remain metadata-only.",
   "review_notes": "For every public release, review trigger behavior, output quality, permission scope, trust evidence, package contents, and clean-install results."
 }

@@ -27,7 +27,9 @@ EXCLUDED_DIRS = {
     "dist",
     "node_modules",
     "evals",
+    "examples",
     "reports",
+    "skills",
 }
 EXCLUDED_FILES = {"catalog.json", "index.html", "catalog-data.js", ".env"}
 EXCLUDED_SUFFIXES = {".log", ".pyc", ".pyo", ".tmp"}
@@ -35,10 +37,12 @@ EXCLUDED_SUFFIXES = {".log", ".pyc", ".pyo", ".tmp"}
 
 def package_paths(skill_root: Path):
     for path in sorted(skill_root.rglob("*")):
-        if not path.is_file():
+        if path.is_symlink() or not path.is_file():
             continue
         relative = path.relative_to(skill_root)
         if any(part in EXCLUDED_DIRS for part in relative.parts):
+            continue
+        if relative.name == "SKILL.md" and relative.parts != ("SKILL.md",):
             continue
         if relative.name in EXCLUDED_FILES or relative.suffix.lower() in EXCLUDED_SUFFIXES:
             continue

@@ -11,7 +11,17 @@ python scripts/build_catalog.py --config <config.json> --output-dir <output-dir>
 
 Use `--root` repeatedly for multiple roots. A root is a skill root by default; plugin caches must be declared with `{"kind":"plugin"}` in a config file.
 
-The first build also writes `description-enrichment.json`. This is a required Agent work queue, not a user editing task and not generated copy. The invoking Agent reads the corresponding `SKILL.md` and, when `github_url` is present, the public repository README; it then writes a factual Chinese description covering purpose, typical use, and important output or limits to the output-owned `catalog-curation.json`. Rebuild with `--refresh --require-complete-descriptions`. Exit code 3 means items remain and the Agent must continue. Do not edit the scanned Skill. A completed build has `summary.pending_description_count == 0`; if the source is genuinely insufficient, keep the item marked as missing evidence instead of inventing details.
+The first build also writes `description-enrichment.json`. This is a required Agent work queue, not a user editing task. Exit code 3 starts the following resumable loop:
+
+```text
+python scripts/description_queue.py next --root <skills-root> --output-dir <output-dir> --batch-size 12
+# Read description-batch.json and write description-batch.responses.json.
+python scripts/description_queue.py apply --output-dir <output-dir> --input <output-dir>/description-batch.responses.json
+```
+
+For a config-root build, pass the same `--config` to `next` instead of `--root`. The batch contains bounded local `SKILL.md` evidence and, by default, a cached excerpt from an observed public GitHub README. The invoking Agent writes factual natural Chinese covering purpose, typical use, and important output or limits. `apply` rejects unknown queue keys, short copy, and non-Chinese copy, then stores accepted progress in the output-owned `catalog-curation.json`. Repeat until `next` reports `batch_count: 0`, then rebuild with `--refresh --require-complete-descriptions`.
+
+The Python tools coordinate evidence, validation, and resumable state; they do not call a hidden text model or require a provider key. Do not edit a scanned Skill and do not hand the queue to the user. A completed build has exit code 0 and `summary.pending_description_count == 0`. If the source is genuinely insufficient, keep missing evidence explicit instead of inventing details.
 
 ## Review
 
