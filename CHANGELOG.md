@@ -4,6 +4,12 @@
 
 No unreleased changes.
 
+## 0.3.4 - 2026-08-15
+
+- Ignore legacy `missing-evidence` GitHub README cache entries so a previous transient failure can be retried automatically on the next description batch.
+- Clamp configured GitHub README request timeouts to at least one second before passing them to the description queue.
+- Add regression coverage for legacy failure-cache invalidation and non-positive timeout values.
+
 ## 0.3.3 - 2026-08-15
 
 - Increase bounded GitHub repository preview and README evidence request timeouts to 15 seconds while preserving explicit configuration overrides, host allowlists, response-size limits, and offline operation.

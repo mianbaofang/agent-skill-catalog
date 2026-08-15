@@ -148,6 +148,8 @@ def cached_readme(cache_dir: Path, repository_url: str) -> dict[str, Any] | None
         return None
     if payload.get("repository_url") != repository_url:
         return None
+    if payload.get("status") not in CACHEABLE_README_STATUSES:
+        return None
     return payload
 
 
@@ -211,7 +213,7 @@ def prepare_batch(args: argparse.Namespace) -> int:
     config = load_config(config_path)
     specs = root_specs(config, args.root or None)
     image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
-    github_request_timeout = int(image_config.get("github_request_timeout_seconds", 15) or 15)
+    github_request_timeout = max(1, int(image_config.get("github_request_timeout_seconds", 15) or 15))
     pending = pending_items(queue, curation)
     batch_size = max(1, min(int(args.batch_size), MAX_BATCH_SIZE))
     selected = pending[:batch_size]

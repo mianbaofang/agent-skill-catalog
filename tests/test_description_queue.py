@@ -201,6 +201,47 @@ def test_github_readme_failures_are_retryable() -> None:
         assert list(cache_dir.glob("*.json"))
 
 
+def test_github_readme_ignores_legacy_failure_cache() -> None:
+    module = load_description_queue()
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self, _limit: int) -> bytes:
+            return b"# Catalog\n\nEvidence-backed README excerpt."
+
+    with tempfile.TemporaryDirectory() as temp:
+        cache_dir = Path(temp)
+        repository_url = "https://github.com/example/catalog"
+        legacy_cache = module.readme_cache_path(cache_dir, repository_url)
+        legacy_cache.write_text(
+            json.dumps(
+                {
+                    "status": "missing-evidence",
+                    "repository_url": repository_url,
+                    "excerpt": "",
+                    "truncated": False,
+                }
+            ),
+            encoding="utf-8",
+        )
+        calls: list[int] = []
+
+        def open_allowed(_request, timeout, _allowed_hosts):
+            calls.append(timeout)
+            return Response()
+
+        with patch.object(module, "open_allowed", open_allowed):
+            result = module.fetch_github_readme(repository_url, cache_dir)
+
+        assert result["status"] == "github-readme"
+        assert calls == [15]
+
+
 def test_description_batch_passes_configured_readme_timeout() -> None:
     module = load_description_queue()
     with tempfile.TemporaryDirectory() as temp:
@@ -238,6 +279,38 @@ def test_description_batch_passes_configured_readme_timeout() -> None:
         with patch.object(module, "fetch_github_readme", fake_fetch):
             assert module.prepare_batch(args) == 0
         assert calls == [4]
+
+
+def test_description_batch_clamps_negative_readme_timeout() -> None:
+    module = load_description_queue()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        write_skill(root, "catalog", "Search public sources at https://github.com/example/catalog.")
+        output = fixture / "output"
+        config = fixture / "config.json"
+        config.write_text(
+            json.dumps({"image": {"github_request_timeout_seconds": -3}}),
+            encoding="utf-8",
+        )
+        run(str(BUILD_SCRIPT), "--config", str(config), "--root", str(root), "--output-dir", str(output))
+        calls: list[int] = []
+
+        def fake_fetch(repository_url, cache_dir, timeout):
+            calls.append(timeout)
+            return {"status": "github-readme", "repository_url": repository_url, "excerpt": "证据", "truncated": False}
+
+        args = argparse.Namespace(
+            output_dir=str(output),
+            config=str(config),
+            root=[str(root)],
+            batch_size=1,
+            output=None,
+            no_github_readmes=False,
+        )
+        with patch.object(module, "fetch_github_readme", fake_fetch):
+            assert module.prepare_batch(args) == 0
+        assert calls == [1]
 
 
 def test_description_apply_rejects_non_chinese_copy() -> None:

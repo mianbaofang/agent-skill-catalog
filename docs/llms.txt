@@ -11,6 +11,7 @@ Updated: 2026-08-15
 - Source repository: https://github.com/mianbaofang/agent-skill-catalog
 - Installable Skill: https://github.com/mianbaofang/agent-skill-catalog/tree/main/skills/agent-skill-catalog
 - Latest release: https://github.com/mianbaofang/agent-skill-catalog/releases/latest
+- Prepared next release: v0.3.4; treat it as installable only after its Git tag and Release are published.
 
 ## What it does
 
@@ -32,5 +33,5 @@ Updated: 2026-08-15
 ## Install
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.3 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.4 --agent codex --scope user
 ```
