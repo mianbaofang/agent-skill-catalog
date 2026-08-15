@@ -121,7 +121,7 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
 
 扫描到能够确认的 GitHub 仓库时，默认会缓存一张公开仓库预览图，并在相同来源的条目间复用。推荐的首次命令在中文说明仍待补时会以退出码 3 结束。通过 Skill 调用时，Agent 会运行 `description_queue.py next`，取得有长度限制的本地与 GitHub 证据，写完这一批中文说明后用 `description_queue.py apply` 校验并保存。进度保存在 `catalog-curation.json`，中断后接着做，不需要重来。队列清空后，Agent 再用 `--refresh --require-complete-descriptions` 重建；只有退出码为 0 且 `pending_description_count` 为 0 才算完成。Python 脚本不会暗中调用模型，也不需要额外的模型密钥。完全离线生成时，给 `build_catalog.py` 增加 `--no-github-images`。本地服务模式下，同一门槛会阻止刷新接口把未完成的目录说成已完成。
 
-发布完成后固定到准备中的 `v0.3.4` 版本时，使用下面的命令。
+固定到当前发布版本时，使用下面的命令。
 
 ```powershell
 gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.4 --agent codex --scope user
@@ -170,8 +170,7 @@ CHANGELOG.md                       版本记录
 
 ## 状态 / 发布
 
-- 当前已发布版本是 [`v0.3.3`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.3)。
-- 下一版已准备为 `v0.3.4`，等待最终审计和发布。
+- 当前已发布版本是 [`v0.3.4`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.4)。
 - 可安装包是 [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)。
 - 包校验文件是 [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)。
 - 校验范围包括 GitHub Skill 发现、安装包结构、Python 编译、目录测试和发布打包，CI 与发布前都会运行这些检查。

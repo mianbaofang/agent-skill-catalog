@@ -123,7 +123,7 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
 
 When a scanned Skill has an observed GitHub repository, the default build caches one public repository preview and reuses it for matching records. The recommended first command deliberately returns exit code 3 when Chinese copy still needs work. When invoked as a Skill, the Agent runs `description_queue.py next` to prepare bounded local and GitHub evidence, writes the Chinese response batch, applies it with `description_queue.py apply`, and resumes from `catalog-curation.json` until no items remain. It then rebuilds with `--refresh --require-complete-descriptions`; completion requires exit code 0 and `pending_description_count` equal to zero. The Python scripts do not call a hidden model or require a provider key. Add `--no-github-images` for a fully offline build. In server mode, the same gate prevents the refresh endpoint from falsely reporting a complete catalog.
 
-To pin the prepared `v0.3.4` release after publication:
+To pin the current release:
 
 ```powershell
 gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.4 --agent codex --scope user
@@ -172,8 +172,7 @@ CHANGELOG.md                       release history
 
 ## Status / Release
 
-- Current published release: [`v0.3.3`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.3)
-- Prepared next release: `v0.3.4` (pending final audit and publication)
+- Current published release: [`v0.3.4`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.4)
 - Installable package: [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)
 - Package checksum: [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)
 - Validation: GitHub Skill discovery, package structure, Python compilation, deterministic catalog tests, and release packaging are run in CI and before release.
