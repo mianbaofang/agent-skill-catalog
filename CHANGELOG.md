@@ -4,6 +4,12 @@
 
 No unreleased changes.
 
+## 0.3.5 - 2026-08-17
+
+- Add the exact `local skill catalog` discovery phrase to the English README's first screen.
+- Clarify the Skill trigger as a searchable catalog for Codex and other AI agents, including GitHub preview images.
+- Reduce the Skill entry instructions below the Yao Meta initial-load budget without removing the description queue or read-only safety gates.
+
 ## 0.3.4 - 2026-08-15
 
 - Ignore legacy `missing-evidence` GitHub README cache entries so a previous transient failure can be retried automatically on the next description batch.

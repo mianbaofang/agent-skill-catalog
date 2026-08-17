@@ -2,7 +2,7 @@
 
 > A local-first, read-only catalog for Agent Skills and Codex plugins.
 
-Updated: 2026-08-15
+Updated: 2026-08-17
 
 ## Canonical pages
 
@@ -32,5 +32,5 @@ Updated: 2026-08-15
 ## Install
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.4 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.5 --agent codex --scope user
 ```

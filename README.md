@@ -1,6 +1,6 @@
 # Agent Skill Catalog
 
-Agent Skill Catalog is a local Skill manager and Codex Skill catalog for people using AI coding agents. It scans explicit `SKILL.md` roots, merges verified copies and parent-child families, keeps plugins separate, collects GitHub previews, and has the invoking Agent finish missing Chinese descriptions.
+Agent Skill Catalog is a local skill catalog, Skill manager, and Codex Skill catalog for people using AI coding agents. It scans explicit `SKILL.md` roots, merges verified copies and parent-child families, keeps plugins separate, collects GitHub previews, and has the invoking Agent finish missing Chinese descriptions.
 
 <table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub stars"></a></td></tr></table>
 
@@ -126,7 +126,7 @@ When a scanned Skill has an observed GitHub repository, the default build caches
 To pin the current release:
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.4 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.5 --agent codex --scope user
 ```
 
 ## Product Screenshots
@@ -172,7 +172,7 @@ CHANGELOG.md                       release history
 
 ## Status / Release
 
-- Current published release: [`v0.3.4`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.4)
+- Current published release: [`v0.3.5`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.5)
 - Installable package: [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)
 - Package checksum: [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)
 - Validation: GitHub Skill discovery, package structure, Python compilation, deterministic catalog tests, and release packaging are run in CI and before release.

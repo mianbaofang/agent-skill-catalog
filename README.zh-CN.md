@@ -124,7 +124,7 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
 固定到当前发布版本时，使用下面的命令。
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.4 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.5 --agent codex --scope user
 ```
 
 ## 产品截图
@@ -170,7 +170,7 @@ CHANGELOG.md                       版本记录
 
 ## 状态 / 发布
 
-- 当前已发布版本是 [`v0.3.4`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.4)。
+- 当前已发布版本是 [`v0.3.5`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.5)。
 - 可安装包是 [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)。
 - 包校验文件是 [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)。
 - 校验范围包括 GitHub Skill 发现、安装包结构、Python 编译、目录测试和发布打包，CI 与发布前都会运行这些检查。

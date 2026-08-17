@@ -1,9 +1,9 @@
 {
   "name": "agent-skill-catalog",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "license": "MIT",
   "owner": "mianbaofang",
-  "updated_at": "2026-08-15",
+  "updated_at": "2026-08-17",
   "status": "active",
   "maturity_tier": "governed",
   "lifecycle_stage": "governed",
