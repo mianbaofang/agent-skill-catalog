@@ -15,6 +15,7 @@ ROOT = REPO_ROOT / "skills" / "agent-skill-catalog"
 SCRIPT = ROOT / "scripts" / "build_catalog.py"
 LEGACY_IMPORT_SCRIPT = ROOT / "scripts" / "import_legacy_catalog.py"
 SERVER_SCRIPT = ROOT / "scripts" / "serve_catalog.py"
+GITHUB_PREVIEW_SCRIPT = ROOT / "scripts" / "github_preview.py"
 TINY_PNG = (
     b"\x89PNG\r\n\x1a\n"
     b"\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
@@ -25,7 +26,15 @@ TINY_PNG = (
 
 
 def run_builder(root: Path, output: Path, refresh: bool = False, curation: Path | None = None) -> dict:
-    command = [sys.executable, str(SCRIPT), "--root", str(root), "--output-dir", str(output)]
+    command = [
+        sys.executable,
+        str(SCRIPT),
+        "--root",
+        str(root),
+        "--output-dir",
+        str(output),
+        "--no-github-discovery",
+    ]
     if curation:
         command.extend(["--curation", str(curation)])
     if refresh:
@@ -39,6 +48,16 @@ def load_builder():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("build_catalog", SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_github_preview():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("github_preview_test", GITHUB_PREVIEW_SCRIPT)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -84,6 +103,14 @@ def test_scan_classify_image_and_refresh() -> None:
         assert (output / "index.html").is_file()
         html = (output / "index.html").read_text(encoding="utf-8")
         assert ".join('\\n')" in html
+        assert "grid-template-columns: repeat(6" in html
+        assert "grid-template-columns: 440px minmax(0,1fr)" in html
+        assert ".detail-media, .detail-content" in html
+        assert "overscroll-behavior: contain" in html
+        assert "function lockBackground()" in html
+        assert "const categoryArt=" in html
+        assert "records().filter(record=>record.category===id&&record.image?.value)" not in html
+        assert "请输入完整 Skill 名称" in html
 
         second = run_builder(root, output, refresh=True)
         assert second["mode"] == "refresh"
@@ -172,6 +199,7 @@ def test_curation_family_plugin_merge_and_output_guards() -> None:
             str(plugin_root),
             "--curation",
             str(curation),
+            "--no-github-images",
             "--output-dir",
             str(output),
         ]
@@ -263,6 +291,73 @@ def test_rooted_sibling_family_inference_is_conservative() -> None:
         agent_items = [item for item in catalog["items"] if item["name"].startswith("agent-")]
         assert len(agent_items) == 2
         assert all(item["family_size"] == 1 for item in agent_items)
+
+
+def test_contained_router_skills_collapse_into_main_entry() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        packages = {
+            "tavily": ["skills/tavily-extract", "skills/tavily-map", "skills/tavily-search"],
+            "cloudbase": ["references/auth-web", "references/cloud-functions"],
+        }
+        for parent, children in packages.items():
+            entry = root / parent
+            entry.mkdir(parents=True)
+            (entry / "SKILL.md").write_text(
+                f"---\nname: {parent}\ndescription: Main {parent} router.\n---\n",
+                encoding="utf-8",
+            )
+            for relative in children:
+                child = entry / relative
+                child.mkdir(parents=True)
+                name = child.name
+                (child / "SKILL.md").write_text(
+                    f"---\nname: {name}\ndescription: Routed {name} capability.\n---\n",
+                    encoding="utf-8",
+                )
+
+        catalog = run_builder(root, fixture / "catalog")
+        families = {family["name"]: family for family in catalog["families"]}
+        assert len(families["tavily"]["skill_ids"]) == 4
+        assert len(families["cloudbase"]["skill_ids"]) == 3
+        for parent in packages:
+            members = [item for item in catalog["items"] if item["family_id"] == families[parent]["id"]]
+            assert next(item for item in members if item["name"] == parent)["is_family_primary"] is True
+
+
+def test_explicit_product_affiliation_collapses_hyperframes_capabilities() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        descriptions = {
+            "hyperframes": "Render deterministic HTML motion compositions.",
+            "typegpu": "TypeGPU adapter patterns for HyperFrames.",
+            "slideshow": "Author a HyperFrames slideshow and interactive deck.",
+            "lottie": "Lottie runtime adapter for HyperFrames compositions.",
+            "media-use": "Resolve media for every need in a HyperFrames project.",
+            "music-to-video": "Beat-synced video workflow. Unclear -> /hyperframes.",
+            "animejs": "Anime.js adapter patterns for HyperFrames.",
+            "tailwind": "Tailwind browser-runtime patterns for HyperFrames compositions.",
+            "comparison": "Compare HyperFrames, Remotion, and other rendering tools.",
+        }
+        for name, description in descriptions.items():
+            skill = root / name
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                f"---\nname: {name}\ndescription: {description}\n---\n",
+                encoding="utf-8",
+            )
+
+        catalog = run_builder(root, fixture / "catalog")
+        family = next(family for family in catalog["families"] if family["name"] == "hyperframes")
+        members = {
+            item["name"] for item in catalog["items"]
+            if item["family_id"] == family["id"]
+        }
+        assert members == set(descriptions) - {"comparison"}
+        comparison = next(item for item in catalog["items"] if item["name"] == "comparison")
+        assert comparison["family_size"] == 1
 
 
 def test_container_directories_do_not_become_inferred_families() -> None:
@@ -533,6 +628,71 @@ def test_same_plugin_member_is_deduplicated_across_scan_roots() -> None:
         assert plugins[0]["skill_ids"] == [items[0]["id"]]
 
 
+def test_system_ops_category_and_delete_root_metadata() -> None:
+    module = load_builder()
+    config = module.load_config(ROOT / "references" / "catalog-config.json")
+    assert config["categories"]["system_ops"]["label"] == "系统与运维"
+    for name in ("health", "storage-analyzer", "configure-codex-model-providers", "keep-codex-fast", "neat-freak"):
+        category, _, _, detail = module.classify(name, "", f"{name}/SKILL.md", {}, config)
+        assert category == "system_ops"
+        assert detail["tie_reason"] == "explicit-override"
+
+    specs = module.root_specs(
+        {"roots": [{"path": ".", "label": "Skills", "kind": "skill", "allow_delete": True}]},
+        None,
+    )
+    assert specs[0]["allow_delete"] is True
+    assert module.root_fingerprints(specs) != module.root_fingerprints([{**specs[0], "allow_delete": False}])
+
+
+def test_manual_image_wins_then_github_wins_over_legacy_curation() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        skill = fixture / "demo"
+        skill.mkdir()
+        skill_path = skill / "SKILL.md"
+        skill_path.write_text("---\nname: demo\ndescription: demo\n---\n", encoding="utf-8")
+        manual = fixture / "manual.png"
+        legacy = fixture / "legacy.png"
+        manual.write_bytes(TINY_PNG)
+        legacy.write_bytes(TINY_PNG)
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        config["_manual_image_overrides"] = {"demo/SKILL.md": str(manual)}
+        config["curation"]["image_overrides"] = {"demo/SKILL.md": str(legacy)}
+        previews = {
+            "https://github.com/example/demo": {
+                "status": "github-repository",
+                "source": "test",
+                "value": "data:image/png;base64,Z2l0aHVi",
+                "missing_evidence": False,
+            }
+        }
+        selected = module.choose_image(
+            skill_path, {}, "other", "demo", "demo/SKILL.md", "demo", config,
+            github_url="https://github.com/example/demo", image_cache_dir=fixture, github_previews=previews,
+        )
+        assert selected["source"] == "catalog-curation:image_overrides"
+
+        config["_manual_image_overrides"] = {}
+        selected = module.choose_image(
+            skill_path, {}, "other", "demo", "demo/SKILL.md", "demo", config,
+            github_url="https://github.com/example/demo", image_cache_dir=fixture, github_previews=previews,
+        )
+        assert selected["status"] == "github-repository"
+
+
+def test_github_preview_candidate_filter_dimensions_and_cache_version() -> None:
+    module = load_github_preview()
+    assert module.github_image_candidate_score("https://example.test/screenshots/product-demo.png", 4) > 0
+    assert module.github_image_candidate_score("https://example.test/assets/qrcode.png", 0) is None
+    assert module.image_dimensions(TINY_PNG, ".png") == (1, 1)
+    assert module.image_meets_minimum(TINY_PNG, ".png", {"github_min_image_width": 640, "github_min_image_height": 300}) is False
+    repository = "https://github.com/example/demo"
+    legacy_key = __import__("hashlib").sha256(repository.encode("utf-8")).hexdigest()[:20]
+    assert module.github_cache_key(repository) != legacy_key
+
+
 def test_repo_backed_root_families_aggregate_across_scan_roots() -> None:
     module = load_builder()
     with tempfile.TemporaryDirectory() as temp:
@@ -679,6 +839,34 @@ def test_github_preview_reuses_cached_source_type() -> None:
         )
         assert second["status"] == "github-social-preview"
         assert second["source"] == "github-cache"
+
+
+def test_github_preview_reuses_fresh_missing_result() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        cache = Path(temp)
+        repository = "https://github.com/example/no-preview"
+        first = module.github_preview_image(
+            repository,
+            {},
+            cache,
+            fetch_readme_urls=lambda *_: [],
+            fetch_image=lambda *_: (b"", ""),
+        )
+        assert first == {}
+        assert (cache / f"{module.github_cache_key(repository)}.github-missing.json").is_file()
+
+        def unexpected_fetch(*_):
+            raise AssertionError("A fresh missing result must be reused without network access")
+
+        second = module.github_preview_image(
+            repository,
+            {},
+            cache,
+            fetch_readme_urls=unexpected_fetch,
+            fetch_image=unexpected_fetch,
+        )
+        assert second == {}
 
 
 def test_github_preview_ignores_untyped_legacy_cache() -> None:
@@ -982,6 +1170,34 @@ def test_family_and_plugin_aggregates_use_best_verified_member_image() -> None:
         assert plugin["image"]["status"] == "github-social-preview"
         assert plugin["image_source_member_id"] == by_name["preview"]["id"]
         assert plugin["github"]["url"] == "https://github.com/example/plugin"
+
+
+def test_family_prefers_primary_repository_over_foreign_member_image() -> None:
+    module = load_builder()
+    primary = {
+        "id": "primary",
+        "name": "hyperframes",
+        "github": {"url": "https://github.com/heygen-com/hyperframes"},
+        "image": {
+            "status": "github-social-preview",
+            "repository": "https://github.com/heygen-com/hyperframes",
+            "missing_evidence": False,
+        },
+        "confidence": 0.9,
+    }
+    foreign = {
+        "id": "lottie",
+        "name": "lottie",
+        "github": {"url": "https://github.com/airbnb/lottie-web"},
+        "image": {
+            "status": "github-repository",
+            "repository": "https://github.com/airbnb/lottie-web",
+            "missing_evidence": False,
+        },
+        "confidence": 1.0,
+    }
+    assert module.best_image_member([primary, foreign], primary)["id"] == "primary"
+    assert module.aggregate_github(primary, foreign, [primary, foreign])["url"] == "https://github.com/heygen-com/hyperframes"
 
 
 def test_description_enrichment_queue_closes_after_curation() -> None:

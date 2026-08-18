@@ -48,6 +48,7 @@ COVER_STYLES = {
     "development": ("#1e3a8a", "#93c5fd"),
     "productivity": ("#713f12", "#fde68a"),
     "specialist": ("#7e1d44", "#f9a8d4"),
+    "system_ops": ("#263238", "#80cbc4"),
     "other": ("#334155", "#cbd5e1"),
 }
 FAVICON_SVG = f"""<svg xmlns="{SVG_NAMESPACE}" viewBox="0 0 64 64">
@@ -87,6 +88,8 @@ from catalog_aggregation import (
     rooted_sibling_families,
     structural_family_root,
 )
+from catalog_page import render_catalog_html
+from github_discovery import discover_github_families
 
 
 def read_json(path: Path, fallback: Any, strict: bool = False) -> Any:
@@ -147,8 +150,21 @@ def load_config(path: Path) -> Dict[str, Any]:
     payload["image"].setdefault("github_request_timeout_seconds", 15)
     payload["image"].setdefault("github_max_page_bytes", 1024 * 1024)
     payload["image"].setdefault("github_max_download_bytes", 2 * 1024 * 1024)
-    payload["image"].setdefault("github_image_candidate_limit", 3)
+    payload["image"].setdefault("github_image_candidate_limit", 8)
+    payload["image"].setdefault("github_min_image_width", 0)
+    payload["image"].setdefault("github_min_image_height", 0)
     payload["image"].setdefault("github_fetch_workers", 8)
+    payload.setdefault("github_discovery", {})
+    if not isinstance(payload["github_discovery"], dict):
+        payload["github_discovery"] = {}
+    payload["github_discovery"].setdefault("enabled", True)
+    payload["github_discovery"].setdefault("cache_ttl_hours", 168)
+    payload["github_discovery"].setdefault("timeout_seconds", 8)
+    payload["github_discovery"].setdefault("max_families", 256)
+    payload["github_discovery"].setdefault("workers", 8)
+    payload["github_discovery"].setdefault("max_candidates", 8)
+    payload["github_discovery"].setdefault("max_page_bytes", 1024 * 1024)
+    payload["github_discovery"].setdefault("max_skill_bytes", 512 * 1024)
     invalid = validate_category_overrides(payload)
     if invalid:
         details = ", ".join(f"{entry['id']}={entry['category']}" for entry in invalid)
@@ -277,6 +293,9 @@ def ensure_output_curation(config: Dict[str, Any], output_dir: Path) -> Path:
                 indent=2,
             ) + "\n",
         )
+    payload = read_json(path, {})
+    manual_images = payload.get("image_overrides", {}) if isinstance(payload, dict) else {}
+    config["_manual_image_overrides"] = dict(manual_images) if isinstance(manual_images, dict) else {}
     load_curation([str(path)], config)
     return path
 
@@ -647,7 +666,7 @@ def nearest_manifest(skill_path: Path, root: Path) -> Tuple[Dict[str, Any], str]
     return {}, ""
 
 
-def root_specs(config: Dict[str, Any], cli_roots: Optional[List[str]]) -> List[Dict[str, str]]:
+def root_specs(config: Dict[str, Any], cli_roots: Optional[List[str]]) -> List[Dict[str, Any]]:
     raw = cli_roots if cli_roots else config.get("roots", [])
     if not raw:
         raw = ["."]
@@ -657,11 +676,18 @@ def root_specs(config: Dict[str, Any], cli_roots: Optional[List[str]]) -> List[D
             path_value = str(value.get("path") or ".")
             label = str(value.get("label") or value.get("source") or f"Root {index + 1}")
             kind = str(value.get("kind") or "skill")
+            allow_delete = bool(value.get("allow_delete", False))
         else:
             path_value = str(value)
             label = f"Root {index + 1}"
             kind = "skill"
-        specs.append({"path": str(expand_path(path_value).resolve()), "label": label, "kind": kind})
+            allow_delete = False
+        specs.append({
+            "path": str(expand_path(path_value).resolve()),
+            "label": label,
+            "kind": kind,
+            "allow_delete": allow_delete,
+        })
     return specs
 
 
@@ -853,18 +879,24 @@ def choose_image(
     fallback = generated_cover(name, description, category, label)
     max_bytes = int(image_config.get("max_embedded_bytes", 512 * 1024) or 0)
     curation = config.get("curation") if isinstance(config.get("curation"), dict) else {}
-    curated_image = curation_value(curation.get("image_overrides"), name, relative_path)
-    if curated_image:
-        local = Path(local_path_value(curated_image, skill_path))
+    manual_image = curation_value(config.get("_manual_image_overrides"), name, relative_path)
+    if manual_image:
+        local = Path(local_path_value(manual_image, skill_path))
         data_uri = image_data_uri(local, max_bytes) if local.is_file() else ""
         if data_uri:
-            return {"status": "curated-local", "source": "curation:image_overrides", "value": data_uri, "missing_evidence": False}
+            return {"status": "curated-local", "source": "catalog-curation:image_overrides", "value": data_uri, "missing_evidence": False}
     if github_url and image_cache_dir is not None:
         if github_previews is not None and github_url not in github_previews:
             github_previews[github_url] = github_preview_image(github_url, image_config, image_cache_dir)
         github_image = github_previews.get(github_url, {}) if github_previews is not None else github_preview_image(github_url, image_config, image_cache_dir)
         if github_image:
             return dict(github_image)
+    curated_image = curation_value(curation.get("image_overrides"), name, relative_path)
+    if curated_image:
+        local = Path(local_path_value(curated_image, skill_path))
+        data_uri = image_data_uri(local, max_bytes) if local.is_file() else ""
+        if data_uri:
+            return {"status": "curated-local", "source": "curation:image_overrides", "value": data_uri, "missing_evidence": False}
     keys = image_config.get("frontmatter_keys", [])
     for key in keys if isinstance(keys, list) else []:
         raw = str(frontmatter.get(key) or "").strip()
@@ -944,6 +976,7 @@ def scan(
     specs: List[Dict[str, str]],
     include_absolute_paths: bool,
     image_cache_dir: Optional[Path] = None,
+    no_github_discovery: bool = True,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, str]]]:
     items: List[Dict[str, Any]] = []
     plugins: Dict[str, Dict[str, Any]] = {}
@@ -1024,11 +1057,14 @@ def scan(
                 "invocation": f"在你的 Agent 中明确说明任务，并要求它按 {relative} 的 SKILL.md 执行。",
                 "image": {},
                 "root_basename": root.name,
+                "root_id": fingerprint(str(root.resolve())),
+                "allow_delete": bool(spec.get("allow_delete", False)),
             }
             item["locations"] = [f"{item['source']}:{relative}"]
             item["location_evidence"] = [{"source": item["source"], "relative_path": relative}]
             if github_url:
-                item["github"] = {"url": github_url, "source": github_source, "verification": "observed-local"}
+                verification = "curation-confirmed" if github_source == "curation" else "observed-local"
+                item["github"] = {"url": github_url, "source": github_source, "verification": verification}
                 item["github_evidence"] = [{
                     "url": github_url,
                     "source": github_source,
@@ -1061,6 +1097,53 @@ def scan(
         raw_plugins=sorted(plugins.values(), key=lambda item: str(item["name"]).casefold()),
         image_contexts=image_contexts,
     )
+
+    # Family aggregation supplies the single public entry point to search.
+    # Run discovery after deduplication, before image selection, so a verified
+    # repository association can immediately provide the repository preview.
+    discovery_config = dict(config.get("github_discovery") or {})
+    if no_github_discovery:
+        discovery_config["enabled"] = False
+    discovery_report: Dict[str, Any] = {
+        "enabled": bool(discovery_config.get("enabled", False)),
+        "status": "disabled" if not discovery_config.get("enabled", False) else "not-run",
+        "matched": 0,
+        "attempted": 0,
+        "results": [],
+    }
+    if discovery_config.get("enabled"):
+        discovery_families = assign_families(items, config)
+        skill_texts: Dict[str, str] = {}
+        skill_paths: Dict[str, Path] = {}
+        for context in image_contexts:
+            context_item, context_path = context[0], context[1]
+            context_id = str(context_item.get("id") or "")
+            if not context_id:
+                continue
+            skill_paths[context_id] = context_path
+            try:
+                skill_texts[context_id] = context_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                skill_texts[context_id] = str(context_item.get("source_description") or context_item.get("description") or "")
+        discovery_cache = image_cache_dir / "github-discovery-cache" if image_cache_dir is not None else None
+        discovery_report = discover_github_families(
+            items,
+            discovery_families,
+            skill_texts=skill_texts,
+            skill_paths=skill_paths,
+            config=discovery_config,
+            cache_dir=discovery_cache,
+        )
+        if discovery_report.get("matched"):
+            # The image context captured the pre-discovery URL. Refresh it from
+            # the mutated item before the repository preview worker runs.
+            refreshed_contexts: List[Tuple[Dict[str, Any], Path, Dict[str, Any], str, str, str, str, str]] = []
+            for context in image_contexts:
+                context_item = context[0]
+                github = context_item.get("github") if isinstance(context_item.get("github"), dict) else {}
+                refreshed_contexts.append((*context[:-1], str(github.get("url") or "")))
+            image_contexts = refreshed_contexts
+    config["_github_discovery_report"] = discovery_report
     image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
     repository_urls: Dict[str, str] = {}
     for context in image_contexts:
@@ -1104,7 +1187,7 @@ def scan(
     return items, raw_plugins, unresolved
 
 
-def public_root_specs(specs: List[Dict[str, str]], include_absolute_paths: bool) -> List[Dict[str, str]]:
+def public_root_specs(specs: List[Dict[str, Any]], include_absolute_paths: bool) -> List[Dict[str, Any]]:
     if include_absolute_paths:
         return [dict(spec) for spec in specs]
     return [
@@ -1130,8 +1213,16 @@ def file_fingerprint(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def root_fingerprints(specs: List[Dict[str, str]]) -> List[str]:
-    return [fingerprint("\x1f".join((str(spec.get("path") or ""), str(spec.get("label") or ""), str(spec.get("kind") or "")))) for spec in specs]
+def root_fingerprints(specs: List[Dict[str, Any]]) -> List[str]:
+    return [
+        fingerprint("\x1f".join((
+            str(spec.get("path") or ""),
+            str(spec.get("label") or ""),
+            str(spec.get("kind") or ""),
+            "1" if spec.get("allow_delete") else "0",
+        )))
+        for spec in specs
+    ]
 
 
 def root_path_fingerprints(specs: List[Dict[str, str]]) -> List[str]:
@@ -1143,7 +1234,7 @@ def public_startup_specs(specs: List[Dict[str, str]], include_absolute_paths: bo
     return public_root_specs(specs, include_absolute_paths)
 
 
-def render_html(catalog: Dict[str, Any]) -> str:
+def _legacy_render_html(catalog: Dict[str, Any]) -> str:
     data = json.dumps(catalog, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     return """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1187,6 +1278,10 @@ document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener
         "</script>",
         "$('.image-editor').setAttribute('tabindex','-1');</script>",
     )
+
+
+def render_html(catalog: Dict[str, Any]) -> str:
+    return render_catalog_html(catalog)
 
 
 def has_link_ancestor(path: Path) -> bool:
@@ -1244,6 +1339,8 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
     config = load_config(config_path)
     if getattr(args, "no_github_images", False):
         config.setdefault("image", {})["github_repository_previews"] = False
+    if getattr(args, "no_github_discovery", False):
+        config.setdefault("github_discovery", {})["enabled"] = False
     load_curation(getattr(args, "curation", None), config)
     cli_roots = args.root if args.root else None
     specs = root_specs(config, cli_roots)
@@ -1254,7 +1351,20 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
     output_dir = output_dir.resolve()
     output_curation = ensure_output_curation(config, output_dir)
     curation_files = [str(Path(path).resolve()) for path in (args.curation or [])] + [str(output_curation)]
-    items, raw_plugins, unresolved = scan(config, specs, include_absolute, output_dir / "github-image-cache")
+    items, raw_plugins, unresolved = scan(
+        config,
+        specs,
+        include_absolute,
+        output_dir / "github-image-cache",
+        no_github_discovery=bool(getattr(args, "no_github_discovery", False)),
+    )
+    discovery_report = config.pop("_github_discovery_report", {
+        "enabled": False,
+        "status": "not-run",
+        "matched": 0,
+        "attempted": 0,
+        "results": [],
+    })
     families = assign_families(items, config)
     plugins = merge_plugins(raw_plugins, items, config)
     previous = read_json(output_dir / "catalog.json", {}) if output_dir.is_dir() else {}
@@ -1273,6 +1383,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
         "categories": config.get("categories", {}),
         "category_coverage": coverage(items, config),
         "description_enrichment": descriptions,
+        "github_discovery": discovery_report,
         "unresolved_roots": public_unresolved(unresolved, include_absolute),
         "warnings": [
             {"type": "invalid-category-override", **entry}
@@ -1299,6 +1410,11 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
             "low_confidence_count": sum(1 for item in items if float(item["confidence"]) < 0.5),
             "missing_image_count": sum(1 for item in items if item["image"].get("missing_evidence", True)),
             "pending_description_count": descriptions["pending_count"],
+            "github_discovery": {
+                "enabled": bool(discovery_report.get("enabled")),
+                "attempted": int(discovery_report.get("attempted", 0) or 0),
+                "matched": int(discovery_report.get("matched", 0) or 0),
+            },
             "image_evidence": images,
         },
     }
@@ -1323,6 +1439,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--no-html", action="store_true", help="Write catalog.json without index.html")
     result.add_argument("--include-absolute-paths", action="store_true", help="Include absolute source paths in catalog items")
     result.add_argument("--no-github-images", action="store_true", help="Do not fetch or reuse GitHub repository preview images for this build")
+    result.add_argument("--no-github-discovery", action="store_true", help="Do not search GitHub to verify missing Skill repository links for this build")
     result.add_argument(
         "--require-complete-descriptions",
         action="store_true",

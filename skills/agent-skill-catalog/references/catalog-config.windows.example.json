@@ -1,8 +1,19 @@
 {
   "roots": [
-    {"path": "%SKILL_ROOT%", "label": "Skills", "kind": "skill"},
-    {"path": "%PLUGIN_ROOT%", "label": "Plugins", "kind": "plugin"}
+    {"path": "%SKILL_ROOT%", "label": "Skills", "kind": "skill", "allow_delete": true},
+    {"path": "%PLUGIN_ROOT%", "label": "Plugins", "kind": "plugin", "allow_delete": false}
   ],
   "output_dir": "%LOCALAPPDATA%\\agent-skill-catalog-output",
-  "include_absolute_paths": false
+  "include_absolute_paths": false,
+  "github_discovery": {
+    "enabled": true,
+    "cache_ttl_hours": 168,
+    "timeout_seconds": 8,
+    "max_families": 256,
+    "workers": 8,
+    "search_batch_size": 5,
+    "max_candidates": 8,
+    "max_page_bytes": 1048576,
+    "max_skill_bytes": 524288
+  }
 }

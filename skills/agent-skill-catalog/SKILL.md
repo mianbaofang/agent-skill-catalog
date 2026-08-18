@@ -10,6 +10,10 @@ Build a read-only catalog from explicit local `SKILL.md` roots and optional
 plugin roots. Never install, edit, or execute scanned content. Observed GitHub
 repositories may provide bounded preview images and README evidence; write only
 to the selected output directory.
+When a family-primary Skill has no repository metadata, the default build runs
+a bounded concurrent GitHub discovery pass. Search results are candidates only:
+the repository must contain a matching `SKILL.md`, agree with local content,
+and produce one high-confidence result before the URL is associated.
 
 ## Workflow
 
@@ -33,9 +37,9 @@ roots stay redacted unless `--include-absolute-paths` is explicit.
 ## Boundaries
 
 - No remote code execution and no writes to scanned roots.
-- GitHub reads are HTTPS-only, host-allowlisted, size-limited, and limited to observed repositories. Use `--no-github-images` or `--no-github-readmes` offline.
+- GitHub reads are HTTPS-only, host-allowlisted, size-limited, and limited to candidate verification or observed repositories. Use `--no-github-discovery --no-github-images` for an offline build; add `--no-github-readmes` when running the description queue.
 - Manual images live in output-owned `curated-images/` and `catalog-curation.json`; unavailable proof stays `missing evidence`.
-- Do not infer category or family from description alone. A sibling family needs a same-named root Skill, at least two same-prefix siblings, and no conflicting observed repository; otherwise use explicit curation.
+- Family grouping requires an observed main entry point. Nested `SKILL.md` files are grouped under that entry point; standalone siblings join only when their source description states an unambiguous product-owner or routing relationship. Loose keyword mentions remain separate and can use explicit curation.
 - Refresh reuses recorded roots, config, and curation. The queue validates Agent-written Chinese copy; it does not call a hidden model or require a provider key.
 
 ## Resources

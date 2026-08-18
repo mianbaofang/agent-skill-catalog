@@ -18,16 +18,35 @@
     "github_request_timeout_seconds": 15,
     "github_max_page_bytes": 1048576,
     "github_max_download_bytes": 2097152,
-    "github_image_candidate_limit": 3,
+    "github_image_candidate_limit": 8,
+    "github_min_image_width": 640,
+    "github_min_image_height": 300,
     "github_fetch_workers": 8,
     "max_embedded_bytes": 524288
+  },
+  "github_discovery": {
+    "enabled": true,
+    "cache_ttl_hours": 168,
+    "timeout_seconds": 8,
+    "max_families": 256,
+    "workers": 8,
+    "search_batch_size": 5,
+    "max_candidates": 8,
+    "max_page_bytes": 1048576,
+    "max_skill_bytes": 524288
   },
   "classification": {
     "small_margin": 1.0,
     "low_confidence": 0.5
   },
-  "category_tie_break": ["internet_search", "securities", "learning", "video", "audio", "content", "data", "development", "productivity", "specialist", "visual", "other"],
-  "category_overrides": {},
+  "category_tie_break": ["internet_search", "securities", "learning", "video", "audio", "content", "data", "development", "system_ops", "productivity", "specialist", "visual", "other"],
+  "category_overrides": [
+    {"name": "health", "category": "system_ops"},
+    {"name": "storage-analyzer", "category": "system_ops"},
+    {"name": "configure-codex-model-providers", "category": "system_ops"},
+    {"name": "keep-codex-fast", "category": "system_ops"},
+    {"name": "neat-freak", "category": "system_ops"}
+  ],
   "curation": {
     "description_overrides": {},
     "github_overrides": {},
@@ -45,6 +64,7 @@
     "data": {"label": "数据与研究", "keywords": ["data", "analytics", "spreadsheet", "report", "dashboard", "database", "sql", "research", "chart", "metric", "dataset", "数据", "分析", "表格", "报告", "仪表盘", "数据库", "研究", "图表", "指标", "数据集"]},
     "development": {"label": "开发与自动化", "keywords": ["code", "coding", "development", "frontend", "backend", "web app", "api", "cloud", "deploy", "git", "react", "node", "python", "test", "debug", "cli", "sdk", "代码", "编程", "开发", "前端", "后端", "网页应用", "接口", "云", "部署", "测试", "调试", "自动化"]},
     "productivity": {"label": "办公与交付", "keywords": ["document", "docx", "pdf", "slide", "calendar", "email", "meeting", "project", "workflow", "browser", "automation", "bookmark", "template", "文档", "幻灯片", "日历", "邮件", "会议", "项目", "工作流", "浏览器", "自动化", "书签", "模板", "办公"]},
+    "system_ops": {"label": "系统与运维", "keywords": ["system", "operations", "ops", "health", "storage", "disk", "cleanup", "configuration", "provider", "performance", "系统", "运维", "健康检查", "存储", "磁盘", "清理", "配置", "性能"]},
     "specialist": {"label": "专业领域", "keywords": ["medical", "legal", "security", "game", "gis", "ecommerce", "healthcare", "医疗", "法律", "安全", "游戏", "地理信息", "电商", "健康"]},
     "other": {"label": "其他工具", "keywords": []}
   }

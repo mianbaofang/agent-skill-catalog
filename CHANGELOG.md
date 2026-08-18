@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.3.6 - 2026-08-18
 
-No unreleased changes.
+- Batch missing-repository discovery in groups of five, reuse authenticated GitHub CLI credentials in memory, and require a unique high-confidence match before associating a repository.
+- Cache failed GitHub image lookups and compiled family patterns so repeated catalog refreshes avoid redundant network requests and regex work.
+- Strengthen package-family aggregation for Tavily, CloudBase, HyperFrames, and similar multi-Skill bundles while preserving the correct parent repository and preview image.
+- Refresh the desktop catalog UI with illustrated category navigation, independently scrollable detail panes, manual preview controls, and deletion behind a second confirmation.
 
 ## 0.3.5 - 2026-08-17
 

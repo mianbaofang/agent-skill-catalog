@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import html
+import json
 import re
 import tempfile
 import time
@@ -37,6 +38,10 @@ GITHUB_IMAGE_HOSTS = {
     "github-production-user-asset-6210df.s3.amazonaws.com",
     "opengraph.githubassets.com",
 }
+PREFERRED_IMAGE_TERMS = ("screenshot", "demo", "preview", "cover", "hero", "banner", "product", "gallery")
+EXCLUDED_IMAGE_TERMS = ("qr", "qrcode", "wechat", "wx", "pay", "donate", "sponsor", "badge", "icon", "avatar")
+CACHE_VERSION = "preview-v2"
+MISSING_CACHE_STATUS = "github-missing"
 
 
 class AllowedRedirectHandler(HTTPRedirectHandler):
@@ -111,7 +116,8 @@ def image_extension_for_content_type(content_type: str, url: str) -> str:
 
 
 def github_cache_key(repository_url: str) -> str:
-    return hashlib.sha256(repository_url.rstrip("/").encode("utf-8")).hexdigest()[:20]
+    value = f"{CACHE_VERSION}:{repository_url.rstrip('/')}"
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:20]
 
 
 def github_cache_status(path: Path) -> str:
@@ -124,6 +130,19 @@ def github_cache_status(path: Path) -> str:
 
 def github_cache_path(cache_dir: Path, cache_key: str, status: str, suffix: str) -> Path:
     return cache_dir / f"{cache_key}.{status}{suffix}"
+
+
+def github_missing_cache_path(cache_dir: Path, cache_key: str) -> Path:
+    return cache_dir / f"{cache_key}.{MISSING_CACHE_STATUS}.json"
+
+
+def github_missing_cache_is_fresh(path: Path, ttl_seconds: int) -> bool:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fetched_at = float(payload.get("fetched_at", 0))
+        return bool(fetched_at and (ttl_seconds == 0 or time.time() - fetched_at <= ttl_seconds))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
 
 
 def image_data_uri_from_bytes(body: bytes, suffix: str, max_bytes: Optional[int] = None) -> str:
@@ -155,6 +174,60 @@ def image_data_uri(path: Path, max_bytes: Optional[int] = None) -> str:
     return image_data_uri_from_bytes(body, path.suffix.lower(), max_bytes)
 
 
+def image_dimensions(body: bytes, suffix: str) -> Tuple[int, int]:
+    suffix = suffix.lower()
+    if suffix == ".png" and len(body) >= 24 and body.startswith(IMAGE_SIGNATURES[".png"]):
+        return int.from_bytes(body[16:20], "big"), int.from_bytes(body[20:24], "big")
+    if suffix == ".gif" and len(body) >= 10 and body.startswith(b"GIF8"):
+        return int.from_bytes(body[6:8], "little"), int.from_bytes(body[8:10], "little")
+    if suffix in {".jpg", ".jpeg"} and body.startswith(b"\xff\xd8"):
+        offset = 2
+        while offset + 9 < len(body):
+            if body[offset] != 0xFF:
+                offset += 1
+                continue
+            marker = body[offset + 1]
+            offset += 2
+            if marker in {0xD8, 0xD9} or 0xD0 <= marker <= 0xD7:
+                continue
+            if offset + 2 > len(body):
+                break
+            length = int.from_bytes(body[offset:offset + 2], "big")
+            if length < 2 or offset + length > len(body):
+                break
+            if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+                return int.from_bytes(body[offset + 5:offset + 7], "big"), int.from_bytes(body[offset + 3:offset + 5], "big")
+            offset += length
+    if suffix == ".webp" and len(body) >= 30 and body.startswith(b"RIFF") and body[8:12] == b"WEBP":
+        chunk = body[12:16]
+        if chunk == b"VP8X":
+            return int.from_bytes(body[24:27], "little") + 1, int.from_bytes(body[27:30], "little") + 1
+        if chunk == b"VP8 " and body[23:26] == b"\x9d\x01\x2a":
+            return int.from_bytes(body[26:28], "little") & 0x3FFF, int.from_bytes(body[28:30], "little") & 0x3FFF
+        if chunk == b"VP8L" and body[20] == 0x2F:
+            bits = int.from_bytes(body[21:25], "little")
+            return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+    return 0, 0
+
+
+def image_meets_minimum(body: bytes, suffix: str, image_config: Dict[str, Any]) -> bool:
+    minimum_width = max(0, int(image_config.get("github_min_image_width", 0) or 0))
+    minimum_height = max(0, int(image_config.get("github_min_image_height", 0) or 0))
+    if not minimum_width and not minimum_height:
+        return True
+    width, height = image_dimensions(body, suffix)
+    return width >= minimum_width and height >= minimum_height
+
+
+def github_image_candidate_score(url: str, index: int = 0) -> Optional[int]:
+    normalized = html.unescape(str(url or "")).casefold()
+    tokens = re.split(r"[^a-z0-9]+", normalized)
+    if any(term in tokens for term in EXCLUDED_IMAGE_TERMS):
+        return None
+    score = sum(20 for term in PREFERRED_IMAGE_TERMS if term in tokens)
+    return score - index
+
+
 def github_readme_image_urls(repository_url: str, image_config: Dict[str, Any]) -> List[str]:
     owner, repository = github_repository(repository_url)
     if not owner or not repository:
@@ -184,7 +257,13 @@ def github_readme_image_urls(repository_url: str, image_config: Dict[str, Any]) 
         candidate = html.unescape(urljoin(final_url, raw.strip()))
         if is_allowed_github_image_url(candidate) and candidate not in urls:
             urls.append(candidate)
-    return urls[: max(1, int(image_config.get("github_image_candidate_limit", 8) or 8))]
+    ranked = []
+    for index, candidate in enumerate(urls):
+        score = github_image_candidate_score(candidate, index)
+        if score is not None:
+            ranked.append((score, index, candidate))
+    ranked.sort(key=lambda value: (-value[0], value[1]))
+    return [candidate for _, _, candidate in ranked[: max(1, int(image_config.get("github_image_candidate_limit", 8) or 8))]]
 
 
 def fetch_github_image(url: str, image_config: Dict[str, Any]) -> Tuple[bytes, str]:
@@ -226,12 +305,23 @@ def github_preview_image(
             cached_status = github_cache_status(cached)
             if not cached_status:
                 continue
-            data_uri = image_data_uri(cached, max_bytes)
+            try:
+                cached_body = cached.read_bytes()
+            except OSError:
+                continue
+            if not image_meets_minimum(cached_body, cached.suffix, image_config):
+                continue
+            data_uri = image_data_uri_from_bytes(cached_body, cached.suffix, max_bytes)
             if data_uri and (ttl_seconds == 0 or time.time() - cached.stat().st_mtime <= ttl_seconds):
                 return {"status": cached_status, "source": "github-cache", "value": data_uri, "repository": repository_url, "missing_evidence": False}
+        missing_cache = github_missing_cache_path(cache_dir, cache_key)
+        if missing_cache.is_file() and github_missing_cache_is_fresh(missing_cache, ttl_seconds):
+            return {}
 
     for candidate in fetch_readme_urls(repository_url, image_config):
         body, suffix = fetch_image(candidate, image_config)
+        if body and not image_meets_minimum(body, suffix, image_config):
+            continue
         data_uri = image_data_uri_from_bytes(body, suffix, max_bytes) if body else ""
         if not data_uri:
             continue
@@ -244,8 +334,15 @@ def github_preview_image(
         return {}
     fallback_url = f"https://opengraph.githubassets.com/{cache_key}/{owner}/{repository}"
     body, suffix = fetch_image(fallback_url, image_config)
+    if body and not image_meets_minimum(body, suffix, image_config):
+        return {}
     data_uri = image_data_uri_from_bytes(body, suffix, max_bytes) if body else ""
     if not data_uri:
+        if cache_dir:
+            atomic_write_bytes(
+                github_missing_cache_path(cache_dir, cache_key),
+                json.dumps({"fetched_at": time.time(), "repository": repository_url}, ensure_ascii=False).encode("utf-8"),
+            )
         return {}
     if cache_dir:
         atomic_write_bytes(github_cache_path(cache_dir, cache_key, "github-social-preview", suffix), body)

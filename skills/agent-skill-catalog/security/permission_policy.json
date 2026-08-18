@@ -5,11 +5,12 @@
     "network": {
       "decision": "approved",
       "reviewer": "User-authorized product requirement",
-      "scope": "scripts/github_preview.py may read an observed public GitHub repository page and allowlisted preview images; scripts/description_queue.py may read one bounded README excerpt for the same observed repository. Both use HTTPS, fixed hosts, timeouts, and byte limits; --no-github-images disables preview reads and --no-github-readmes disables README reads.",
-      "reason": "The catalog is required to use the corresponding project GitHub repository as the default preview-image source when one is available.",
+      "scope": "scripts/github_discovery.py may search exact repository names and verify matching remote SKILL.md files for family-primary Skills that lack a repository; scripts/github_preview.py may read verified or locally observed public repositories and allowlisted preview images; scripts/description_queue.py may read one bounded README excerpt for the same repository. All use HTTPS, fixed hosts, timeouts, and byte limits. --no-github-discovery disables discovery, --no-github-images disables preview reads, and --no-github-readmes disables README queue reads.",
+      "reason": "The catalog must recover missing repository links conservatively and use the corresponding verified project repository as the default preview-image source when one is available.",
       "expires_at": "2027-08-12",
       "evidence": [
         "scripts/github_preview.py",
+        "scripts/github_discovery.py",
         "scripts/description_queue.py",
         "tests/test_build_catalog.py",
         "tests/test_description_queue.py",
@@ -44,7 +45,7 @@
     "subprocess": {
       "decision": "approved",
       "reviewer": "User-authorized local implementation task",
-      "scope": "The local server may invoke only scripts/build_catalog.py with fixed startup config, curation files, output directory, and --refresh; HTTP requests cannot supply command arguments.",
+      "scope": "The local server may invoke only scripts/build_catalog.py with fixed startup config, curation files, output directory, and --refresh; HTTP requests cannot supply command arguments. The discovery script may invoke read-only gh auth token --hostname github.com to reuse an existing local login; no credential is written.",
       "reason": "The page refresh button needs the fixed local builder process; this approval does not authorize arbitrary commands or HTTP-provided paths.",
       "expires_at": "2027-08-11",
       "evidence": [

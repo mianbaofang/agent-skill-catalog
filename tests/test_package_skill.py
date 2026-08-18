@@ -28,7 +28,9 @@ def test_install_package_excludes_maintenance_evidence() -> None:
     included = {relative.as_posix() for _, relative in module.package_paths(skill_root)}
     assert "scripts/build_catalog.py" in included
     assert "scripts/catalog_aggregation.py" in included
+    assert "scripts/catalog_page.py" in included
     assert "scripts/description_queue.py" in included
+    assert "scripts/github_discovery.py" in included
     assert "scripts/github_preview.py" in included
     assert "references/workflow.md" in included
     assert not any(relative.split("/", 1)[0] in {"build", "evals", "reports"} for relative in included)
@@ -65,6 +67,8 @@ def test_release_archive_is_portable() -> None:
             assert "agent-skill-catalog/SKILL.md" in names
             assert "agent-skill-catalog/LICENSE" in names
             assert "agent-skill-catalog/scripts/github_preview.py" in names
+            assert "agent-skill-catalog/scripts/github_discovery.py" in names
+            assert "agent-skill-catalog/scripts/catalog_page.py" in names
             assert "agent-skill-catalog/scripts/catalog_aggregation.py" in names
             assert "agent-skill-catalog/scripts/description_queue.py" in names
             assert sum(name.endswith("/SKILL.md") for name in names) == 1

@@ -3,9 +3,27 @@
   "default_policy": {
     "require_https": true,
     "custom_hosts": "deny-by-default",
-    "review_rule": "GitHub preview retrieval and README evidence are limited to observed repositories and the fixed GitHub host allowlist in scripts/github_preview.py and scripts/description_queue.py."
+    "review_rule": "GitHub discovery, preview retrieval, and README evidence use fixed HTTPS GitHub host allowlists, timeouts, and response-size limits. Search results are candidates only and require a matching remote SKILL.md before association."
   },
   "scripts": {
+    "scripts\\github_discovery.py": {
+      "purpose": "Generate exact-name GitHub candidates for family-primary Skills that lack repository metadata, then verify repository state, a matching SKILL.md path, content similarity, and local author evidence before binding a unique high-confidence result.",
+      "allowed_hosts": [
+        "api.github.com",
+        "raw.githubusercontent.com"
+      ],
+      "allowed_path_prefixes": [
+        "/search/repositories",
+        "/repos/",
+        "/"
+      ],
+      "requires_https": true,
+      "redirect_policy": "HTTPS redirects are accepted only when the destination remains on the fixed GitHub host allowlist.",
+      "timeout_seconds": 8,
+      "max_api_response_bytes": 1048576,
+      "max_skill_response_bytes": 524288,
+      "auth": "optional existing GH_TOKEN/GITHUB_TOKEN or GitHub CLI login read at runtime; never persisted"
+    },
     "scripts\\github_preview.py": {
       "purpose": "Read an observed public GitHub repository page and cache one verified preview image for the local catalog.",
       "allowed_hosts": [

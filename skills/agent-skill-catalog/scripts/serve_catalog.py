@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -29,7 +30,7 @@ ALLOWED_IMAGE_TYPES = {
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 
 
-def config_root_specs(path: Path) -> list[dict[str, str]]:
+def config_root_specs(path: Path) -> list[dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     roots = payload.get("roots", []) if isinstance(payload, dict) else []
     values: list[dict[str, str]] = []
@@ -39,21 +40,29 @@ def config_root_specs(path: Path) -> list[dict[str, str]]:
             raw = entry.get("path") or "."
             label = str(entry.get("label") or entry.get("source") or f"Root {index + 1}")
             kind = str(entry.get("kind") or "skill")
+            allow_delete = bool(entry.get("allow_delete", False))
         else:
             raw = entry
             label = f"Root {index + 1}"
             kind = "skill"
+            allow_delete = False
         values.append({
             "path": str(Path(os.path.expandvars(os.path.expanduser(str(raw)))).resolve()),
             "label": label,
             "kind": kind,
+            "allow_delete": allow_delete,
         })
     return values
 
 
-def cli_root_specs(root_paths: list[str]) -> list[dict[str, str]]:
+def cli_root_specs(root_paths: list[str]) -> list[dict[str, Any]]:
     return [
-        {"path": str(Path(value).expanduser().resolve()), "label": f"Root {index + 1}", "kind": "skill"}
+        {
+            "path": str(Path(value).expanduser().resolve()),
+            "label": f"Root {index + 1}",
+            "kind": "skill",
+            "allow_delete": False,
+        }
         for index, value in enumerate(root_paths)
     ]
 
@@ -123,6 +132,21 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def remove_output_image_override(output_dir: Path, relative_path: str) -> None:
+    curation = load_output_curation(output_dir)
+    image_path = str(curation["image_overrides"].pop(relative_path, "") or "")
+    if image_path:
+        candidate = Path(image_path)
+        curated_root = (output_dir / "curated-images").resolve()
+        try:
+            candidate.resolve().relative_to(curated_root)
+        except ValueError:
+            pass
+        else:
+            candidate.unlink(missing_ok=True)
+    atomic_write_json(output_curation_path(output_dir), curation)
+
+
 def image_extension(content_type: str) -> str:
     return ALLOWED_IMAGE_TYPES.get(str(content_type or "").split(";", 1)[0].strip().lower(), "")
 
@@ -141,10 +165,85 @@ def valid_image_data(body: bytes, suffix: str) -> bool:
     return False
 
 
+def root_id(path: str) -> str:
+    return hashlib.sha256(str(Path(path).resolve()).encode("utf-8")).hexdigest()
+
+
+def root_contract_fingerprint(spec: dict[str, Any]) -> str:
+    value = "\x1f".join((
+        str(spec.get("path") or ""),
+        str(spec.get("label") or ""),
+        str(spec.get("kind") or ""),
+        "1" if spec.get("allow_delete") else "0",
+    ))
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def is_reparse_point(path: Path) -> bool:
+    is_junction = getattr(path, "is_junction", lambda: False)
+    return path.is_symlink() or bool(is_junction())
+
+
+def ensure_plain_tree(target: Path, root: Path) -> None:
+    current = target
+    while True:
+        if is_reparse_point(current):
+            raise PermissionError("Skill directory contains a symlink or junction")
+        if current == root:
+            break
+        if current.parent == current:
+            raise PermissionError("Skill directory is outside its configured root")
+        current = current.parent
+    for current_dir, dirs, files in os.walk(target, topdown=True, followlinks=False):
+        for name in [*dirs, *files]:
+            if is_reparse_point(Path(current_dir) / name):
+                raise PermissionError("Skill directory contains a symlink or junction")
+
+
+def delete_catalog_skill(output_dir: Path, specs: list[dict[str, Any]], payload: dict[str, Any]) -> Path:
+    try:
+        catalog = json.loads((output_dir / "catalog.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FileNotFoundError("Current catalog cannot be read") from exc
+    items = catalog.get("items", []) if isinstance(catalog, dict) else []
+    item_id = str(payload.get("id") or "")
+    matches = [item for item in items if isinstance(item, dict) and str(item.get("id") or "") == item_id]
+    if len(matches) != 1:
+        raise FileNotFoundError("Skill is not present in the current catalog")
+    item = matches[0]
+    name = str(item.get("name") or "")
+    relative_path = str(item.get("relative_path") or "").replace("\\", "/")
+    if str(payload.get("name") or "") != name or str(payload.get("confirmation") or "") != name:
+        raise ValueError("Skill name confirmation does not match")
+    if str(payload.get("relative_path") or "").replace("\\", "/") != relative_path:
+        raise ValueError("Skill path does not match the current catalog")
+    if item.get("kind") != "skill" or int(item.get("family_size", 0) or 0) != 1:
+        raise PermissionError("Only an independent Skill can be deleted")
+    parts = Path(relative_path).parts
+    if len(parts) != 2 or parts[1].casefold() != "skill.md" or parts[0] in {"", ".", ".."}:
+        raise PermissionError("Only a top-level Skill directory can be deleted")
+    item_root_id = str(item.get("root_id") or "")
+    candidates = [spec for spec in specs if root_id(str(spec.get("path") or "")) == item_root_id]
+    if len(candidates) != 1:
+        raise PermissionError("Skill root is not part of the server startup contract")
+    spec = candidates[0]
+    if spec.get("kind") != "skill" or not spec.get("allow_delete") or not item.get("allow_delete"):
+        raise PermissionError("Deletion is disabled for this Skill root")
+    root = Path(str(spec["path"])).resolve()
+    target = root / parts[0]
+    skill_file = target / parts[1]
+    if target.parent.resolve() != root or is_reparse_point(target) or not skill_file.is_file():
+        raise PermissionError("Resolved Skill directory is not a valid top-level package")
+    ensure_plain_tree(target, root)
+    shutil.rmtree(target)
+    remove_output_image_override(output_dir, relative_path)
+    return target
+
+
 def make_handler(
     output_dir: Path,
     config_path: Path,
-    startup_root_paths: list[str],
+    startup_root_specs: list[dict[str, Any]],
     curation_paths: list[str],
     refresh_timeout: int,
     startup_root_source: str,
@@ -152,6 +251,7 @@ def make_handler(
 ):
     refresh_lock = threading.Lock()
     root_source = str(startup_root_source)
+    startup_root_paths = [str(spec["path"]) for spec in startup_root_specs]
 
     def run_refresh() -> tuple[bool, str]:
         command = [
@@ -215,6 +315,9 @@ def make_handler(
             if route == "/api/image":
                 self.save_image_override()
                 return
+            if route == "/api/delete":
+                self.delete_skill()
+                return
             if route != "/api/refresh":
                 self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "unknown endpoint"})
                 return
@@ -232,6 +335,44 @@ def make_handler(
                 )
                 return
             self.send_json(HTTPStatus.OK, {"ok": True, **compact_summary(output_dir)})
+
+        def delete_skill(self) -> None:
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length <= 0 or length > 64 * 1024 or "application/json" not in self.headers.get("Content-Type", ""):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "delete request must be a small JSON object"})
+                return
+            try:
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "delete request contains invalid JSON"})
+                return
+            if not isinstance(payload, dict):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "delete request must be a JSON object"})
+                return
+            if not refresh_lock.acquire(blocking=False):
+                self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "refresh already running"})
+                return
+            try:
+                deleted = delete_catalog_skill(output_dir, startup_root_specs, payload)
+                ok, error = run_refresh()
+            except PermissionError as exc:
+                self.send_json(HTTPStatus.FORBIDDEN, {"ok": False, "error": str(exc)})
+                return
+            except ValueError as exc:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+                return
+            except FileNotFoundError as exc:
+                self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": str(exc)})
+                return
+            finally:
+                refresh_lock.release()
+            if not ok:
+                self.send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": "Skill deleted but catalog refresh failed", "details": error})
+                return
+            self.send_json(HTTPStatus.OK, {"ok": True, "deleted": deleted.name, **compact_summary(output_dir)})
 
         def do_DELETE(self) -> None:
             if self.path.split("?", 1)[0] != "/api/image":
@@ -289,18 +430,7 @@ def make_handler(
             if not relative_path or Path(relative_path).is_absolute() or ".." in Path(relative_path).parts:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing or invalid Skill identity"})
                 return
-            curation = load_output_curation(output_dir)
-            image_path = str(curation["image_overrides"].pop(relative_path, "") or "")
-            if image_path:
-                candidate = Path(image_path)
-                curated_root = (output_dir / "curated-images").resolve()
-                try:
-                    candidate.resolve().relative_to(curated_root)
-                except ValueError:
-                    pass
-                else:
-                    candidate.unlink(missing_ok=True)
-            atomic_write_json(output_curation_path(output_dir), curation)
+            remove_output_image_override(output_dir, relative_path)
             if not refresh_lock.acquire(blocking=False):
                 self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "refresh already running"})
                 return
@@ -351,7 +481,7 @@ def main() -> int:
     if startup_root_source == "cli" and not root_paths:
         print("Refresh requires the catalog startup roots; provide --root for CLI-root builds.", file=sys.stderr)
         return 2
-    effective_specs: list[dict[str, str]]
+    effective_specs: list[dict[str, Any]]
     if startup_root_source == "config":
         try:
             effective_specs = config_root_specs(config_path)
@@ -376,10 +506,7 @@ def main() -> int:
     if not isinstance(expected_root_fingerprints, list):
         print("Catalog has no startup root contract; rebuild it before serving refreshes.", file=sys.stderr)
         return 2
-    actual_root_fingerprints = [
-        hashlib.sha256("\x1f".join((spec["path"], spec["label"], spec["kind"])).encode("utf-8")).hexdigest()
-        for spec in effective_specs
-    ]
+    actual_root_fingerprints = [root_contract_fingerprint(spec) for spec in effective_specs]
     if actual_root_fingerprints != expected_root_fingerprints:
         print("Refresh root labels or kinds differ from the catalog startup roots.", file=sys.stderr)
         return 2
@@ -415,7 +542,7 @@ def main() -> int:
         make_handler(
             output_dir,
             config_path,
-            effective_root_paths,
+            effective_specs,
             curation_paths,
             args.refresh_timeout,
             startup_root_source,

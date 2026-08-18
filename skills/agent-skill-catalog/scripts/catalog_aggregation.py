@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import hashlib
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -320,6 +321,121 @@ def rooted_sibling_families(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, 
     return inferred
 
 
+def contained_skill_families(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Group nested SKILL.md files under a real top-level entry point.
+
+    Packages such as Tavily and CloudBase ship one root ``SKILL.md`` plus
+    routed skills under ``skills/`` or ``references/``. The root entry point
+    is structural proof of ownership; a shared directory name alone is not.
+    """
+    parents: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for item in items:
+        if item.get("kind") != "skill":
+            continue
+        folder = direct_skill_folder(item)
+        root_id = str(item.get("root_id") or "")
+        if folder and root_id:
+            parents[(root_id, folder)] = item
+
+    inferred: Dict[str, Dict[str, Any]] = {}
+    for item in items:
+        if item.get("kind") != "skill":
+            continue
+        parts = Path(str(item.get("relative_path") or "")).parts
+        # The root entry itself is not evidence of a contained family. Only a
+        # SKILL.md below that entry (for example tavily/skills/.../SKILL.md)
+        # proves that this package owns routed child skills.
+        if len(parts) <= 2:
+            continue
+        key = (str(item.get("root_id") or ""), normalize_for_match(parts[0]))
+        parent = parents.get(key)
+        if not parent:
+            continue
+        parent_id = str(parent.get("id") or "")
+        item_id = str(item.get("id") or "")
+        if not parent_id or not item_id:
+            continue
+        source = normalize_for_match(str(parent.get("source") or "skill")) or "skill"
+        family = {
+            "id": f"family:{source}:{key[0]}:{key[1]}",
+            "name": str(parent.get("name") or key[1]),
+            "category": str(parent.get("category") or "other"),
+            "evidence": {
+                "type": "contained-skill",
+                "entry_point": str(parent.get("relative_path") or ""),
+            },
+        }
+        inferred[parent_id] = family
+        inferred[item_id] = family
+    return inferred
+
+
+@lru_cache(maxsize=512)
+def _product_affiliation_patterns(product: str) -> Tuple[re.Pattern[str], ...]:
+    """Compile each product's four explicit-affiliation rules once per run."""
+    slug = normalize_for_match(product)
+    if len(re.sub(r"[^a-z0-9]", "", slug)) < 6:
+        return ()
+    escaped = re.escape(slug)
+    expressions = (
+        rf"\b(?:for|inside|within|through|into|owned by)\s+(?:an?\s+)?{escaped}\b",
+        rf"\b{escaped}\s+(?:project|projects|composition|compositions|runtime|adapter|workflow|skill|slideshow|video|deck|render|framework|cli)\b",
+        rf"(?:^|\s)/{escaped}(?:\b|$)",
+        rf"\bnpx\s+{escaped}\b",
+    )
+    return tuple(re.compile(expression, flags=re.IGNORECASE) for expression in expressions)
+
+
+def _product_affiliation(description: str, product: str) -> bool:
+    """Return true only for explicit owner/routing language."""
+    normalized = normalize_for_match(description)
+    return any(pattern.search(normalized) for pattern in _product_affiliation_patterns(product))
+
+
+def product_affiliation_families(
+    items: List[Dict[str, Any]],
+    inferred: Dict[str, Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    """Attach standalone domain skills to an explicitly named local product.
+
+    This handles packages such as HyperFrames whose adapters and workflows are
+    installed as sibling directories without relying on loose keyword matches.
+    Ambiguous references are deliberately left as singletons.
+    """
+    parents = [
+        item for item in items
+        if item.get("kind") == "skill" and direct_skill_folder(item)
+    ]
+    result = dict(inferred)
+    for item in items:
+        item_id = str(item.get("id") or "")
+        if not item_id or item_id in result or item.get("kind") != "skill":
+            continue
+        description = str(item.get("source_description") or "")
+        matches = [
+            parent for parent in parents
+            if parent.get("id") != item_id
+            and _product_affiliation(description, str(parent.get("name") or ""))
+        ]
+        if len(matches) != 1:
+            continue
+        parent = matches[0]
+        parent_id = str(parent.get("id") or "")
+        family = result.get(parent_id)
+        if not family:
+            source = normalize_for_match(str(parent.get("source") or "skill")) or "skill"
+            slug = normalize_for_match(str(parent.get("name") or "skill"))
+            family = {
+                "id": f"family:{source}:product:{slug}",
+                "name": str(parent.get("name") or slug),
+                "category": str(parent.get("category") or "other"),
+                "evidence": {"type": "explicit-product-affiliation", "product": slug},
+            }
+            result[parent_id] = family
+        result[item_id] = family
+    return result
+
+
 def family_identity(
     item: Dict[str, Any],
     config: Dict[str, Any],
@@ -354,11 +470,16 @@ def best_image_member(members: List[Dict[str, Any]], primary: Dict[str, Any]) ->
         "verified-local": 2,
     }
 
-    def rank(item: Dict[str, Any]) -> Tuple[int, int, float, str]:
+    primary_repository = github_key(primary)
+
+    def rank(item: Dict[str, Any]) -> Tuple[int, int, int, int, float, str]:
         image = item.get("image") if isinstance(item.get("image"), dict) else {}
         status = str(image.get("status") or "")
         evidence_rank = status_rank.get(status, 1 if not image.get("missing_evidence", True) else 0)
+        image_repository = github_key({"github": {"url": image.get("repository")}})
         return (
+            0 if status == "curated-local" else 1,
+            0 if primary_repository and image_repository == primary_repository else 1,
             -evidence_rank,
             0 if item.get("id") == primary.get("id") else 1,
             -float(item.get("confidence", 0.0)),
@@ -369,7 +490,7 @@ def best_image_member(members: List[Dict[str, Any]], primary: Dict[str, Any]) ->
 
 
 def aggregate_github(primary: Dict[str, Any], image_member: Dict[str, Any], members: List[Dict[str, Any]]) -> Dict[str, Any]:
-    for item in (image_member, primary, *members):
+    for item in (primary, image_member, *members):
         github = item.get("github") if isinstance(item.get("github"), dict) else {}
         if github.get("url"):
             return github
@@ -379,6 +500,8 @@ def aggregate_github(primary: Dict[str, Any], image_member: Dict[str, Any], memb
 def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List[Dict[str, Any]]:
     buckets: Dict[str, List[Dict[str, Any]]] = {}
     inferred = rooted_sibling_families(items)
+    inferred.update(contained_skill_families(items))
+    inferred = product_affiliation_families(items, inferred)
     for item in items:
         if item["kind"] != "skill":
             continue
