@@ -151,6 +151,9 @@ HTML_TEMPLATE = r'''<!doctype html>
     .gallery-note { margin: 0; padding: 10px 12px; border: 1px solid #cbd6d1; border-radius: 6px; color: var(--muted); background: rgba(255,255,255,.86); font-size: 12px; line-height: 1.55; }
     .gallery figure { margin: 0; overflow: hidden; border: 1px solid #cfd8d3; border-radius: 6px; background: #fff; }
     .gallery a, .gallery div { display: grid; min-height: 200px; place-items: center; background: #f8faf8; }
+    /* The image-wrapper rule above is meant for the zoom frame only; without this the
+       figcaption "打开来源仓库" link would become a 200px empty grid block. */
+    .gallery figcaption .github { display: inline; min-height: 0; place-items: initial; background: none; }
     .gallery img { display: block; width: 100%; max-height: 460px; object-fit: contain; }
     .gallery figcaption { display: grid; gap: 6px; padding: 8px 10px; border-top: 1px solid #dbe2de; color: #617277; font-size: 11px; }
     .gallery figcaption span { min-width: 0; overflow-wrap: anywhere; }

@@ -39,7 +39,8 @@ def built(builder):
 
 def test_committed_fixtures_use_non_installable_templates() -> None:
     templates = sorted(FIXTURES.rglob("SKILL.md.example"))
-    assert len(templates) == 8
+    # 8 synthetic templates + 1 real public reference (agent-skill-catalog).
+    assert len(templates) == 9
     # No real SKILL.md may be committed under examples/, or it pollutes discovery.
     assert list(FIXTURES.rglob("SKILL.md")) == []
 
@@ -47,17 +48,17 @@ def test_committed_fixtures_use_non_installable_templates() -> None:
 def test_fixture_boundaries_present() -> None:
     for template in FIXTURES.rglob("SKILL.md.example"):
         text = template.read_text(encoding="utf-8")
-        assert "合成" in text, template
-        assert "不会" in text or "不包含" in text or "不含" in text, template
+        assert "合成" in text or "参考" in text, template
+        assert "不会" in text or "不包含" in text or "不含" in text or "不是" in text, template
 
 
 def test_expected_counts(built) -> None:
     summary = built["summary"]
-    # 8 template records; two same-named weather-lookup copies are retained, so 8 items.
-    assert summary["skill_count"] == 6
+    # 9 template records; two same-named weather-lookup copies are retained.
+    assert summary["skill_count"] == 7
     assert summary["plugin_skill_count"] == 2
     assert summary["plugin_count"] == 1
-    assert summary["family_count"] == 4
+    assert summary["family_count"] == 5
     assert summary["pending_description_count"] == 0
     assert summary["category_count"] == 13
 
@@ -219,3 +220,86 @@ def tempfile_root() -> str:
     import tempfile
 
     return tempfile.gettempdir()
+
+
+# --- Real animated reference (agent-skill-catalog) ---------------------------
+
+REAL_REFERENCE_MANIFEST = FIXTURES / "media" / "agent-skill-catalog-preview.manifest.json"
+REAL_REFERENCE_CLIP = (
+    FIXTURES / "roots" / "community-skills" / "agent-skill-catalog" / "preview.gif"
+)
+
+
+def _real_reference(built) -> dict:
+    matches = [item for item in built["items"] if item["name"] == "agent-skill-catalog"]
+    assert len(matches) == 1, "the real public reference record must appear exactly once"
+    return matches[0]
+
+
+def test_real_reference_carries_animated_preview(built) -> None:
+    """The key selling point: one record shows a real moving preview, offline."""
+    item = _real_reference(built)
+    image = item["image"]
+    # verified-local is the honest offline-replayable status (not github-repository).
+    assert image["status"] == "verified-local"
+    assert image["missing_evidence"] is False
+    value = image["value"]
+    assert value.startswith("data:image/gif;base64,"), "preview must be an embedded animated GIF"
+    import base64
+
+    raw = base64.b64decode(value.split(",", 1)[1])
+    # GIF signature + a real multi-frame animation (not a static single-frame image).
+    assert raw[:4] == b"GIF8"
+    from PIL import Image
+    import io
+
+    gif = Image.open(io.BytesIO(raw))
+    assert gif.n_frames >= 2, "preview must actually animate (multiple frames)"
+    assert gif.size == (400, 225)
+
+
+def test_real_reference_preview_bytes_match_captured_snapshot() -> None:
+    """The embedded preview is the committed byte snapshot, not regenerated art."""
+    import base64
+
+    module = load_build_demo()
+    catalog = module.build_normalized(module.load_builder())
+    item = _real_reference(catalog)
+    raw = base64.b64decode(item["image"]["value"].split(",", 1)[1])
+    assert raw == REAL_REFERENCE_CLIP.read_bytes(), (
+        "the embedded preview must be byte-identical to the committed captured clip"
+    )
+    manifest = json.loads(REAL_REFERENCE_MANIFEST.read_text(encoding="utf-8"))
+    import hashlib
+
+    assert hashlib.sha256(REAL_REFERENCE_CLIP.read_bytes()).hexdigest() == manifest["derived_sha256"]
+
+
+def test_real_reference_provenance_is_honest() -> None:
+    """Provenance must disclose documentation-derived origin, never auto-fetch."""
+    manifest = json.loads(REAL_REFERENCE_MANIFEST.read_text(encoding="utf-8"))
+    assert manifest["kind"] == "documentation-derived"
+    assert manifest["not_auto_fetch"] is True
+    assert manifest["catalog_image_status"] == "verified-local"
+    assert manifest["source_repository"] == "https://github.com/mianbaofang/agent-skill-catalog"
+    assert "github-repository" != manifest["catalog_image_status"]
+    # The fixture text carries the same honest boundary.
+    fixture = (
+        FIXTURES / "roots" / "community-skills" / "agent-skill-catalog" / "SKILL.md.example"
+    ).read_text(encoding="utf-8")
+    assert "documentation-derived" in fixture or "文档派生" in fixture
+    assert "github.com/mianbaofang/agent-skill-catalog" in fixture
+
+
+def test_real_reference_is_distinct_from_synthetic_records(built) -> None:
+    """The real reference is labelled; synthetic records stay generated-fallback."""
+    item = _real_reference(built)
+    assert item["image"]["status"] == "verified-local"
+    synthetic = [i for i in built["items"] if i["name"] != "agent-skill-catalog"]
+    assert synthetic, "synthetic examples must remain"
+    assert all(i["image"]["status"] == "generated-fallback" for i in synthetic)
+    # The synthetic fixtures still carry their visible fictional boundary note.
+    for template in FIXTURES.rglob("SKILL.md.example"):
+        if template.parent.name == "agent-skill-catalog":
+            continue
+        assert "合成" in template.read_text(encoding="utf-8")

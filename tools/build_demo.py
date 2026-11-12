@@ -70,9 +70,12 @@ DEMO_CURATION_JSON = (
 BANNER_MARK = '<meta charset="utf-8">'
 BODY_END_MARK = "</body>"
 
-# Synthetic-boundary meta line (always visible, one compact row).
-DEMO_NOTE_ZH = "合成示例目录，仅展示功能，不扫描访客设备，不提供真实服务。"
-DEMO_NOTE_EN = "Synthetic example catalog; limited functionality, nothing is executed or fetched."
+# Synthetic-boundary meta line (always visible, one compact row).  The demo mixes
+# one real public project preview with synthetic example records, so the note says
+# so plainly instead of claiming the page is purely synthetic or that nothing is shown.
+DEMO_NOTE_COMPACT_ZH = "演示：真实动图预览 + 合成示例"
+DEMO_NOTE_ZH = "演示目录：一条真实项目动画预览 + 其余合成示例记录；仅展示功能，不扫描访客设备，不提供真实服务。"
+DEMO_NOTE_EN = "Demo catalog: one real project animated preview + synthetic example records; limited functionality, nothing is executed or fetched."
 
 # Collapsed one-line action summary so the guide never pushes content down.
 DEMO_ACTIONS_SUMMARY = "可试用：搜索 · 家族详情 · 插件视图 · 重置"
@@ -97,7 +100,7 @@ COVER_NOTE_EN = (
 # Styling: teal/white, compact, collapsed by default, >=44px touch targets.
 DEMO_STYLE = (
     "<style>"
-    ".demo-banner{margin:0;padding:8px 16px 10px;background:#123b3a;color:#e6f2f0;"
+    ".demo-banner{margin:0;padding:5px 16px 6px;background:#123b3a;color:#e6f2f0;"
     "font:14px/1.5 system-ui,-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;text-align:left}"
     ".demo-banner__row{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;"
     "align-items:center;gap:6px 14px;justify-content:space-between}"
@@ -154,11 +157,7 @@ def demo_guide_html(catalog: Dict[str, Any]) -> str:
         + DEMO_STYLE
         + '<div class="demo-banner__row">'
         '<p class="demo-banner__note"><strong>演示数据 · Demo data</strong> — '
-        + DEMO_NOTE_ZH
-        + ' <span class="demo-banner__en">'
-        + DEMO_NOTE_EN
-        + "</span><br>"
-        + DEMO_ACTIONS_SUMMARY
+        + DEMO_NOTE_COMPACT_ZH
         + "</p>"
         '<button class="demo-guide__toggle" type="button" id="demo-guide-toggle" '
         'aria-expanded="false" aria-controls="demo-guide-panel">操作指南 ▾</button>'
@@ -170,6 +169,11 @@ def demo_guide_html(catalog: Dict[str, Any]) -> str:
         f'<li><button class="demo-action" type="button" data-demo="plugins">{plugin_label}</button></li>'
         f'<li><button class="demo-action" type="button" data-demo="reset">{reset_label}</button></li>'
         "</ul>"
+        '<p class="demo-guide__note"><b>演示数据 · Demo data</b> — '
+        + DEMO_NOTE_ZH
+        + " <span class=\"demo-banner__en\">"
+        + DEMO_NOTE_EN
+        + "</span></p>"
         f'<p class="demo-guide__note"><b>说明</b> {COVER_NOTE} {GUIDE_AVAILABLE}</p>'
         f'<p class="demo-guide__note"><b>Note</b> {COVER_NOTE_EN} {GUIDE_AVAILABLE_EN}</p>'
         "</div>"

@@ -1,16 +1,42 @@
 # Agent Skill Catalog 本地 Skill 与插件目录
 
-搜索你已经安装的 Agent Skills。
+把机器上已有的 Agent Skills 汇总成一份可搜索的本地目录——可保留项目动图预览，并展示每条的来源与调用方式。
 
-把它指向存放 `SKILL.md` 的目录，它会生成一份可搜索、自包含的本地 HTML 目录。找到条目后，可以查看它的来源位置和调用方式，也能分清独立 Skill、有证据的主/子家族和插件携带的能力。
-
-当前生成的目录界面是中文。本仓库文档提供英文和中文两个版本，但这不代表生成的界面本身支持双语。GitHub 增强是可选的；如果你的 Skill 库必须完全断网，请使用下面的明确离线参数。
-
-<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.6"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td></tr></table>
+把它指向存放 `SKILL.md` 的目录，它会生成一份自包含的 HTML 目录。它把独立 Skill、有证据的主/子家族和插件携带的能力分别聚合成独立视图，让它们可搜索，并记录每一条的来源和调用方式。当某个 Skill 的 GitHub README 里带有动态 GIF 或 WebP 时，目录可以保留它的原始动图帧，你在卡片里看到的就是会动的 Skill，而不是一张静态封面；没有动图证据的条目会退回为封面或 `missing evidence`。
 
 <p align="center">
-  <a href="README.md">English</a>
+  <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/"><strong>打开在线演示</strong></a>
   &middot;
+  <a href="#安装"><strong>安装 v0.4.0</strong></a>
+  &middot;
+  <a href="README.md">English</a>
+</p>
+
+<p align="center">
+  <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/">
+    <img src="docs/media/agent-skill-catalog-demo.v0.4.0.gif" alt="离线生成目录的录制演示：一张卡片播放本项目公开宣传动画的本地派生动图，其余家族与插件记录为合成数据，随后分组显示 Skill、家族与插件视图、搜索收窄结果，以及带来源与调用方式的详情弹窗" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <em>卡片里的动图是本项目公开宣传动画的本地派生片段，由实际扫描器读入并保留动图；它不代表演示页面现场联网抓取。
+  周围的家族和插件记录是合成夹具。这是离线目录的录制演示，无需联网即可复现。</em>
+</p>
+
+## v0.4.0 更新内容
+
+- **从封面、标题或按钮打开详情。** 点击卡片的封面图、标题或显式按钮，都会打开同一个详情弹窗；卡片正文区域不响应点击。
+- **看清预览图来自哪里。** 每张图片都会标注来源——已确认的 GitHub 仓库预览、Skill 自带的本地证据、生成的分类封面，或 `missing evidence`——详情视图会解释它背后的出处。
+- **复制调用方式。** 详情弹窗提供 `复制调用` 操作，复制可直接粘贴给 Agent 的原文。当浏览器阻止剪贴板访问时（例如以 `file://` 方式打开），它会如实报告失败，而不是谎报成功。
+- **可引导的演示。** 演示页面内置可折叠的操作指南，其按钮直接驱动目录自身的搜索、家族和插件控件，方便你亲手复现每个交互。
+
+完整列表见[更新记录](CHANGELOG.md)。
+
+当前生成的目录界面是中文。本仓库文档提供英文和中文两个版本，但这不代表生成的界面本身支持双语。
+
+<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.4.0"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td></tr></table>
+
+<p align="center">
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
   &middot;
   <a href="docs/DEMO.md">产品演示</a>
@@ -21,26 +47,34 @@
   &middot;
   <a href="ACKNOWLEDGEMENTS.md">致谢</a>
   &middot;
-  <a href="CHANGELOG.md">更新记录</a>
-  &middot;
   <a href="SECURITY.md">安全说明</a>
 </p>
 
-<p align="center">
-  <a href="docs/DEMO.md">
-    <img src="docs/media/agent-skill-catalog-demo.gif" alt="Agent Skill Catalog 产品演示：合成生成目录的静态演示——总览、搜索 Skill 家族、查看来源与调用方式，以及独立的插件视图" width="100%">
-  </a>
-</p>
+## 目录里实际显示什么
+
+下面截图来自一份真实生成的目录，生成的界面是中文。每张都是用已提交的演示夹具（一份真实公开参考与合成示例）构建的离线截图，无需联网即可复现。
+
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.v0.4.0.png" alt="生成的目录总览图，包含分类标签、可搜索的 Skill 列表、技能与插件独立视图以及分类计数" width="100%"></td></tr></table>
+
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.v0.4.0.png" alt="生成的目录搜索一个多成员家族后的结果，把网格收窄到该家族携带的 Skill" width="100%"></td></tr></table>
+
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.v0.4.0.png" alt="生成的目录详情弹窗，显示 Skill 摘要、带复制操作的调用方式、来源位置和图片来源" width="100%"></td></tr></table>
 
 ## 安装
 
-用 GitHub CLI 安装已发布的 Skill（这是在 Windows 上实测通过的路径）：
+用 GitHub CLI 安装已发布的版本（这是在 Windows 上实测通过的路径）：
+
+```powershell
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.0 --agent codex --scope user
+```
+
+想跟踪 `main` 分支上的最新源码而不是某个打标签的版本，可以固定分支：
 
 ```powershell
 gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user
 ```
 
-`--pin main` 安装仓库 `main` 分支上的最新源码。上一个打过标签的版本是 [`v0.3.6`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.6)；想用之前发布的稳定版本时，改成固定该版本即可。
+`--pin main` 安装的是仓库 `main` 分支上当前的内容，它会在各版本之间变动；要稳定版本请用上面的 `v0.4.0` 命令。
 
 安装后告诉 Agent 要扫描哪些目录：
 
@@ -90,7 +124,7 @@ python skills/agent-skill-catalog/scripts/build_catalog.py `
 | 快速预览 | `build_catalog.py ... --no-github-discovery --no-github-images` | 退出码 0。中文说明还没补齐的条目也会出现，可以立刻浏览和搜索。 |
 | 完整目录 | 追加 `--require-complete-descriptions` | 退出码 0 **且** `pending_description_count` 为 0。退出码 3 表示中文说明仍在补齐，不是程序崩溃。 |
 
-完整路径由 Agent 驱动：它通过可续跑的 `description_queue.py next/apply` 循环，依据有长度限制的本地 `SKILL.md` 和 GitHub README 证据补齐缺失的中文说明，再用 `--refresh --require-complete-descriptions` 重建，直到队列清空。Python 脚本不会暗中调用模型，也不需要模型密钥。完整的补全流程见[生成完全离线的 Skill 目录](https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html)，面向 Agent 的步骤见 Skill 包中的 `references/workflow.md`。
+完整路径由 Agent 驱动：它通过可续跑的 `description_queue.py next/apply` 循环，依据有长度限制的本地 `SKILL.md` 和 GitHub README 证据补齐缺失的中文说明，再用 `--refresh --require-complete-descriptions` 重建，直到队列清空。Python 脚本不会暗中调用模型，也不需要模型密钥。完整流程见[生成完全离线的 Skill 目录](https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html)，面向 Agent 的步骤见 Skill 包中的 `references/workflow.md`。
 
 ## 任务教程
 
@@ -110,8 +144,8 @@ python skills/agent-skill-catalog/scripts/build_catalog.py `
 | 什么会显示为一个条目？ | 一个独立 Skill，或一个详情里列出子 Skill 的真实主 Skill/家族记录。 |
 | 重复安装怎么处理？ | GitHub 仓库和 Skill 名称相同的副本只显示一次，但所有来源位置都会保留下来。 |
 | 插件怎么显示？ | 插件聚合有独立视图，不计入独立 Skill 的数量。 |
-| 保留哪些信息？ | 分类候选、置信度、胜出边际、来源位置、调用方式、图片来源，以及证据支持时的 GitHub 仓库地址。 |
-| 没有图片证据怎么办？ | 明确显示 `missing evidence`，不会把生成的分类封面伪装成 Skill 专属图片。 |
+| 动态预览从哪来？ | 来自 Skill 自己的公开 GitHub README，前提是允许构建器读取 GitHub。目录保留原始 GIF/WebP 帧，不会生成新动画。 |
+| 没有证据怎么办？ | 明确显示 `missing evidence`，不会把生成的分类封面伪装成 Skill 专属图片。 |
 | 哪些事不会做？ | 扫描不会写入你的根目录。唯一可选、默认关闭的服务器能力和可选的网络读取见[安全与责任边界](#安全与责任边界)。 |
 
 ## 使用方式
@@ -133,16 +167,6 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
   --no-github-images
 ```
 
-## 产品截图
-
-下面截图来自一份真实生成的目录，生成的界面是中文。上方录制的演示动画是由本项目自建的合成测试夹具制作的产品说明，不是安装或运行依赖。
-
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.png" alt="生成的目录总览图，包含分类标签、可搜索的 Skill 列表、技能与插件独立视图以及分类计数" width="100%"></td></tr></table>
-
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.png" alt="生成的目录搜索 note-keeper 家族后的结果，显示匹配的卡片、生成的兜底配图和分类筛选" width="100%"></td></tr></table>
-
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.png" alt="生成的目录详情弹窗，显示 Skill 摘要、调用方式、来源位置和证据状态" width="100%"></td></tr></table>
-
 ## 网络行为与关闭方式
 
 默认构建**不保证**离线。下面列出会联网的具体行为，以及对应的关闭参数：
@@ -150,7 +174,7 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
 | 行为 | 触发时机 | 关闭参数 |
 |---|---|---|
 | 把库里的 Skill 名称作为 `"<name>" in:name` 查询发送到 GitHub 仓库搜索接口，为还没有仓库元数据的条目寻找候选仓库。 | 默认构建 | `--no-github-discovery` |
-| 对已确认的仓库，从允许的 GitHub 域名抓取一张公开预览图，缓存在输出目录。 | 默认构建 | `--no-github-images` |
+| 对已确认的仓库，从允许的 GitHub 域名抓取公开预览图——包括动态 GIF/WebP 帧——缓存在输出目录。 | 默认构建 | `--no-github-images` |
 | 抓取公开 GitHub README 片段，作为中文说明队列的证据。 | `description_queue.py next` | `--no-github-readmes` |
 
 GitHub 读取仅使用 HTTPS、限制域名并限制大小。如果设置了 `GH_TOKEN` 或 `GITHUB_TOKEN` 环境变量，或者你已经用 GitHub CLI 登录，这些读取会复用现有凭据；目录不会保存它。使用 `--no-github-discovery --no-github-images`（运行说明队列时再加 `description_queue.py next --no-github-readmes`）即可完全不发出 GitHub 请求。
@@ -184,7 +208,7 @@ CHANGELOG.md                       版本记录
 
 ## 状态
 
-- 当前已发布版本是 [`v0.3.6`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.6)。
+- 当前已发布版本是 [`v0.4.0`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.4.0)。
 - 可安装包是 [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)。
 - 包校验文件是 [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)。
 - 校验范围包括 GitHub Skill 发现、安装包结构、Python 编译、目录测试和发布打包，CI 与发布前都会运行这些检查。
@@ -193,7 +217,7 @@ CHANGELOG.md                       版本记录
 
 ## 致谢
 
-项目遵循公开的 [Agent Skills 规范](https://agentskills.io/specification)，扫描、确定性 JSON 生成和本地 HTTP 服务只使用 Python 标准库。README 动画由原创信息图与真实目录 UI 录屏组成。公开演示和截图使用为本项目自建、放在 `examples/` 下的合成夹具，它们不属于可安装的 Skill 包。你自己安装的 Skill、私人提示词和私人资产都不会被打包。
+项目遵循公开的 [Agent Skills 规范](https://agentskills.io/specification)，扫描、确定性 JSON 生成和本地 HTTP 服务只使用 Python 标准库。README 动画由原创信息图与真实目录 UI 录屏组成。公开演示和截图使用为本项目自建、放在 `examples/` 下的合成夹具，它们不属于可安装的 Skill 包。演示卡片里的动图是本项目公开宣传动画的本地派生片段，不是第三方素材。你自己安装的 Skill、私人提示词和私人资产都不会被打包。
 
 完整归属与非从属说明见[致谢](ACKNOWLEDGEMENTS.md)。
 

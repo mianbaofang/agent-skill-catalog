@@ -1,0 +1,26 @@
+{
+  "role": "Real public reference preview for the synthetic demo catalog",
+  "kind": "documentation-derived",
+  "source_repository": "https://github.com/mianbaofang/agent-skill-catalog",
+  "source_file": "docs/media/agent-skill-catalog-demo.gif",
+  "source_sha256": "42252ac6934813080221c89aa072c6764f557d19e70a43296539f4b71da35354",
+  "source_bytes": 3316159,
+  "source_dimensions": [
+    960,
+    540
+  ],
+  "source_frame_count": 156,
+  "derived_file": "examples/demo-library/roots/community-skills/agent-skill-catalog/preview.gif",
+  "derived_sha256": "adcde422e6402b431ac32efc84c9cf717f2b06cfb890b3f9da43f2d1bfca8aa9",
+  "derived_bytes": 238457,
+  "derived_dimensions": [
+    400,
+    225
+  ],
+  "derived_frame_count": 12,
+  "derivation": "Sampled every 12th frame (12 frames), scaled to 400x225, 64-color adaptive palette; documentation artwork derived from the project own promo animation.",
+  "license": "MIT",
+  "not_auto_fetch": true,
+  "catalog_image_status": "verified-local",
+  "disclosure": "Snapshot of the real project promo animation, derived for documentation. Not a runtime GitHub README auto-capture and not labeled github-repository."
+}

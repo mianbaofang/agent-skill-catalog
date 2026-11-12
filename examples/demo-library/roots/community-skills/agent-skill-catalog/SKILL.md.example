@@ -1,0 +1,13 @@
+---
+name: agent-skill-catalog
+description: "把本机 Skill 与插件按用途、来源、调用方式和预览整理成可检索目录；支持家族聚合、插件视图、GitHub 预览与离线静态目录。"
+license: MIT
+repository: https://github.com/mianbaofang/agent-skill-catalog
+preview_image: preview.gif
+---
+
+# agent-skill-catalog
+
+这是 `mianbaofang/agent-skill-catalog` 真实公开仓库的**真实参考条目**，用于在演示目录中展示一条真实存在的 Skill 记录。它和其余合成示例不同：名称、仓库来源与预览动画都指向真实公开项目。
+
+> 边界说明：本条目是文档参考，不是可安装的 Skill，也不包含可运行实现。它的预览动画 `preview.gif` 是从本项目自己的宣传动画 `docs/media/agent-skill-catalog-demo.gif` 截取并缩放得到的**文档派生片段**，不是运行时自动抓取的 GitHub README 预览，也不代表 GitHub 自动抓取流程。其余合成示例条目仍然是虚构数据。

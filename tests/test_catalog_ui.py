@@ -270,6 +270,12 @@ def test_copy_reports_manual_select_instead_of_false_success(html: str) -> None:
     assert ".copy-fallback-manual {" in html
 
 
+def test_gallery_caption_github_link_is_not_a_tall_image_block(html: str) -> None:
+    # The `.gallery a` image-wrapper rule (200px grid block) must not swallow the
+    # figcaption "打开来源仓库" link, which would render a huge empty block under it.
+    assert ".gallery figcaption .github { display: inline; min-height: 0;" in html
+
+
 def test_open_details_controls_have_visible_hover_and_focus_feedback(html: str) -> None:
     # cover ring + hint on hover/focus, title underline, orange focus-visible ring
     assert ".thumb-button:hover::after, .thumb-button:focus-visible::after" in html

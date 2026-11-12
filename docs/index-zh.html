@@ -13,11 +13,11 @@
   <meta property="og:title" content="Agent Skill Catalog｜搜索你已经安装的 Agent Skills">
   <meta property="og:description" content="只读的本地 Skill 与插件目录：明确根目录、逐条来源与调用方式、家族与插件分组、可完全离线生成。">
   <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/index-zh.html">
-  <meta property="og:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
+  <meta property="og:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.v0.4.0.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Agent Skill Catalog｜搜索你已经安装的 Agent Skills">
   <meta name="twitter:description" content="搜索你指定的本地 SKILL.md 目录，不必逐个打开文件。">
-  <meta name="twitter:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
+  <meta name="twitter:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.v0.4.0.png">
   <link rel="stylesheet" href="assets/site.css">
   <script type="application/ld+json">
   {
@@ -28,12 +28,12 @@
     "url": "https://mianbaofang.github.io/agent-skill-catalog/index-zh.html",
     "codeRepository": "https://github.com/mianbaofang/agent-skill-catalog",
     "programmingLanguage": "Python",
-    "softwareVersion": "0.3.6",
+    "softwareVersion": "0.4.0",
     "dateModified": "2026-11-12",
     "runtimePlatform": "Windows, macOS, Linux",
     "license": "https://github.com/mianbaofang/agent-skill-catalog/blob/main/LICENSE",
     "applicationCategory": "DeveloperApplication",
-    "image": "https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png",
+    "image": "https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.v0.4.0.png",
     "author": {"@type": "Person", "name": "Ethan"}
   }
   </script>
@@ -58,13 +58,13 @@
           <p>把它指向存放 <code>SKILL.md</code> 的目录。它会生成一份可搜索、自包含的本地 HTML 目录，每个条目都保留来源位置、调用方式和证据状态，让你在调用之前先看清楚。</p>
           <div class="hero-actions">
             <a class="button" href="#install">生成第一份目录</a>
-            <a class="button secondary" href="demo/index.html">试用合成演示</a>
+            <a class="button secondary" href="demo/index.html">体验目录演示</a>
           </div>
           <p class="proof-line">明确根目录 &middot; 只读扫描 &middot; 离线参数 &middot; 静态 HTML 输出</p>
         </div>
         <figure class="hero-visual">
-          <img src="media/agent-skill-catalog-overview.png" alt="生成的目录总览，显示分类标签、可搜索的 Skill 列表、技能与插件独立视图以及分类计数" width="1440" height="1000">
-          <figcaption>生成的目录界面。当前界面为中文；仓库文档提供英文和中文两个版本。</figcaption>
+          <img src="media/agent-skill-catalog-overview.v0.4.0.png" alt="生成的目录总览，显示分类标签、可搜索的 Skill 列表、技能与插件独立视图以及分类计数" width="1440" height="1000">
+          <figcaption>生成的目录界面。当 Skill 自带动图时会显示动态预览；本演示结合公开参考与合成示例。当前界面为中文；仓库文档提供英文和中文两个版本。</figcaption>
         </figure>
       </div>
     </section>
@@ -76,9 +76,10 @@
           <p class="lede">用 GitHub CLI 安装已发布的 Skill，或从本仓库的克隆里运行构建器。真正保持离线的是下面的 <code>build_catalog.py</code> 命令；它不读取 GitHub，也不会等待缺失的中文说明。</p>
         </div>
         <div>
-          <code class="command">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user</code>
+          <code class="command">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.0 --agent codex --scope user</code>
+          <code class="command" style="margin-top:12px;">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user</code>
           <code class="command" style="margin-top:12px;">python skills/agent-skill-catalog/scripts/build_catalog.py --root "/path/to/skills" --output-dir "/path/to/catalog-output" --no-github-discovery --no-github-images</code>
-          <p class="guide-langs" style="margin-top:12px;">用 <code>gh</code> 安装时会按设计从 GitHub 获取 Skill。<code>v0.3.6</code> 是当前已打标签的包；这里描述的改进在 <code>main</code> 分支上，尚未进入打标签的版本。</p>
+          <p class="guide-langs" style="margin-top:12px;">用 <code>gh</code> 安装时会按设计从 GitHub 获取 Skill。第一条命令固定当前已发布的版本 <code>v0.4.0</code>。第二条固定 <code>main</code> 分支，跟踪各版本之间的最新源码，适合开发用途。</p>
         </div>
       </div>
     </section>
@@ -130,8 +131,8 @@
         <p class="lede">它面向反复查找的日常工作：搜到名称后，先看详情，再决定是否让 Agent 使用。</p>
       </div>
       <div class="screens">
-        <figure><img src="media/agent-skill-catalog-filter.png" alt="目录筛选视图，显示分类计数、搜索结果和一张 Skill 卡片" width="1440" height="1000"><figcaption>搜索按名称、说明和来源路径做子串匹配，收窄结果列表。</figcaption></figure>
-        <figure><img src="media/agent-skill-catalog-detail.png" alt="目录详情面板，显示调用方式、来源位置和证据状态" width="1440" height="1000"><figcaption>详情：某个条目的调用文案、来源位置和证据状态。</figcaption></figure>
+        <figure><img src="media/agent-skill-catalog-filter.v0.4.0.png" alt="目录筛选视图，显示分类计数、搜索结果和一张 Skill 卡片" width="1440" height="1000"><figcaption>搜索按名称、说明和来源路径做子串匹配，收窄结果列表。</figcaption></figure>
+        <figure><img src="media/agent-skill-catalog-detail.v0.4.0.png" alt="目录详情面板，显示调用方式、来源位置和证据状态" width="1440" height="1000"><figcaption>详情：某个条目的调用文案、来源位置和证据状态。</figcaption></figure>
       </div>
     </section>
 

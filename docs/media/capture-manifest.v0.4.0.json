@@ -1,0 +1,144 @@
+{
+  "schema_version": 2,
+  "release": "v0.4.0",
+  "source": {
+    "demo_page": "docs/demo/index.html",
+    "source_state": "frozen working tree (release/catalog-v0.4.0); docs/demo rebuilt by tools/build_demo.py from examples/demo-library fixtures",
+    "preview_reference_fixture": "examples/demo-library/roots/community-skills/agent-skill-catalog/preview.gif",
+    "preview_reference_status": "verified-local (frontmatter:preview_image)",
+    "preview_reference_provenance": "document-derived clip of this project's own published promotional animation; NOT a runtime GitHub auto-fetch and NOT auto-generated animation",
+    "motion_composition": "Full local project: out/catalog-v040-motion/. Committed docs/media/motion-v0.4.0/ contains index.html, materials.md and treatment.md only; vendor runtime, fonts, recordings and frames are excluded.",
+    "composition_source_sha256": "8f8f33f56d13fe1104c50b61a454b49eb4c82962b3dc0f6aaacb8e0eddb61091",
+    "composition_hash_scope": "Git blob bytes of docs/media/motion-v0.4.0/index.html with LF newlines"
+  },
+  "capture": {
+    "method": "ZCode built-in In-app Browser (IAB) tab.recording (BrowserRecordingAPI start/status), recording the live huashu-motion GSAP composition",
+    "note_recorder": "recording.start requires a non-empty actions array (a keep-alive wait); maxDurationMs is a cap, not the requested length. The composition timeline was played (tl.play) from frame 0 after the recorder settled.",
+    "en_variant": "Separate recording of the same composition with ?lang=en. Seven captions change to English. Source frames, camera settings and timeline are shared; final recorded pixels and bytes differ.",
+    "video_fps": 15,
+    "video_duration_s": 26.3,
+    "video_frames": 395,
+    "viewport": "1280x720",
+    "product_ui_modified": false,
+    "overlay": "One opaque narration band and a huashu-motion signature during the final 1.2 seconds. A code camera reframes the captured UI without changing its controls or styles.",
+    "restyled": false,
+    "note_recording_engine": "no frame is synthesized: the film seeks a 10 fps PNG sequence decoded from the genuine 15 fps IAB recording (materials/frames), so every frame is a pure function of time"
+  },
+  "encoding": {
+    "gif_fps": 5,
+    "gif_size": "960x540",
+    "duration_s": 22.6,
+    "frames": 113,
+    "method": "FFmpeg fps=5, scale=960:540 (lanczos), palettegen (max_colors=96, stats_mode=diff) + paletteuse (bayer dither)",
+    "source_recordings": {
+      "zh": "out/v040-capture/om-zh.webm (395 frames, 1280x720, 15 fps)",
+      "en": "out/v040-capture/om-en.webm (395 frames, 1280x720, 15 fps)"
+    }
+  },
+  "outputs": [
+    {
+      "file": "agent-skill-catalog-demo.v0.4.0.gif",
+      "kind": "animated film (huashu-motion composition)",
+      "language": "zh captions over native zh UI",
+      "bytes": 6888319,
+      "mib": 6.57,
+      "width": 960,
+      "height": 540,
+      "fps": 5,
+      "frames": 113,
+      "duration_s": 22.6,
+      "sha256": "01465525c6dea07321c4f2ebcd731b5c8922effb31ed6c4ad82da78d60123f20"
+    },
+    {
+      "file": "agent-skill-catalog-demo.en.v0.4.0.gif",
+      "kind": "animated film (huashu-motion composition)",
+      "language": "en captions over native zh UI (shared source frame sequence)",
+      "bytes": 6968550,
+      "mib": 6.65,
+      "width": 960,
+      "height": 540,
+      "fps": 5,
+      "frames": 113,
+      "duration_s": 22.6,
+      "sha256": "dbbbdfc90a1bffaf9f509c781c5972f7bc6fd802b18a9ffcfe5bceedec188215"
+    },
+    {
+      "file": "agent-skill-catalog-overview.v0.4.0.png",
+      "kind": "still",
+      "state": "catalog overview",
+      "language": "native zh UI",
+      "bytes": 146865,
+      "width": 1280,
+      "height": 720,
+      "sha256": "146b4072de32584733c4b03bb9c0f473dd622e400a2bd4f8e9d56be903b0b7d8"
+    },
+    {
+      "file": "agent-skill-catalog-overview.en.v0.4.0.png",
+      "kind": "still",
+      "state": "catalog overview",
+      "language": "native zh UI (identical to zh)",
+      "bytes": 146865,
+      "width": 1280,
+      "height": 720,
+      "sha256": "146b4072de32584733c4b03bb9c0f473dd622e400a2bd4f8e9d56be903b0b7d8"
+    },
+    {
+      "file": "agent-skill-catalog-filter.v0.4.0.png",
+      "kind": "still",
+      "state": "search narrowed to note-keeper family (3)",
+      "language": "native zh UI",
+      "bytes": 55474,
+      "width": 1280,
+      "height": 720,
+      "sha256": "4b0eee634900f2b5387fa12aabe24ece6509264616ae51cd931f792937199d65"
+    },
+    {
+      "file": "agent-skill-catalog-filter.en.v0.4.0.png",
+      "kind": "still",
+      "state": "search narrowed to note-keeper family (3)",
+      "language": "native zh UI (identical to zh)",
+      "bytes": 55474,
+      "width": 1280,
+      "height": 720,
+      "sha256": "4b0eee634900f2b5387fa12aabe24ece6509264616ae51cd931f792937199d65"
+    },
+    {
+      "file": "agent-skill-catalog-detail.v0.4.0.png",
+      "kind": "still",
+      "state": "agent-skill-catalog detail dialog",
+      "language": "native zh UI",
+      "bytes": 164556,
+      "width": 1280,
+      "height": 720,
+      "sha256": "7f5b13b7c065a29d257f7385c5170f9bfc6f0d3883feae6550e5780998dd60a8"
+    },
+    {
+      "file": "agent-skill-catalog-detail.en.v0.4.0.png",
+      "kind": "still",
+      "state": "agent-skill-catalog detail dialog",
+      "language": "native zh UI (identical to zh)",
+      "bytes": 164556,
+      "width": 1280,
+      "height": 720,
+      "sha256": "7f5b13b7c065a29d257f7385c5170f9bfc6f0d3883feae6550e5780998dd60a8"
+    }
+  ],
+  "still_note": "the six v0.4.0 stills were captured earlier from the same genuine catalog UI and are unchanged by this motion pass (native zh UI; zh and en stills are byte-identical). They are not re-rendered here.",
+  "claims": {
+    "animated_preview_support": "the catalog supports Skill-provided animated previews; the featured agent-skill-catalog entry shows one, sourced from this project's own promo clip",
+    "no_automatic_animation_generation": true,
+    "no_github_autofetch_in_demo": true,
+    "image_provenance_captions_visible": "detail gallery and card covers label provenance (Skill 自带图片 vs 自动生成封面)"
+  },
+  "verification": {
+    "om_check": "0 errors, 1 warning: a history-dependent frame at 20.83 seconds with scrub-versus-playback delta of 0.9 grey levels.",
+    "om_render_qa_still": "NOT run — they drive the user's installed Chrome, which is forbidden here; not claimed as passed",
+    "builtin_visual_gate": "The media finisher inspected encoded GIF frames from the built-in-browser recording, covering catalog, detail, zoom, plugins and landing. See known_artifact for the remaining source-caption strip.",
+    "known_artifact": "at the zoom scene the source recording's own baked-in bottom caption strip is briefly visible just above the composition's narration band (a faithful trace of the genuine capture, not a restyle); it does not crop or obscure key text."
+  },
+  "boundaries": {
+    "legacy_playwright_recorder_used": false,
+    "readme_reference": "README.md and README.zh-CN.md reference the respective versioned v0.4.0 GIFs.",
+    "publication_state": "This manifest records media production, not live repository or release status."
+  }
+}

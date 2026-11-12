@@ -13,11 +13,11 @@
   <meta property="og:title" content="Agent Skill Catalog | search the skills you already installed">
   <meta property="og:description" content="A local, read-only catalog for Agent Skills and plugins: explicit roots, source and invocation per entry, families, plugins, and offline builds.">
   <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/">
-  <meta property="og:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
+  <meta property="og:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.v0.4.0.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Agent Skill Catalog | search the skills you already installed">
   <meta name="twitter:description" content="Search the local SKILL.md folders you choose without opening every file.">
-  <meta name="twitter:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
+  <meta name="twitter:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.v0.4.0.png">
   <link rel="stylesheet" href="assets/site.css">
   <script type="application/ld+json">
   {
@@ -28,12 +28,12 @@
     "url": "https://mianbaofang.github.io/agent-skill-catalog/",
     "codeRepository": "https://github.com/mianbaofang/agent-skill-catalog",
     "programmingLanguage": "Python",
-    "softwareVersion": "0.3.6",
+    "softwareVersion": "0.4.0",
     "dateModified": "2026-11-12",
     "runtimePlatform": "Windows, macOS, Linux",
     "license": "https://github.com/mianbaofang/agent-skill-catalog/blob/main/LICENSE",
     "applicationCategory": "DeveloperApplication",
-    "image": "https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png",
+    "image": "https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.v0.4.0.png",
     "author": {"@type": "Person", "name": "Ethan"}
   }
   </script>
@@ -58,13 +58,13 @@
           <p>Point it at the folders where your <code>SKILL.md</code> files live. It builds a self-contained local HTML catalog you can search, and each entry keeps its source location, invocation text, and evidence state so you can decide before you invoke anything.</p>
           <div class="hero-actions">
             <a class="button" href="#install">Build your first catalog</a>
-            <a class="button secondary" href="demo/index.html">Try the synthetic demo</a>
+            <a class="button secondary" href="demo/index.html">Try the catalog demo</a>
           </div>
           <p class="proof-line">Explicit roots &middot; read-only scan &middot; offline flags &middot; static HTML output</p>
         </div>
         <figure class="hero-visual">
-          <img src="media/agent-skill-catalog-overview.png" alt="Generated catalog overview showing category tabs, a searchable Skill list, separate Skills and plugins views, and category counts" width="1440" height="1000">
-          <figcaption>The generated catalog. The interface is currently Chinese; repository documentation is available in English and Chinese.</figcaption>
+          <img src="media/agent-skill-catalog-overview.v0.4.0.png" alt="Generated catalog overview showing category tabs, a searchable Skill list, separate Skills and plugins views, and category counts" width="1440" height="1000">
+          <figcaption>The generated catalog. Animated previews appear where a Skill provides them; this demo combines a public reference with synthetic examples. The interface is currently Chinese; repository documentation is available in English and Chinese.</figcaption>
         </figure>
       </div>
     </section>
@@ -76,9 +76,10 @@
           <p class="lede">Install the published Skill with GitHub CLI, or run the builder from a clone of this repository. The <code>build_catalog.py</code> command below is the one that stays offline; it reads no GitHub and does not wait for missing Chinese descriptions.</p>
         </div>
         <div>
-          <code class="command">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user</code>
+          <code class="command">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.0 --agent codex --scope user</code>
+          <code class="command" style="margin-top:12px;">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user</code>
           <code class="command" style="margin-top:12px;">python skills/agent-skill-catalog/scripts/build_catalog.py --root "/path/to/skills" --output-dir "/path/to/catalog-output" --no-github-discovery --no-github-images</code>
-          <p class="guide-langs" style="margin-top:12px;">Installing with <code>gh</code> fetches the Skill from GitHub by design. <code>v0.3.6</code> is the current tagged package; the improvements described here are on <code>main</code> and are not yet in a tagged release.</p>
+          <p class="guide-langs" style="margin-top:12px;">Installing with <code>gh</code> fetches the Skill from GitHub by design. The first command pins the current tagged release, <code>v0.4.0</code>. The second pins <code>main</code>, which tracks the latest source between releases and is intended for development.</p>
         </div>
       </div>
     </section>
@@ -130,8 +131,8 @@
         <p class="lede">The catalog is designed for repeated lookup: search a name, compare similar entries, then open the detail panel.</p>
       </div>
       <div class="screens">
-        <figure><img src="media/agent-skill-catalog-filter.png" alt="Catalog filter view showing category counts, search results, and a Skill card" width="1440" height="1000"><figcaption>Search narrows the list by substring matches over names, descriptions, and source paths.</figcaption></figure>
-        <figure><img src="media/agent-skill-catalog-detail.png" alt="Catalog detail panel showing invocation text, source location, and evidence state" width="1440" height="1000"><figcaption>Detail: invocation wording, source location, and evidence state for one entry.</figcaption></figure>
+        <figure><img src="media/agent-skill-catalog-filter.v0.4.0.png" alt="Catalog filter view showing category counts, search results, and a Skill card" width="1440" height="1000"><figcaption>Search narrows the list by substring matches over names, descriptions, and source paths.</figcaption></figure>
+        <figure><img src="media/agent-skill-catalog-detail.v0.4.0.png" alt="Catalog detail panel showing invocation text, source location, and evidence state" width="1440" height="1000"><figcaption>Detail: invocation wording, source location, and evidence state for one entry.</figcaption></figure>
       </div>
     </section>
 

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN" data-composition-variables='[
+  {"id":"capCatalog","type":"string","label":"字幕·目录","group":"字幕","default":"真实目录 · 首个卡片就是会动的项目预览"},
+  {"id":"capDetail","type":"string","label":"字幕·详情","group":"字幕","default":"打开真实条目 · 预览动画在详情中继续播放"},
+  {"id":"capZoom","type":"string","label":"字幕·放大","group":"字幕","default":"放大查看 · 动画仍在播放"},
+  {"id":"capCopy","type":"string","label":"字幕·复制","group":"字幕","default":"复制调用方式 · 一键拿到怎么用"},
+  {"id":"capSearch","type":"string","label":"字幕·搜索","group":"字幕","default":"搜索 note-keeper · 收窄到该家族 3 个技能"},
+  {"id":"capPlugins","type":"string","label":"字幕·插件","group":"字幕","default":"插件单独归档 · toolkit 携带 2 个技能"},
+  {"id":"capCta","type":"string","label":"字幕·行动","group":"字幕","default":"搜索、筛选、查看调用方式 · 用真实目录开始"},
+  {"id":"bandInk","type":"color","label":"字幕带底色","group":"样式","default":"#0f494d"},
+  {"id":"bandText","type":"color","label":"字幕文字色","group":"样式","default":"#eaf4f5"},
+  {"id":"paper","type":"color","label":"画布底色","group":"样式","default":"#f5f7f5"},
+  {"id":"pushScale","type":"number","label":"开场推近倍数","group":"镜头","default":1.9,"min":1,"max":2.6,"step":0.05},
+  {"id":"endHold","type":"number","label":"结尾停留（秒）","group":"节奏","default":1.4,"min":0,"max":6,"step":0.1}
+]'>
+<head>
+<meta charset="utf-8">
+<title>agent-skill-catalog · v0.4.0 demo</title>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/om.js"></script>
+<style id="om-fonts">
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC-500.woff") format("woff"); font-weight: 500; font-style: normal; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC-900.woff") format("woff"); font-weight: 900; font-style: normal; }
+</style>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #f5f7f5; }
+  #stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; }
+  #film { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--paper, #f5f7f5); font-family: "Noto Sans SC", sans-serif; font-weight: 500; }
+  /* The real captured catalog UI, reframed by the code camera. Never restyled. */
+  #screen { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 50% 50%; will-change: transform; }
+  #frame { display: block; width: 1280px; height: 720px; }
+  /* Single narration band; only its text changes, so captions never overlap. Its opaque
+     background also masks the small region where the source UI shows its own bottom strip. */
+  #band { position: absolute; left: 0; right: 0; bottom: 0; height: 58px; display: flex; align-items: center; justify-content: center;
+          background: var(--bandInk, #0f494d); color: var(--bandText, #eaf4f5); font-size: 23px; letter-spacing: .2px; z-index: 2; }
+  #bandText { padding: 0 28px; text-align: center; }
+  /* huashu-motion signature: last 1.2 s, free corner above the band. */
+  #sig { position: absolute; right: 22px; bottom: 72px; z-index: 3; font-size: 15px; letter-spacing: .4px;
+         color: #142127; background: #ffffffd9; padding: 5px 12px; border-radius: 999px; opacity: 0; }
+  #sig b { color: #0f766e; font-weight: 900; }
+</style>
+</head>
+<body>
+<div id="stage">
+<div id="film" data-composition-id="film" data-width="1280" data-height="720">
+  <div id="screen" data-om-id="screen">
+    <img id="frame" data-om-id="frame" alt="agent-skill-catalog 真实目录界面（内建浏览器实拍）" src="materials/frames/f0001.png">
+  </div>
+  <div id="band" data-om-id="band"><span id="bandText" data-om-id="bandText"></span></div>
+  <div id="sig" data-om-id="signature">Made with <b>huashu-motion</b></div>
+</div>
+</div>
+
+<script>
+  // Editable defaults. OM.vars() overrides these when the host parses the composition
+  // variables; standalone (built-in browser) it may return an empty object, so the
+  // defaults below keep every caption, colour and the end hold working either way.
+  // The ZH captions are the primary deliverable (native zh UI). The EN set is the same
+  // film over the identical real frames — only the narration band's words change — and is
+  // selected with ?lang=en, which the built-in browser records as a separate pass. No
+  // other design, timing or camera value differs between the two languages.
+  const CAPTIONS = {
+    zh: {
+      capCatalog: '真实目录 · 首个卡片就是会动的项目预览',
+      capDetail: '打开真实条目 · 预览动画在详情中继续播放',
+      capZoom: '放大查看 · 动画仍在播放',
+      capCopy: '复制调用方式 · 一键拿到怎么用',
+      capSearch: '搜索 note-keeper · 收窄到该家族 3 个技能',
+      capPlugins: '插件单独归档 · toolkit 携带 2 个技能',
+      capCta: '搜索、筛选、查看调用方式 · 用真实目录开始',
+    },
+    en: {
+      capCatalog: 'Real catalog · the first card is a live project preview',
+      capDetail: 'Open a real entry · the preview keeps playing in the detail',
+      capZoom: 'Zoom in · the animation is still playing',
+      capCopy: 'Copy the invocation · get how to use it in one click',
+      capSearch: 'Search note-keeper · narrowed to that family of 3 skills',
+      capPlugins: 'Plugins filed apart · toolkit carries 2 skills',
+      capCta: 'Search, filter, read the invocation · start from the real catalog',
+    },
+  };
+  const LANG = (new URLSearchParams(window.location.search).get('lang') === 'en') ? 'en' : 'zh';
+  const DEFAULTS = Object.assign({ pushScale: 1.9, endHold: 1.4 }, CAPTIONS[LANG]);
+  const V = Object.assign({}, DEFAULTS, OM.vars() || {});
+  // Fit the fixed 1280x720 composition into whatever CSS viewport the host gives us, so the
+  // bottom narration band is never cropped by a shorter recording viewport.
+  const stage = document.getElementById('stage');
+  const fit = () => { const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720); stage.style.transform = 'scale(' + s + ')'; };
+  fit();
+  window.addEventListener('resize', fit);
+  const FRAME_FPS = 10;            // materials/frames decoded at 10 fps from the 15 fps clean recording
+  const FRAME_COUNT = 210;
+  const BODY_S = 21;               // seconds of real footage the clock drives
+  const frameEl = document.getElementById('frame');
+  const screenEl = document.getElementById('screen');
+  const bandTextEl = document.getElementById('bandText');
+  const sigEl = document.getElementById('sig');
+
+  // Preload the real captured frames so seeking never flashes an empty frame.
+  const frames = [];
+  for (let i = 1; i <= FRAME_COUNT; i++) {
+    const im = new Image();
+    im.src = 'materials/frames/f' + String(i).padStart(4, '0') + '.png';
+    frames.push(im);
+  }
+
+  // Caption windows are derived from the REAL action times in the clean recording
+  // (grid 1-3s, detail 5-7s, zoom 9s, detail/copy 11s, search 13s, plugins 15s, grid 17-21s).
+  // One band, one line at a time.
+  const captions = [
+    { t0: 0.0,  t1: 4.2,  v: 'capCatalog' },
+    { t0: 4.2,  t1: 8.0,  v: 'capDetail' },
+    { t0: 8.0,  t1: 10.2, v: 'capZoom' },
+    { t0: 10.2, t1: 12.2, v: 'capCopy' },
+    { t0: 12.2, t1: 14.2, v: 'capSearch' },
+    { t0: 14.2, t1: 16.4, v: 'capPlugins' },
+    { t0: 16.4, t1: 999,  v: 'capCta' },
+  ];
+
+  const seek = (t) => {
+    // Frame and caption are pure functions of time: seeking to any t shows the same real frame.
+    const idx = Math.min(FRAME_COUNT, Math.max(1, Math.floor(t * FRAME_FPS) + 1));
+    const src = frames[idx - 1].src;
+    if (frameEl.src !== src) frameEl.src = src;
+    const cap = captions.find(c => t >= c.t0 && t < c.t1) || captions[captions.length - 1];
+    const text = V[cap.v];
+    if (bandTextEl.textContent !== text) bandTextEl.textContent = text;
+  };
+
+  const tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.inOut' } });
+
+  seek(0);   // paint the poster frame + its caption before the timeline runs
+
+  // Drive the frame flipbook and the caption band off one time value.
+  const clock = { t: 0 };
+  tl.fromTo(clock, { t: 0 }, { t: BODY_S, duration: BODY_S, ease: 'none',
+    onUpdate: () => seek(clock.t) }, 0);
+
+  // Code camera: reframe the REAL UI. transform-origin is the point we dive into, so it stays put.
+  const cam = (at, dur, ox, oy, scale) => {
+    tl.to(screenEl, { transformOrigin: ox + '% ' + oy + '%', scale, duration: dur, ease: 'power2.inOut' }, at);
+  };
+
+  tl.addLabel('scene:catalog', 0);
+  cam(0.4, 2.4, 17, 31, V.pushScale);           // dive into the card whose preview is already moving (readable < 3 s)
+  tl.addLabel('scene:detail', 4.2);
+  cam(4.2, 1.0, 30, 48, 1.35);                   // opened detail dialog + gallery
+  tl.addLabel('scene:zoom', 8.0);
+  cam(8.0, 0.9, 50, 45, 1.5);                    // enlarged preview, still animating
+  cam(10.2, 0.9, 30, 48, 1.35);                  // back to the detail (copy-invocation status)
+  tl.addLabel('scene:search', 12.2);
+  cam(12.2, 1.0, 50, 60, 1.15);                  // search box + narrowed family
+  tl.addLabel('scene:plugins', 14.2);
+  cam(14.2, 0.9, 50, 55, 1.3);                   // plugin view
+  tl.addLabel('scene:cta', 16.4);
+  cam(16.4, 1.3, 50, 50, 1.0);                   // pull back to the full catalog
+  tl.addLabel('scene:hold', 19.6);
+
+  const DUR = BODY_S + V.endHold;
+  tl.to({}, { duration: V.endHold });            // closing hold; the film ends when the timeline does
+
+  // huashu-motion signature for the last 1.2 s, in a free corner above the band.
+  tl.fromTo(sigEl, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: .5, ease: 'power2.out' }, DUR - 1.2);
+
+  window.__timelines = window.__timelines || {};
+  window.__timelines['film'] = tl;
+</script>
+</body>
+</html>

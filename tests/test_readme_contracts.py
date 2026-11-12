@@ -16,13 +16,15 @@ def test_both_readmes_present() -> None:
     assert (ROOT / "README.zh-CN.md").is_file()
 
 
-def test_primary_install_pins_main_not_a_release() -> None:
+def test_primary_install_pins_current_release_with_optional_main() -> None:
     for name in ("README.md", "README.zh-CN.md"):
         text = _read(name)
-        assert "gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user" in text, name
-        # v0.3.6 may be referenced as the prior tagged stable build, but must not
-        # be the primary install command.
-        assert "--pin v0.3.6 --agent" not in text, f"{name} still pins v0.3.6 as the primary install"
+        # The primary, stable install path pins the current tagged release.
+        assert "gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.0 --agent codex --scope user" in text, name
+        # --pin main stays available as an explicitly labeled development path.
+        assert "gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user" in text, f"{name} dropped the optional --pin main dev path"
+        # A stale tagged release must not be presented as the install target.
+        assert "--pin v0.3.6 --agent" not in text, f"{name} still pins v0.3.6 as an install command"
 
 
 def test_offline_flags_are_complete_in_both_readmes() -> None:

@@ -1,12 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-11-12
 
-- Preview a generated catalog offline, with optional enriched descriptions when GitHub evidence is available.
+- Separate fast offline preview from optional completed Chinese descriptions.
 - Serve the catalog correctly while offline and keep Skill deletion off unless it is explicitly enabled.
-- Adapt the catalog search and detail UI to narrow screens, and describe responsive layout and search as static capability claims backed by the shipped interface.
+- Improve desktop search, category filters, and detail dialogs.
+- Open a record's detail dialog from its card cover, its title, or its action button, so each entry point reaches the same native detail view.
+- Show a copy-invocation button in the detail dialog that reports clipboard failures honestly instead of claiming success when the browser blocks clipboard access.
+- Caption every detail-gallery image with its provenance so a generated category placeholder is never presented as a Skill-specific screenshot.
+- Add a compact, collapsible operation-guide banner to the public demo page, whose buttons drive the demo's own search, mode, category, and detail controls; the banner is specific to the public demo and is not added to every generated catalog page.
+- Add a real public `agent-skill-catalog` reference record to the synthetic demo with a documentation-derived animated preview, so the moving-preview capability is visible offline while it is labelled honestly as a derived snapshot of the project's own promo animation and the fictional fixtures stay on generated fallbacks.
 - Generate a reproducible synthetic demo catalog that preserves same-name Skill collisions and shows a curated family and plugin grouping.
-- Add three bilingual task guides covering the primary install path and continuous integration.
+- Add three bilingual task guides covering the primary install path, offline builds, and cross-folder skill and plugin inventories.
 - Compile every Skill script and repository tool in CI from the directories that hold them, so newly added scripts are checked without editing the workflow.
 - Syntax-check the documentation demo recorder and verify demo and documentation reproducibility on every push and pull request, failing the build when the committed demo no longer matches its generator.
 - Publish the GitHub Pages site only after the test suite passes and the committed demo and documentation are confirmed reproducible, preventing a deploy from a mismatched generator.
