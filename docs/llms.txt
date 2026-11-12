@@ -1,36 +1,54 @@
 # Agent Skill Catalog
 
-> A local-first, read-only catalog for Agent Skills and Codex plugins.
+> A local-first, read-only catalog for Agent Skills and Codex plugins. Search the agent skills you already installed.
 
-Updated: 2026-08-18
+Updated: 2026-11-12
 
 ## Canonical pages
 
 - English overview: https://mianbaofang.github.io/agent-skill-catalog/
 - Chinese overview: https://mianbaofang.github.io/agent-skill-catalog/index-zh.html
+- Guide: search installed skills (English): https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html
+- Guide: search installed skills (Chinese): https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills-zh.html
+- Guide: offline skill catalog (English): https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html
+- Guide: offline skill catalog (Chinese): https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html
+- Guide: skills and plugin inventory (English): https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html
+- Guide: skills and plugin inventory (Chinese): https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory-zh.html
 - Source repository: https://github.com/mianbaofang/agent-skill-catalog
 - Installable Skill: https://github.com/mianbaofang/agent-skill-catalog/tree/main/skills/agent-skill-catalog
-- Latest release: https://github.com/mianbaofang/agent-skill-catalog/releases/latest
+- Current tagged release: https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.3.6
 
 ## What it does
 
 - Scans only explicit local `SKILL.md` roots and optional plugin roots.
 - Keeps standalone Skills, parent-child families, and plugin aggregates distinct.
 - Deduplicates repository-backed copies across scan roots while preserving their locations.
-- Fetches one preview from each observed GitHub repository and reuses it for matching records.
+- Optionally fetches one preview per observed GitHub repository and reuses it for matching records.
 - Gives the invoking Agent a resumable evidence queue for missing Chinese descriptions.
 - Shows invocation wording, classification evidence, GitHub repository links, and image provenance.
 - Generates a self-contained desktop HTML catalog and can refresh it through a localhost-only server.
 
 ## Boundaries
 
-- It does not install, execute, edit, or upload scanned Skills.
-- It does not infer a GitHub repository when evidence is ambiguous.
+- The build does not install, execute, or edit scanned Skills.
+- The optional local server can permanently delete a top-level standalone Skill directory, but only after `allow_delete` is set to `true` for that root and the full Skill name is confirmed; family and plugin entries are excluded.
+- A default build is not guaranteed offline. It may send Skill names to GitHub repository search and fetch public previews.
+- The generated catalog interface is currently Chinese; repository documentation is English and Chinese.
+- Search is substring matching over names, descriptions, GitHub metadata, and source-relative paths, not semantic search.
 - Missing image or description evidence stays labeled as missing evidence.
-- Read the repository disclaimer and Skill contract before use.
 
 ## Install
 
+Install the latest source on `main`:
+
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.6 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user
 ```
+
+## Offline build
+
+```powershell
+python skills/agent-skill-catalog/scripts/build_catalog.py --root "C:\path\to\skills" --output-dir "C:\path\to\catalog-output" --no-github-discovery --no-github-images
+```
+
+Add `--require-complete-descriptions` for the enriched catalog; exit code 3 means Chinese descriptions are still pending.

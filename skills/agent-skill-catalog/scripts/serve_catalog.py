@@ -71,7 +71,7 @@ def config_root_paths(path: Path) -> list[str]:
     return [spec["path"] for spec in config_root_specs(path)]
 
 
-def parse_args() -> argparse.Namespace:
+def parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Serve one local Agent Skill Catalog with a bounded refresh endpoint.")
     parser.add_argument("--output-dir", required=True, help="Existing catalog directory to serve")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG), help="Confirmed catalog config used for refresh")
@@ -85,7 +85,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Fail refreshes while the Agent-owned Chinese description queue is incomplete",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--no-github-discovery",
+        action="store_true",
+        help="Run every refresh without GitHub repository-link discovery",
+    )
+    parser.add_argument(
+        "--no-github-images",
+        action="store_true",
+        help="Run every refresh without GitHub repository preview image reads",
+    )
+    return parser
+
+
+def parse_args() -> argparse.Namespace:
+    return parser().parse_args()
 
 
 def compact_summary(output_dir: Path) -> dict[str, Any]:
@@ -240,6 +254,36 @@ def delete_catalog_skill(output_dir: Path, specs: list[dict[str, Any]], payload:
     return target
 
 
+def build_refresh_command(
+    config_path: Path,
+    output_dir: Path,
+    curation_paths: list[str],
+    root_source: str,
+    startup_root_paths: list[str],
+    require_complete_descriptions: bool,
+    offline_refresh_flags: list[str],
+) -> list[str]:
+    """Build the fixed builder command for one refresh; callers never accept HTTP input here."""
+    command = [
+        sys.executable,
+        str(BUILD_SCRIPT),
+        "--config",
+        str(config_path),
+        "--output-dir",
+        str(output_dir),
+        "--refresh",
+        *offline_refresh_flags,
+    ]
+    if require_complete_descriptions:
+        command.append("--require-complete-descriptions")
+    if root_source == "cli":
+        for root_path in startup_root_paths:
+            command.extend(["--root", root_path])
+    for curation_path in curation_paths:
+        command.extend(["--curation", curation_path])
+    return command
+
+
 def make_handler(
     output_dir: Path,
     config_path: Path,
@@ -248,28 +292,22 @@ def make_handler(
     refresh_timeout: int,
     startup_root_source: str,
     require_complete_descriptions: bool,
+    offline_refresh_flags: list[str],
 ):
     refresh_lock = threading.Lock()
     root_source = str(startup_root_source)
     startup_root_paths = [str(spec["path"]) for spec in startup_root_specs]
 
     def run_refresh() -> tuple[bool, str]:
-        command = [
-            sys.executable,
-            str(BUILD_SCRIPT),
-            "--config",
-            str(config_path),
-            "--output-dir",
-            str(output_dir),
-            "--refresh",
-        ]
-        if require_complete_descriptions:
-            command.append("--require-complete-descriptions")
-        if root_source == "cli":
-            for root_path in startup_root_paths:
-                command.extend(["--root", root_path])
-        for curation_path in curation_paths:
-            command.extend(["--curation", curation_path])
+        command = build_refresh_command(
+            config_path,
+            output_dir,
+            curation_paths,
+            root_source,
+            startup_root_paths,
+            require_complete_descriptions,
+            offline_refresh_flags,
+        )
         try:
             result = subprocess.run(
                 command,
@@ -537,6 +575,12 @@ def main() -> int:
         print("Only localhost binding is supported", file=sys.stderr)
         return 2
 
+    offline_refresh_flags: list[str] = []
+    if args.no_github_discovery:
+        offline_refresh_flags.append("--no-github-discovery")
+    if args.no_github_images:
+        offline_refresh_flags.append("--no-github-images")
+
     server = ThreadingHTTPServer(
         (args.host, args.port),
         make_handler(
@@ -547,9 +591,13 @@ def main() -> int:
             args.refresh_timeout,
             startup_root_source,
             args.require_complete_descriptions,
+            offline_refresh_flags,
         ),
     )
     print(f"Serving Agent Skill Catalog at http://{args.host}:{args.port}/index.html")
+    if offline_refresh_flags:
+        label = "Fully offline refresh enabled" if len(offline_refresh_flags) == 2 else "Refresh restrictions enabled"
+        print(f"{label}: {' '.join(offline_refresh_flags)}", file=sys.stderr)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

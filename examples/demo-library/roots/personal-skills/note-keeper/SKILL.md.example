@@ -1,0 +1,11 @@
+---
+name: note-keeper
+description: "记录、整理与检索个人笔记，支持标签分类、全文搜索和按项目分组的笔记管理。"
+license: MIT
+---
+
+# note-keeper
+
+note-keeper 是一个笔记技能家族的主入口。note-keeper-web 与 note-keeper-cli 都是它旗下的子技能，分别面向浏览器与命令行，共享同一套标签与检索约定。
+
+> 这是用于演示目录功能的合成示例，不含可运行的实现，也不会访问网络或执行任何真实任务。

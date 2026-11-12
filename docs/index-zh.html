@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Agent Skill Catalog｜本地 AI Agent Skill 与 Codex 插件管理器</title>
-  <meta name="description" content="按分类、主子 Skill 家族、调用方式、GitHub 预览图和有证据的中文说明整理本地 AI Agent Skill 与 Codex 插件的只读桌面目录。">
+  <title>Agent Skill Catalog｜搜索你已经安装的 Agent Skills</title>
+  <meta name="description" content="把你指定的 SKILL.md 目录变成可搜索的本地 HTML 目录。查看每个 Skill 的来源与调用方式，并分清独立 Skill、有证据的主/子家族和插件携带的能力。">
   <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/index-zh.html">
   <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/">
   <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/index-zh.html">
   <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Agent Skill Catalog｜本地 AI Agent Skill 与 Codex 插件管理器">
-  <meta property="og:description" content="不用逐个打开 SKILL.md，也能查看本地 Skill 的分类、家族、调用方式、GitHub 地址和图片证据。">
+  <meta property="og:title" content="Agent Skill Catalog｜搜索你已经安装的 Agent Skills">
+  <meta property="og:description" content="只读的本地 Skill 与插件目录：明确根目录、逐条来源与调用方式、家族与插件分组、可完全离线生成。">
   <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/index-zh.html">
   <meta property="og:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Agent Skill Catalog｜本地 Skill 与插件管理器">
-  <meta name="twitter:description" content="整理本地 AI Agent Skill、Codex Skill 和插件，保留调用方式、家族关系与 GitHub 图片证据。">
+  <meta name="twitter:title" content="Agent Skill Catalog｜搜索你已经安装的 Agent Skills">
+  <meta name="twitter:description" content="搜索你指定的本地 SKILL.md 目录，不必逐个打开文件。">
   <meta name="twitter:image" content="https://mianbaofang.github.io/agent-skill-catalog/media/agent-skill-catalog-overview.png">
   <link rel="stylesheet" href="assets/site.css">
   <script type="application/ld+json">
@@ -29,7 +29,7 @@
     "codeRepository": "https://github.com/mianbaofang/agent-skill-catalog",
     "programmingLanguage": "Python",
     "softwareVersion": "0.3.6",
-    "dateModified": "2026-08-18",
+    "dateModified": "2026-11-12",
     "runtimePlatform": "Windows, macOS, Linux",
     "license": "https://github.com/mianbaofang/agent-skill-catalog/blob/main/LICENSE",
     "applicationCategory": "DeveloperApplication",
@@ -42,8 +42,8 @@
   <header class="site-header">
     <a class="brand" href="index-zh.html"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
     <nav class="site-nav" aria-label="主导航">
+      <a href="#guides">任务教程</a>
       <a href="#workflow">工作流程</a>
-      <a href="#screens">页面截图</a>
       <a href="index.html">English</a>
       <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">查看 GitHub</a>
     </nav>
@@ -51,63 +51,113 @@
 
   <main>
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow">给 AI 编程 Agent 用的本地 Skill 管理器</p>
-        <h1 id="hero-title">Agent Skill Catalog</h1>
-        <p>把本地 AI Agent Skill 和 Codex 插件按分类、主子 Skill 家族、调用方式、GitHub 预览图、真实图片证据和中文说明整理到一个可搜索的桌面目录里。</p>
-        <div class="hero-actions">
-          <a class="button" href="#install">安装 Skill</a>
-          <a class="button secondary" href="https://github.com/mianbaofang/agent-skill-catalog">查看仓库</a>
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">只读的本地 Skill 目录</p>
+          <h1 id="hero-title">搜索你已经安装的 Agent Skills。</h1>
+          <p>把它指向存放 <code>SKILL.md</code> 的目录。它会生成一份可搜索、自包含的本地 HTML 目录，每个条目都保留来源位置、调用方式和证据状态，让你在调用之前先看清楚。</p>
+          <div class="hero-actions">
+            <a class="button" href="#install">生成第一份目录</a>
+            <a class="button secondary" href="demo/index.html">试用合成演示</a>
+          </div>
+          <p class="proof-line">明确根目录 &middot; 只读扫描 &middot; 离线参数 &middot; 静态 HTML 输出</p>
         </div>
-        <p class="proof-line">只读扫描 · 桌面 HTML · 明确根目录 · 证据状态</p>
+        <figure class="hero-visual">
+          <img src="media/agent-skill-catalog-overview.png" alt="生成的目录总览，显示分类标签、可搜索的 Skill 列表、技能与插件独立视图以及分类计数" width="1440" height="1000">
+          <figcaption>生成的目录界面。当前界面为中文；仓库文档提供英文和中文两个版本。</figcaption>
+        </figure>
       </div>
     </section>
 
     <section class="section-band" id="install">
       <div class="install-strip">
-        <div><h2>一条命令开始</h2><p class="lede">安装已发布的 v0.3.6 Skill，再告诉 Agent 要检查哪些本地根目录。</p></div>
-        <code class="command">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.3.6 --agent codex --scope user</code>
+        <div>
+          <h2>从一个文件夹生成目录</h2>
+          <p class="lede">用 GitHub CLI 安装已发布的 Skill，或从本仓库的克隆里运行构建器。真正保持离线的是下面的 <code>build_catalog.py</code> 命令；它不读取 GitHub，也不会等待缺失的中文说明。</p>
+        </div>
+        <div>
+          <code class="command">gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user</code>
+          <code class="command" style="margin-top:12px;">python skills/agent-skill-catalog/scripts/build_catalog.py --root "/path/to/skills" --output-dir "/path/to/catalog-output" --no-github-discovery --no-github-images</code>
+          <p class="guide-langs" style="margin-top:12px;">用 <code>gh</code> 安装时会按设计从 GitHub 获取 Skill。<code>v0.3.6</code> 是当前已打标签的包；这里描述的改进在 <code>main</code> 分支上，尚未进入打标签的版本。</p>
+        </div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="section-heading"><p class="eyebrow">为什么需要它</p><h2>不用逐个打开 SKILL.md，也能找到正确能力</h2><p class="lede">平铺目录很难看出一个 Skill 是独立能力、某个主 Skill 的子项，还是插件携带的能力。目录页把这些关系放到调用前就能检查的位置。</p></div>
-      <div class="three-up">
-        <article class="accent-teal"><h3>家族保持在一起</h3><p>真实的主 Skill 和子 Skill 合并成一个家族条目，详情里再展开子项。</p></article>
-        <article class="accent-coral"><h3>插件单独展示</h3><p>插件提供的 Skill 按服务商和插件归档，不会混进独立 Skill 数量。</p></article>
-        <article class="accent-yellow"><h3>证据直接可见</h3><p>分类置信度、调用方式、GitHub 地址、图片来源和缺失证据都保留在详情里。</p></article>
+    <section class="section" id="guides">
+      <div class="section-heading">
+        <p class="eyebrow">任务教程</p>
+        <h2>从你要完成的事开始</h2>
+        <p class="lede">每篇教程只解决一个具体任务，含跨平台命令、预期结果、边界和排错。</p>
+      </div>
+      <div class="guides">
+        <article>
+          <h3>搜索你已经安装的 Agent Skills</h3>
+          <p>选定一个明确根目录，生成目录，按名称或说明搜索，并打开某个 Skill 的调用方式和来源。</p>
+          <a class="guide-link" href="guides/search-installed-skills-zh.html">阅读教程 &rarr;</a>
+          <p class="guide-langs"><a href="guides/search-installed-skills.html">English</a></p>
+        </article>
+        <article>
+          <h3>生成完全离线的 Skill 目录</h3>
+          <p>关闭全部 GitHub 请求，并分清快速预览与完整目录两种完成状态。</p>
+          <a class="guide-link" href="guides/offline-skill-catalog-zh.html">阅读教程 &rarr;</a>
+          <p class="guide-langs"><a href="guides/offline-skill-catalog.html">English</a></p>
+        </article>
+        <article>
+          <h3>跨目录清点 Skill 与插件</h3>
+          <p>扫描多个根目录，按插件分组，读懂有证据的重复副本、同名冲突和家族的区别。</p>
+          <a class="guide-link" href="guides/skills-and-plugin-inventory-zh.html">阅读教程 &rarr;</a>
+          <p class="guide-langs"><a href="guides/skills-and-plugin-inventory.html">English</a></p>
+        </article>
       </div>
     </section>
 
     <section class="section-band" id="workflow">
-      <div class="section-heading"><p class="eyebrow">从文件夹到可用索引</p><h2>一条小而可复核的流程</h2></div>
-      <div class="steps">
-        <article class="step"><span class="step-number">01 / 扫描</span><h3>选择明确根目录</h3><p>只把需要检查的 Skill 文件夹和插件缓存交给构建器。</p></article>
-        <article class="step"><span class="step-number">02 / 证据</span><h3>对照来源</h3><p>对照本地 SKILL.md 和已确认的 GitHub README，保留分类、家族、说明和图片状态的依据。</p></article>
-        <article class="step"><span class="step-number">03 / 使用</span><h3>调用前先搜索</h3><p>调用本 Skill 的 Agent 会按批次补齐中文说明，队列完成后才报告目录可用。</p></article>
+      <div class="section-heading">
+        <p class="eyebrow">从文件夹到可用索引</p>
+        <h2>一条小而可复核的流程</h2>
       </div>
-      <figure class="visual-frame"><img src="media/agent-skill-catalog-filter.png" alt="Agent Skill Catalog 筛选页面，显示分类、搜索结果和 Skill 预览" width="1440" height="1000"><figcaption class="visual-caption">筛选页面把分类数量、搜索结果、GitHub 图片证据和手工换图入口放在同一张桌面工作区里。</figcaption></figure>
+      <div class="steps">
+        <article class="step"><span class="step-number">01 / 扫描</span><h3>选择明确根目录</h3><p>Skill 扫描只限于你指定的 Skill 文件夹和可选插件缓存。整个流程还会读取你传入的配置与整理文件，并在发现功能开启时读取已确认的 Git 元数据。</p></article>
+        <article class="step"><span class="step-number">02 / 证据</span><h3>保留来源证据</h3><p>为每个条目保留分类置信度、来源位置、调用方式、家族分组和图片来源，可追溯。</p></article>
+        <article class="step"><span class="step-number">03 / 使用</span><h3>调用前先搜索</h3><p>浏览本地页面，对比相似条目，打开详情后再决定是否让 Agent 使用。</p></article>
+      </div>
     </section>
 
     <section class="section" id="screens">
-      <div class="section-heading"><p class="eyebrow">详情里有什么</p><h2>用途、调用、来源和图片证据放在一起</h2><p class="lede">它面向反复查找的日常工作：搜到名称后，先看详情，再决定是否让 Agent 使用。</p></div>
+      <div class="section-heading">
+        <p class="eyebrow">详情里有什么</p>
+        <h2>用途、调用、来源和证据放在一起</h2>
+        <p class="lede">它面向反复查找的日常工作：搜到名称后，先看详情，再决定是否让 Agent 使用。</p>
+      </div>
       <div class="screens">
-        <figure><img src="media/agent-skill-catalog-overview.png" alt="Agent Skill Catalog 总览，显示分类标签、Skill 家族、插件分离和预览图片" width="1440" height="1000"><figcaption>总览：分类、家族聚合、插件分离和图片来源。</figcaption></figure>
-        <figure><img src="media/agent-skill-catalog-detail.png" alt="Agent Skill Catalog 详情面板，显示 GitHub 仓库、调用方式、来源路径和图片证据" width="1440" height="1000"><figcaption>详情：GitHub 仓库、调用文案、来源位置和证据状态。</figcaption></figure>
+        <figure><img src="media/agent-skill-catalog-filter.png" alt="目录筛选视图，显示分类计数、搜索结果和一张 Skill 卡片" width="1440" height="1000"><figcaption>搜索按名称、说明和来源路径做子串匹配，收窄结果列表。</figcaption></figure>
+        <figure><img src="media/agent-skill-catalog-detail.png" alt="目录详情面板，显示调用方式、来源位置和证据状态" width="1440" height="1000"><figcaption>详情：某个条目的调用文案、来源位置和证据状态。</figcaption></figure>
       </div>
     </section>
 
-    <section class="section-band"><div class="section-heading"><p class="eyebrow">针对不断增长的 Skill 库</p><h2>常见问题</h2></div><div class="faq">
-      <details open><summary>目录会修改或执行被扫描的 Skill 吗？</summary><p>不会。构建器只读取操作者提供的根目录，源文件保持只读；生成的 JSON、缓存预览图和手工换图只写入选定的输出目录。</p></details>
-      <details><summary>它能区分插件和独立 Skill 吗？</summary><p>当配置根目录和包证据足够明确时可以。插件聚合有单独视图，不计入独立 Skill 数量。</p></details>
-      <details><summary>Skill 预览图从哪里来？</summary><p>优先使用输出目录里的手工覆盖图；否则使用已确认的公开 GitHub 仓库预览、Skill 自带本地图，证据不足时明确显示缺证据状态。</p></details>
-      <details><summary>缺少的 Skill 说明由谁来写？</summary><p>调用本 Skill 的 Agent 会读取有长度限制的本地 SKILL.md 和已确认的 GitHub README 证据，按批次写出自然中文，再通过可续跑的说明队列应用；队列未完成时构建不会报告完成。</p></details>
-      <details><summary>以后新增 Skill 能刷新吗？</summary><p>用启动时记录的同一批根目录运行本地服务并执行刷新。服务会拒绝替换输入，避免悄悄扫描另一套目录。</p></details>
-    </div></section>
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">把边界说清楚</p>
+        <h2>它做什么，不做什么</h2>
+      </div>
+      <div class="faq">
+        <details open><summary>目录会修改或执行被扫描的 Skill 吗？</summary><p>构建过程是只读的：它只读取你提供的根目录，把生成的 JSON、缓存预览图和手工换图写入选定的输出目录。但只读浏览有一个例外，而且需要显式开启：可选的本地服务可以永久删除扫描来源中一个顶层独立 Skill 目录，前提是你对该根目录把 <code>allow_delete</code> 设为 <code>true</code> 并确认完整 Skill 名称。没有同步或自动安装。</p></details>
+        <details><summary>默认构建是离线的吗？</summary><p>不保证。不加参数时，构建器可能把 Skill 名称发送到 GitHub 仓库搜索，并为每个已确认仓库抓取一张公开预览图。加 <code>--no-github-discovery --no-github-images</code> 可让构建完全不发出 GitHub 请求；运行说明队列时再加 <code>description_queue.py next --no-github-readmes</code>。</p></details>
+        <details><summary>搜索实际匹配什么？</summary><p>对 Skill 名称、说明、GitHub 信息和来源相对路径做子串匹配。它不是语义搜索或自然语言搜索，也不会给“哪个 Skill 最适合这个请求”排序。</p></details>
+        <details><summary>它能区分插件和独立 Skill 吗？</summary><p>当配置根目录和包证据足够明确时可以。插件聚合有单独视图，不计入独立 Skill 数量。</p></details>
+        <details><summary>快速预览和完整目录有什么区别？</summary><p>快速预览即使中文说明缺失也会生成并显示条目。追加 <code>--require-complete-descriptions</code> 后，说明队列未清空时构建会以退出码 3 结束；退出码 0 且 <code>pending_description_count</code> 为 0 才表示完整目录已完成。</p></details>
+        <details><summary>生成的界面是什么语言？</summary><p>生成的目录界面当前是中文。本站和仓库 README 提供英文和中文两个版本，但这不代表生成的界面本身支持双语。</p></details>
+      </div>
+    </section>
 
-    <section class="cta"><div class="cta-inner"><div><h2>让下一个 Skill 也容易找到。</h2><p>文件夹继续留在本地，把用途、调用方式、关系和证据放进一个可搜索的目录。</p></div><a class="button" href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest">打开最新版本</a></div></section>
+    <section class="cta">
+      <div class="cta-inner">
+        <div><h2>让下一个 Skill 也容易找到。</h2><p>文件夹继续留在本地，把来源、调用方式、关系和证据放进一个可搜索的目录。</p></div>
+        <a class="button" href="#install">生成第一份目录</a>
+      </div>
+    </section>
   </main>
 
-  <footer><div class="footer-inner"><span>Agent Skill Catalog · MIT · 独立开源项目</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> · <a href="index.html">English</a> · Ethan</span></div></footer>
+  <footer><div class="footer-inner"><span>Agent Skill Catalog &middot; MIT &middot; 独立开源项目</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> &middot; <a href="index.html">English</a> &middot; Ethan</span></div></footer>
 </body>
 </html>

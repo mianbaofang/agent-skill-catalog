@@ -1,0 +1,20 @@
+{
+  "locale": "zh-CN",
+  "roots": [
+    {
+      "path": "roots/community-skills",
+      "label": "社区技能示例",
+      "kind": "skill"
+    },
+    {
+      "path": "roots/personal-skills",
+      "label": "个人技能示例",
+      "kind": "skill"
+    },
+    {
+      "path": "plugins",
+      "label": "插件缓存示例",
+      "kind": "plugin"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "tools" / "package_skill.py"
+VALIDATOR_SCRIPT = ROOT / "tools" / "validate_package.py"
 
 
 def load_module():
@@ -20,6 +21,33 @@ def load_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def load_validator():
+    spec = importlib.util.spec_from_file_location("validate_package", VALIDATOR_SCRIPT)
+    if spec is None or spec.loader is None:
+        raise AssertionError("Cannot load validate_package.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def write_install_doc(root: Path, relative: str, pin: str) -> None:
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        f"gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin {pin}\n",
+        encoding="utf-8",
+    )
+
+
+def pin_failures(pins: dict[str, str]) -> list[str]:
+    module = load_validator()
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        for relative in module.INSTALL_DOCS:
+            write_install_doc(root, relative, pins[relative])
+        return module.validate_install_pins(root, "0.3.6")
 
 
 def test_install_package_excludes_maintenance_evidence() -> None:
@@ -52,8 +80,10 @@ def test_repository_has_one_github_discoverable_skill() -> None:
         if ".demo-fixtures" not in path.parts and "build" not in path.parts
     ]
     assert discovered == [ROOT / "skills" / "agent-skill-catalog" / "SKILL.md"]
+    # The public demo may hold generated HTML/JSON, but never an installable Skill.
     demo_root = ROOT / "docs" / "demo"
-    assert not demo_root.exists() or not any(path.is_file() for path in demo_root.rglob("*"))
+    if demo_root.is_dir():
+        assert not (demo_root / "SKILL.md").exists()
 
 
 def test_release_archive_is_portable() -> None:
@@ -102,11 +132,55 @@ def test_package_boundary_excludes_nested_skills_examples_and_symlinks() -> None
         assert included == {"SKILL.md", "scripts/kept.py"}
 
 
+def test_install_docs_accept_current_source_or_release_pin() -> None:
+    docs = load_validator().INSTALL_DOCS
+    assert pin_failures({relative: "main" for relative in docs}) == []
+
+
+def test_install_docs_accept_current_release_pin() -> None:
+    docs = load_validator().INSTALL_DOCS
+    assert pin_failures({relative: "v0.3.6" for relative in docs}) == []
+
+
+def test_install_docs_reject_arbitrary_mismatched_tag() -> None:
+    docs = load_validator().INSTALL_DOCS
+    failures = pin_failures({relative: "v0.0.1" for relative in docs})
+    assert failures, "An arbitrary mismatched tag must fail validation."
+
+
+def test_install_docs_require_a_pin() -> None:
+    module = load_validator()
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        for relative in module.INSTALL_DOCS:
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "Install the catalog Skill with `gh skill install`.\n", encoding="utf-8"
+            )
+        failures = module.validate_install_pins(root, "0.3.6")
+        assert failures, "Install docs without any pin must fail validation."
+
+
+def test_demo_fixtures_do_not_become_installable_skills() -> None:
+    module = load_module()
+    skill_root = ROOT / "skills" / "agent-skill-catalog"
+    included = {relative.as_posix() for _, relative in module.package_paths(skill_root)}
+    assert not any("SKILL.md.example" in relative for relative in included)
+    assert not any(part in {"examples", ".demo-fixtures"} for relative in included for part in Path(relative).parts)
+
+
 def main() -> None:
     test_install_package_excludes_maintenance_evidence()
     test_governance_evidence_stays_outside_the_install_boundary()
     test_repository_has_one_github_discoverable_skill()
     test_release_archive_is_portable()
+    test_package_boundary_excludes_nested_skills_examples_and_symlinks()
+    test_install_docs_accept_current_source_or_release_pin()
+    test_install_docs_accept_current_release_pin()
+    test_install_docs_reject_arbitrary_mismatched_tag()
+    test_install_docs_require_a_pin()
+    test_demo_fixtures_do_not_become_installable_skills()
     print("ok")
 
 

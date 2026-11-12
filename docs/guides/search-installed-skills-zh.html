@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>搜索你已经安装的 Agent Skills｜Agent Skill Catalog 教程</title>
+  <meta name="description" content="选定一个明确的 Skill 根目录，生成可搜索的本地 HTML 目录，按名称或说明搜索，并打开某个 Skill 的调用方式和来源位置。含跨平台命令与预期结果。">
+  <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills-zh.html">
+  <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills-zh.html">
+  <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="搜索你已经安装的 Agent Skills">
+  <meta property="og:description" content="从一个明确的 SKILL.md 根目录生成可搜索的本地目录，不必逐个打开文件就能查看某个 Skill 的调用方式和来源。">
+  <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills-zh.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Agent Skill Catalog", "item": "https://mianbaofang.github.io/agent-skill-catalog/"},
+      {"@type": "ListItem", "position": 2, "name": "教程", "item": "https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills-zh.html"}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index-zh.html"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
+    <nav class="site-nav" aria-label="主导航">
+      <a href="search-installed-skills-zh.html">搜索 Skill</a>
+      <a href="offline-skill-catalog-zh.html">离线目录</a>
+      <a href="skills-and-plugin-inventory-zh.html">跨目录清点</a>
+      <a href="search-installed-skills.html">English</a>
+      <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="guide-header">
+      <p class="guide-kicker">任务教程</p>
+      <h1>搜索你已经安装的 Agent Skills</h1>
+      <p class="guide-standfirst">你记得装过某个能干这活的工具，却想不起名字，也不知道它放在哪个目录。这篇教程带你选定一个明确的根目录、生成目录、搜索，并打开那个能告诉你怎么调用、来自哪里的条目。</p>
+      <p class="guide-meta">需要 Python 3.10+ &middot; 从仓库根目录运行 &middot; <a href="search-installed-skills.html">阅读英文版</a></p>
+    </section>
+
+    <div class="guide-body">
+      <h2>开始之前</h2>
+      <p>你需要先确认 Skill 实际所在的文件夹路径。Agent Skill Catalog 不会替你猜这个路径，它只扫描你明确给出的根目录。不同 Agent 和不同安装方式会把 Skill 放到不同位置，你也可能自定义过目录，所以下面出现的路径只是需要你自行核对的示例，不是固定默认值。</p>
+      <ul>
+        <li>一个包含若干 Skill 子文件夹的目录，每个子文件夹里有一个 <code>SKILL.md</code>。</li>
+        <li>用于运行构建器的 Python 3.10 或更高版本。</li>
+        <li>下面命令都从仓库根目录执行，所以请先克隆或下载本项目。</li>
+      </ul>
+      <div class="note"><p><span class="note-label">关于路径。</span> 如果你用 <code>gh skill install ... --agent codex --scope user</code> 安装过 Skill，它会被放到该 Agent 的用户作用域。扫描前请先在自己的系统上确认确切目录。下文刻意使用占位路径。</p></div>
+
+      <h2>第 1 步：从一个根目录生成目录</h2>
+      <p>把 <code>/path/to/skills</code> 换成你确认过的文件夹，把 <code>/path/to/catalog-output</code> 换成一个空输出文件夹。下面这些参数让首次构建完全离线。</p>
+      <div class="os-block">
+        <h3>Bash（macOS、Linux、Windows Git Bash）</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell（Windows）</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p><strong>预期结果。</strong> 退出码 0，输出文件夹里出现 <code>catalog.json</code> 和自包含的 <code>index.html</code>。这条命令没有加 <code>--require-complete-descriptions</code>，所以中文说明还没补齐的条目也会显示，你可以立刻浏览和搜索。</p>
+
+      <h2>第 2 步：按名称、说明或路径搜索</h2>
+      <p>用浏览器打开 <code>index.html</code>，在搜索框输入内容。当前搜索是对 Skill 名称、说明、GitHub 信息和来源相对路径做子串匹配，随后可以按分类或视图筛选。可以搜一个你记得一部分的名字，例如 <code>skill-catalog</code>，或者搜一个你确定出现在某条说明里的词。</p>
+      <p><strong>预期结果。</strong> 列表收窄到匹配字段包含该子串的条目。搜索确切名称 <code>agent-skill-catalog</code> 会返回那一张卡片。</p>
+      <div class="note"><p><span class="note-label">这是什么搜索。</span> 它是对名称、说明和来源路径的字面子串匹配，不是语义搜索或自然语言搜索，也不会给“哪个 Skill 最适合这个请求”排序。一个只存在于你的意图里、没有出现在任何名称、说明或路径中的词，不会命中。</p></div>
+
+      <h2>第 3 步：打开条目查看调用方式</h2>
+      <p>点击结果卡片打开详情视图。这个面板正是目录的价值所在，它会显示：</p>
+      <ul>
+        <li>调用方式，让你能用正确的说法向 Agent 提出请求。</li>
+        <li>来源位置，也就是生成该条目的那份 <code>SKILL.md</code> 的相对路径。</li>
+        <li>分类候选与置信度，分类不确定时会保留复核标记。</li>
+        <li>本地或包证据支持时的 GitHub 仓库链接；证据不足时显示 <code>missing evidence</code>。</li>
+      </ul>
+      <p>拿到调用文案后，你就可以在下次会话里按名字让 Agent 使用该 Skill。</p>
+
+      <h2>多个根目录，以及下次换目录</h2>
+      <p>把 <code>--root</code> 重复多次，就能在一次构建里扫描多个根目录。安装新 Skill 后要重新扫描，用同样的 <code>--root</code> 和 <code>--output-dir</code> 再跑一遍同一条命令。如果输出文件夹已经存在，构建器会拒绝替换并报错退出；确认目标文件夹里是可重新生成的目录后，再加 <code>--refresh</code> 重跑。把某个根目录标记为插件缓存的做法见<a href="skills-and-plugin-inventory-zh.html">跨目录清点 Skill 与插件</a>。</p>
+
+      <h2>排错</h2>
+      <table class="guide-table">
+        <thead><tr><th>现象</th><th>可能原因与处理</th></tr></thead>
+        <tbody>
+          <tr><td>目录为空，或只有一个不相关条目</td><td><code>--root</code> 指向的目录下，子文件夹没有各自包含 <code>SKILL.md</code>。检查路径，改指向容纳各个 Skill 文件夹的父目录。</td></tr>
+          <tr><td>提示找不到命令</td><td>请从仓库根目录运行，让相对路径 <code>skills/agent-skill-catalog/scripts/build_catalog.py</code> 能解析，并确认 <code>python --version</code> 是 3.10 或更高。</td></tr>
+          <tr><td>条目的说明为空或缺失</td><td>快速预览下这是正常的。追加 <code>--require-complete-descriptions</code> 进入<a href="offline-skill-catalog-zh.html">离线生成 Skill 目录</a>里描述的补全流程。</td></tr>
+          <tr><td>本想离线构建，却看到 GitHub 活动</td><td>只有同时给出 <code>--no-github-discovery</code> 和 <code>--no-github-images</code>，首次构建才是离线的。漏掉任一参数都会允许一次 GitHub 请求。</td></tr>
+        </tbody>
+      </table>
+
+      <section class="guide-next">
+        <h2>接下来</h2>
+        <ul>
+          <li><a href="offline-skill-catalog-zh.html">生成完全离线的 Skill 目录</a> &mdash; 关闭全部 GitHub 请求，分清两种完成状态。</li>
+          <li><a href="skills-and-plugin-inventory-zh.html">跨目录清点 Skill 与插件</a> &mdash; 扫描多个根目录，分清重复副本、同名冲突和家族。</li>
+          <li><a href="../index-zh.html">项目主页</a> &middot; <a href="https://github.com/mianbaofang/agent-skill-catalog">源码仓库</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer><div class="footer-inner"><span>Agent Skill Catalog &middot; MIT &middot; 独立开源项目</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> &middot; <a href="../index-zh.html">主页</a> &middot; <a href="search-installed-skills.html">English</a></span></div></footer>
+</body>
+</html>

@@ -34,6 +34,13 @@ REQUIRED_SKILL_FILES = (
     "security/permission_policy.json",
 )
 PRIVATE_PATH = re.compile(r"(?:[A-Za-z]:\\(?:Users|Object)\\|/(?:Users|home)/)", re.I)
+INSTALL_DOCS = (
+    "README.md",
+    "README.zh-CN.md",
+    "docs/index.html",
+    "docs/index-zh.html",
+    "docs/llms.txt",
+)
 
 
 def frontmatter(path: Path) -> dict[str, str]:
@@ -64,6 +71,41 @@ def text_files(root: Path):
             continue
         if path.suffix.lower() in allowed:
             yield path
+
+
+def validate_install_pins(root: Path, version: str) -> list[str]:
+    """Check install-command pins in the public docs.
+
+    Accepts the current source (``main``) or the current release (``v<version>``).
+    A prior release may be shown alongside ``main`` only as a clearly labelled
+    stable alternative; an arbitrary mismatched tag is rejected.
+    """
+
+    failures: list[str] = []
+    release_pin = f"v{version}"
+    for relative in INSTALL_DOCS:
+        path = root / relative
+        if not path.is_file():
+            continue
+        content = path.read_text(encoding="utf-8")
+        pins = set(re.findall(r"--pin[= ]([A-Za-z0-9._-]+)", content))
+        if not pins:
+            failures.append(f"{relative} must include a `gh skill install` pin")
+            continue
+        if "main" in pins:
+            unexpected = sorted(pins - {"main", release_pin})
+            if unexpected:
+                failures.append(
+                    f"{relative} pins {', '.join(unexpected)} which is neither "
+                    f"the current source (main) nor the current release ({release_pin})"
+                )
+            continue
+        if pins != {release_pin}:
+            failures.append(
+                f"{relative} must pin `main` (current source) or the current "
+                f"release {release_pin}, not {', '.join(sorted(pins))}"
+            )
+    return failures
 
 
 def validate(root: Path) -> list[str]:
@@ -113,11 +155,7 @@ def validate(root: Path) -> list[str]:
                 failures.append("manifest.json version must match VERSION")
 
     if version:
-        release_pin = f"v{version}"
-        for relative in ("README.md", "README.zh-CN.md", "docs/index.html", "docs/index-zh.html", "docs/llms.txt"):
-            path = root / relative
-            if path.is_file() and f"--pin {release_pin}" not in path.read_text(encoding="utf-8"):
-                failures.append(f"{relative} must reference the current release pin {release_pin}")
+        failures.extend(validate_install_pins(root, version))
         changelog = root / "CHANGELOG.md"
         if changelog.is_file() and f"## {version} - " not in changelog.read_text(encoding="utf-8"):
             failures.append("CHANGELOG.md must contain the current VERSION heading")

@@ -9,14 +9,33 @@ on:
 jobs:
   package:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python tools/validate_package.py .
-      - run: python -m py_compile skills/agent-skill-catalog/scripts/build_catalog.py skills/agent-skill-catalog/scripts/catalog_aggregation.py skills/agent-skill-catalog/scripts/description_queue.py skills/agent-skill-catalog/scripts/github_preview.py skills/agent-skill-catalog/scripts/serve_catalog.py skills/agent-skill-catalog/scripts/import_legacy_catalog.py tools/validate_package.py tools/package_skill.py
-      - run: python -m pip install pytest
+      - name: Validate package
+        run: python tools/validate_package.py .
+      - name: Compile Skill and tooling scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          skill_scripts=(skills/agent-skill-catalog/scripts/*.py)
+          tool_scripts=(tools/*.py)
+          if [ "${#skill_scripts[@]}" -eq 0 ] || [ "${#tool_scripts[@]}" -eq 0 ]; then
+            echo "Expected Skill scripts and tools to compile were not found." >&2
+            exit 1
+          fi
+          python -m py_compile "${skill_scripts[@]}" "${tool_scripts[@]}"
+      - name: Syntax-check documentation demo recorder
+        run: node --check tools/record_demo.mjs
+      - name: Check committed demo and documentation are reproducible
+        run: python tools/build_demo.py --check
+      - name: Install test dependencies
+        run: python -m pip install pytest
       - run: python -m pytest tests -q
       - run: python tools/package_skill.py .
       - uses: actions/upload-artifact@v4

@@ -1,0 +1,11 @@
+---
+name: note-keeper-cli
+description: "在命令行中快速追加与检索笔记，是为 note-keeper 项目提供的命令行子技能，适合脚本调用。"
+license: MIT
+---
+
+# note-keeper-cli
+
+note-keeper-cli 是 note-keeper 家族的命令行子技能，负责终端内快速追加与检索，归属并路由到 note-keeper 主入口。
+
+> 这是用于演示目录功能的合成示例，不含可运行的实现，也不会访问网络或执行任何真实任务。

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search the agent skills you already installed | Agent Skill Catalog guide</title>
+  <meta name="description" content="Pick one explicit Skill root, build a local HTML catalog, search it by task word, and open a Skill's invocation text and source location. Cross-platform commands with expected results.">
+  <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html">
+  <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills-zh.html">
+  <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Search the agent skills you already installed">
+  <meta property="og:description" content="Build a searchable local catalog from one explicit SKILL.md root, then open a Skill's invocation and source without opening every file.">
+  <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Agent Skill Catalog", "item": "https://mianbaofang.github.io/agent-skill-catalog/"},
+      {"@type": "ListItem", "position": 2, "name": "Guides", "item": "https://mianbaofang.github.io/agent-skill-catalog/guides/search-installed-skills.html"}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="search-installed-skills.html">Search skills</a>
+      <a href="offline-skill-catalog.html">Offline catalog</a>
+      <a href="skills-and-plugin-inventory.html">Inventory</a>
+      <a href="search-installed-skills-zh.html">中文</a>
+      <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="guide-header">
+      <p class="guide-kicker">Task guide</p>
+      <h1>Search the agent skills you already installed</h1>
+      <p class="guide-standfirst">You remember installing something for a job, but not its name or which folder it sits in. This guide picks one explicit root, builds a local catalog, searches it, and opens the entry that tells you how to invoke it and where it came from.</p>
+      <p class="guide-meta">Needs Python 3.10+ &middot; Runs from the repository root &middot; <a href="search-installed-skills-zh.html">Read in Chinese</a></p>
+    </section>
+
+    <div class="guide-body">
+      <h2>Before you start</h2>
+      <p>You need the folder path where your Skills actually live. Agent Skill Catalog does not guess this for you: it scans only the root you hand it. Different agents and install methods put Skills in different places, and you may have chosen a custom folder, so treat the locations below as examples to check on your own machine rather than fixed defaults.</p>
+      <ul>
+        <li>One folder that contains Skill subfolders, each with a <code>SKILL.md</code> inside.</li>
+        <li>Python 3.10 or newer to run the builder.</li>
+        <li>The commands below run from the repository root, so clone or download the project first.</li>
+      </ul>
+      <div class="note"><p><span class="note-label">Choosing a path.</span> If you installed a Skill with <code>gh skill install ... --agent codex --scope user</code>, the Skill was placed in the user scope for that agent. Confirm the exact folder on your system before scanning it. The examples below use placeholder paths on purpose.</p></div>
+
+      <h2>Step 1: Build a catalog from one root</h2>
+      <p>Replace <code>/path/to/skills</code> with the folder you confirmed and <code>/path/to/catalog-output</code> with an empty folder for the results. These flags keep the first build fully offline.</p>
+      <div class="os-block">
+        <h3>Bash (macOS, Linux, Windows Git Bash)</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell (Windows)</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p><strong>Expected result.</strong> Exit code 0, and the output folder now contains <code>catalog.json</code> and a self-contained <code>index.html</code>. Because this command omits <code>--require-complete-descriptions</code>, entries are shown even when their Chinese description has not been filled in yet; you can browse and search immediately.</p>
+
+      <h2>Step 2: Search by name, description, or path</h2>
+      <p>Open <code>index.html</code> in a browser and type into the search box. The current search is substring matching over Skill names, descriptions, GitHub metadata, and source-relative paths, then you can filter by category or view. Search a name you can partially remember, such as <code>skill-catalog</code>, or a word you know appears in a description.</p>
+      <p><strong>Expected result.</strong> The list narrows to entries whose matching field contains that substring. Searching an exact Skill name such as <code>agent-skill-catalog</code> returns that one card.</p>
+      <div class="note"><p><span class="note-label">What this search is.</span> It is literal substring matching over names, descriptions, and source paths. It is not semantic or natural-language search, and it does not rank which Skill is best suited to a request. A word that appears only in your own intent, and nowhere in a name, description, or path, will not match.</p></div>
+
+      <h2>Step 3: Open the entry to see how to invoke it</h2>
+      <p>Click a result card to open the detail view. That panel is where the catalog earns its keep. It shows:</p>
+      <ul>
+        <li>The invocation text, so you can phrase the request to your agent correctly.</li>
+        <li>The source location, meaning the relative path of the <code>SKILL.md</code> that produced the entry.</li>
+        <li>Category candidates with confidence, and a review flag when classification was uncertain.</li>
+        <li>An observed GitHub repository link when local or package evidence supports one, or a <code>missing evidence</code> label when it does not.</li>
+      </ul>
+      <p>Once you have the invocation wording, you can ask your agent to use that Skill by name in the next session.</p>
+
+      <h2>Multiple roots, and picking a different folder next time</h2>
+      <p>Pass <code>--root</code> once per folder to scan several roots in a single catalog. To rescan after installing a new Skill, re-run the same command with the same <code>--root</code> and <code>--output-dir</code>. If the output folder already exists, the builder refuses to replace it and exits with an error; re-run with <code>--refresh</code> only after you have checked that the target holds a generated catalog you are willing to regenerate. See <a href="skills-and-plugin-inventory.html">Inventory skills and plugins across folders</a> for labeling one root as a plugin cache.</p>
+
+      <h2>Troubleshooting</h2>
+      <table class="guide-table">
+        <thead><tr><th>Symptom</th><th>Likely cause and fix</th></tr></thead>
+        <tbody>
+          <tr><td>The catalog is empty, or has one unrelated entry</td><td>The <code>--root</code> path does not point at a folder whose subfolders each contain a <code>SKILL.md</code>. Check the path, then point it at the parent folder that holds the Skill folders.</td></tr>
+          <tr><td>A command is not found</td><td>Run from the repository root so the relative path to <code>skills/agent-skill-catalog/scripts/build_catalog.py</code> resolves, and confirm <code>python --version</code> is 3.10 or newer.</td></tr>
+          <tr><td>Entries have empty or missing descriptions</td><td>Expected for a quick preview. Add <code>--require-complete-descriptions</code> to enter the enriched flow described in <a href="offline-skill-catalog.html">Build an offline skill catalog</a>.</td></tr>
+          <tr><td>You expected an offline build but saw GitHub activity</td><td>The first build only stays offline with both <code>--no-github-discovery</code> and <code>--no-github-images</code>. Omitting either one allows a GitHub request.</td></tr>
+        </tbody>
+      </table>
+
+      <section class="guide-next">
+        <h2>Where to go next</h2>
+        <ul>
+          <li><a href="offline-skill-catalog.html">Build an offline skill catalog</a> &mdash; turn off every GitHub request and understand the two completion states.</li>
+          <li><a href="skills-and-plugin-inventory.html">Inventory skills and plugins across folders</a> &mdash; scan several roots and tell duplicates, name collisions, and families apart.</li>
+          <li><a href="../">Project overview</a> &middot; <a href="https://github.com/mianbaofang/agent-skill-catalog">Source repository</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer><div class="footer-inner"><span>Agent Skill Catalog &middot; MIT &middot; Independent open-source project</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> &middot; <a href="../">Overview</a> &middot; <a href="search-installed-skills-zh.html">中文</a></span></div></footer>
+</body>
+</html>

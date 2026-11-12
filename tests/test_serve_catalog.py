@@ -112,6 +112,69 @@ def test_require_complete_descriptions_server_retries_after_curation() -> None:
             process.wait(timeout=5)
 
 
+def test_offline_flags_keep_refresh_offline_and_propagate() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        skill = root / "offline-demo"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: offline-demo\ndescription: 本地离线演示技能。\n---\n",
+            encoding="utf-8",
+        )
+        output = fixture / "output"
+        subprocess.run(
+            [
+                sys.executable,
+                str(BUILD_SCRIPT),
+                "--root",
+                str(root),
+                "--output-dir",
+                str(output),
+                "--no-github-discovery",
+                "--no-github-images",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        port = _free_port()
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                str(SERVER_SCRIPT),
+                "--output-dir",
+                str(output),
+                "--root",
+                str(root),
+                "--port",
+                str(port),
+                "--no-github-discovery",
+                "--no-github-images",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        try:
+            _wait_for_server(port, process)
+            # A refresh through the served page must reuse the startup offline flags
+            # without any HTTP-supplied argument.
+            refresh = urllib.request.Request(f"http://127.0.0.1:{port}/api/refresh", method="POST")
+            with urllib.request.urlopen(refresh, timeout=20) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            assert response.status == 200
+            assert payload["ok"] is True
+            catalog = json.loads((output / "catalog.json").read_text(encoding="utf-8"))
+            assert catalog["summary"]["github_discovery"]["enabled"] is False
+        finally:
+            process.terminate()
+            stderr = process.stderr.read().decode("utf-8") if process.stderr else ""
+            process.wait(timeout=5)
+        assert "Fully offline refresh enabled" in stderr
+        assert "--no-github-discovery --no-github-images" in stderr
+
+
 def test_delete_endpoint_requires_exact_name_and_deletes_one_top_level_skill() -> None:
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp)

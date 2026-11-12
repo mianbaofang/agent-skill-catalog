@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>生成完全离线的 Skill 目录｜Agent Skill Catalog 教程</title>
+  <meta name="description" content="生成 Skill 目录时关闭全部 GitHub 请求：构建器与说明队列的离线参数、两种完成状态，以及如何避免把绝对路径写进输出。">
+  <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html">
+  <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html">
+  <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="生成完全离线的 Skill 目录">
+  <meta property="og:description" content="完全不发出 GitHub 请求也能生成可搜索的本地 Skill 目录，并分清快速预览与完整目录两种完成状态。">
+  <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Agent Skill Catalog", "item": "https://mianbaofang.github.io/agent-skill-catalog/"},
+      {"@type": "ListItem", "position": 2, "name": "教程", "item": "https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html"}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index-zh.html"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
+    <nav class="site-nav" aria-label="主导航">
+      <a href="search-installed-skills-zh.html">搜索 Skill</a>
+      <a href="offline-skill-catalog-zh.html">离线目录</a>
+      <a href="skills-and-plugin-inventory-zh.html">跨目录清点</a>
+      <a href="offline-skill-catalog.html">English</a>
+      <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="guide-header">
+      <p class="guide-kicker">任务教程</p>
+      <h1>生成完全离线的 Skill 目录</h1>
+      <p class="guide-standfirst">你的 Skill 库里可能有私人提示词、客户项目或内部工具。这篇教程生成一份完全不发出 GitHub 请求的目录，然后解释一次构建可以被称作完成的两种方式，以及如何避免把绝对路径写进输出。</p>
+      <p class="guide-meta">需要 Python 3.10+ &middot; 从仓库根目录运行 &middot; <a href="offline-skill-catalog.html">阅读英文版</a></p>
+    </section>
+
+    <div class="guide-body">
+      <h2>为什么默认构建不是离线</h2>
+      <p>不加任何参数的构建可能通过三种方式联网。它们都不是生成可用目录的必要条件，但如果你想完全断网，每一个都需要单独的开关：</p>
+      <table class="guide-table">
+        <thead><tr><th>联网读取</th><th>离开本机的内容</th><th>开关</th></tr></thead>
+        <tbody>
+          <tr><td>仓库发现</td><td>把 Skill 名称作为 <code>"&lt;name&gt;" in:name</code> 查询发送到 GitHub 仓库搜索接口，为还没有仓库元数据的条目寻找候选仓库。</td><td><code>--no-github-discovery</code></td></tr>
+          <tr><td>预览图</td><td>对已确认的仓库，从允许的 GitHub 域名抓取一张公开预览图。</td><td><code>--no-github-images</code></td></tr>
+          <tr><td>README 证据</td><td>补齐缺失中文说明时，抓取公开 GitHub README 片段作为证据。</td><td><code>description_queue.py next --no-github-readmes</code></td></tr>
+        </tbody>
+      </table>
+      <p>GitHub 读取仅使用 HTTPS、限制域名并限制大小。如果设置了 <code>GH_TOKEN</code> 或 <code>GITHUB_TOKEN</code> 环境变量，或者你已经用 GitHub CLI 登录，这些读取会复用现有凭据，目录不会保存它。</p>
+
+      <h2>第 1 步：生成离线目录</h2>
+      <p>从仓库根目录运行，把两个路径换成你真实的 Skill 文件夹和一个空输出文件夹。这两个参数一起就能生成一份不发出任何 GitHub 请求的目录。</p>
+      <div class="os-block">
+        <h3>Bash（macOS、Linux、Windows Git Bash）</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell（Windows）</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p><strong>预期结果。</strong> 退出码 0，输出文件夹里有 <code>catalog.json</code> 和自包含的 <code>index.html</code>。全程没有发出 GitHub 请求。打开 <code>index.html</code> 即可浏览和搜索。</p>
+
+      <h2>第 2 步：选择你的完成状态</h2>
+      <p>一次构建可以用两种不同的方式报告成功，你需要哪种很重要：</p>
+      <table class="guide-table">
+        <thead><tr><th>状态</th><th>如何得到</th><th>成功的含义</th></tr></thead>
+        <tbody>
+          <tr><td><strong>快速预览</strong></td><td>上面的命令，不加 <code>--require-complete-descriptions</code>。</td><td>退出码 0。中文说明缺失的条目也会出现，可以立即浏览。</td></tr>
+          <tr><td><strong>完整目录</strong></td><td>追加 <code>--require-complete-descriptions</code>。</td><td>退出码 0 <em>且</em> <code>pending_description_count</code> 为 0。退出码 3 表示中文说明仍在补齐 &mdash; 这是门槛在起作用，不是崩溃。</td></tr>
+        </tbody>
+      </table>
+      <p>完整状态由 Agent 驱动。如果你希望目录完整、但不要 GitHub README 证据，可以保留离线参数，只让 Agent 依据本地 <code>SKILL.md</code> 内容补写说明：</p>
+      <div class="note"><p><span class="note-label">“离线”的边界。</span> 这些开关只是让 Python 脚本不发出 GitHub 请求，并不约束调用它的 Agent 自己的模型调用：负责写中文说明的 Agent 可能把本地 <code>SKILL.md</code> 文本发送到它使用的模型服务商，受该服务商自身规则约束。这里的“离线”指“目录构建不读取 GitHub”，不是对会话里所有工具的保证。</p></div>
+      <div class="os-block">
+        <h3>Bash</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/description_queue.py next \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-readmes</code></pre>
+        <h3>PowerShell</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/description_queue.py next `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-readmes</code></pre>
+      </div>
+      <p>Agent 写完一批中文说明并用 <code>description_queue.py apply</code> 保存后，用 <code>--refresh --require-complete-descriptions</code> <em>连同两个离线参数</em> 一起重建，直到队列清空。每一次重建都要重新带上离线参数；漏掉就会在下一次构建允许 GitHub 请求：</p>
+      <div class="os-block">
+        <h3>Bash</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --refresh \
+  --require-complete-descriptions \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --refresh `
+  --require-complete-descriptions `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p>进度保存在 <code>catalog-curation.json</code>，可以中断后续跑。Python 脚本不会暗中调用模型，也不需要模型密钥。</p>
+
+      <h2>第 3 步：分享前先确认输出里有什么</h2>
+      <p>生成的页面是一个自包含 HTML 文件。请把它当作你 Skill 库元数据的一份副本，而不是自动可以公开的东西：</p>
+      <ul>
+        <li><strong>绝对路径默认隐藏。</strong> 条目使用来源相对路径。<code>--include-absolute-paths</code> 是明确的本地诊断开关；打算分享的目录绝不要使用它。</li>
+        <li><strong>隐藏绝对路径不等于移除私密内容。</strong> Skill 名称、说明、相对来源路径和 GitHub 链接仍然描述着你的库。分享前请自己检查 <code>catalog.json</code> 和渲染出来的页面。</li>
+        <li><strong>本地图片可能被内嵌。</strong> 自包含页面可能内嵌你磁盘上存在的 Skill 自带图片，所以离线构建并不保证输出文件不含敏感内容。</li>
+        <li><strong>缓存预览图留在输出文件夹里。</strong> 使用 <code>--no-github-images</code> 时没有抓取的预览图；你手工保存的图片会写入同一输出目录下的 <code>curated-images/</code>。</li>
+      </ul>
+
+      <h2>以后刷新，仍然离线</h2>
+      <p>安装新 Skill 后，用同样的 <code>--root</code> 和 <code>--output-dir</code> 重跑同一条构建命令。如果输出文件夹已经存在，构建器会拒绝替换并报错退出；确认目标文件夹里是可重新生成的目录后，再加 <code>--refresh</code> 重跑。</p>
+
+      <h2>排错</h2>
+      <table class="guide-table">
+        <thead><tr><th>现象</th><th>可能原因与处理</th></tr></thead>
+        <tbody>
+          <tr><td>完整构建返回退出码 3</td><td>不是崩溃。中文说明仍在补齐。运行说明队列，或者去掉 <code>--require-complete-descriptions</code> 接受快速预览。</td></tr>
+          <tr><td>构建器报错与输出目录有关</td><td>该文件夹已经存在。确认里面是愿意重新生成的目录后，加 <code>--refresh</code> 重跑。</td></tr>
+          <tr><td>部分条目的图片显示 <code>missing evidence</code></td><td>离线时这是正常的。没有抓取 GitHub 预览图，这些条目就没有图片证明。这个标签是诚实的；生成的分类封面不会被当成 Skill 专属图片展示。</td></tr>
+          <tr><td>构建仍然访问了 GitHub</td><td>构建器需要同时有 <code>--no-github-discovery</code> 和 <code>--no-github-images</code>。README 证据的开关是独立的，位于 <code>description_queue.py next</code>。</td></tr>
+        </tbody>
+      </table>
+
+      <section class="guide-next">
+        <h2>接下来</h2>
+        <ul>
+          <li><a href="search-installed-skills-zh.html">搜索你已经安装的 Agent Skills</a> &mdash; 从一个目录到可用搜索的最短路径。</li>
+          <li><a href="skills-and-plugin-inventory-zh.html">跨目录清点 Skill 与插件</a> &mdash; 离线扫描多个根目录，并让插件保持独立。</li>
+          <li><a href="../index-zh.html">项目主页</a> &middot; <a href="https://github.com/mianbaofang/agent-skill-catalog">源码仓库</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer><div class="footer-inner"><span>Agent Skill Catalog &middot; MIT &middot; 独立开源项目</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> &middot; <a href="../index-zh.html">主页</a> &middot; <a href="offline-skill-catalog.html">English</a></span></div></footer>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.1",
+  "locale": "zh-CN",
+  "pending_count": 0,
+  "execution_owner": "invoking-agent",
+  "builder_generates_copy": false,
+  "completion_rule": "The invoking Agent must write evidence-backed Chinese descriptions to catalog-curation.json, rerun with --refresh --require-complete-descriptions, and must not report success while exit code 3 remains.",
+  "batch_protocol": {
+    "script": "scripts/description_queue.py",
+    "default_batch_size": 12,
+    "prepare": "description_queue.py next",
+    "apply": "description_queue.py apply",
+    "resume_state": "catalog-curation.json"
+  },
+  "items": []
+}

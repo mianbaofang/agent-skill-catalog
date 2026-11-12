@@ -1,0 +1,11 @@
+---
+name: note-keeper-web
+description: "在浏览器中记录与检索笔记，是为 note-keeper 项目提供的网页端子技能，共享同一套标签体系。"
+license: MIT
+---
+
+# note-keeper-web
+
+note-keeper-web 是 note-keeper 家族的网页端子技能，负责浏览器内的笔记记录与检索，归属并路由到 note-keeper 主入口。
+
+> 这是用于演示目录功能的合成示例，不含可运行的实现，也不会访问网络或执行任何真实任务。

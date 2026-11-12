@@ -1,0 +1,8 @@
+{
+  "name": "toolkit",
+  "version": "1.0.0",
+  "provider": "demo-corp",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "演示用的合成插件包：把缓存清理与草稿整理两个技能打包为一个可路由的插件，不含真实实现。"
+}

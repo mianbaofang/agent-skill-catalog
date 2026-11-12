@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Build an offline skill catalog | Agent Skill Catalog guide</title>
+  <meta name="description" content="Turn off every GitHub request while building a local skill catalog: offline flags for the builder and the description queue, the two completion states, and how to keep private paths out of the output.">
+  <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html">
+  <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog-zh.html">
+  <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Build an offline skill catalog">
+  <meta property="og:description" content="Build a searchable local skill catalog with no GitHub request at all, and tell the quick-preview and enriched completion states apart.">
+  <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Agent Skill Catalog", "item": "https://mianbaofang.github.io/agent-skill-catalog/"},
+      {"@type": "ListItem", "position": 2, "name": "Guides", "item": "https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html"}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="search-installed-skills.html">Search skills</a>
+      <a href="offline-skill-catalog.html">Offline catalog</a>
+      <a href="skills-and-plugin-inventory.html">Inventory</a>
+      <a href="offline-skill-catalog-zh.html">中文</a>
+      <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="guide-header">
+      <p class="guide-kicker">Task guide</p>
+      <h1>Build an offline skill catalog</h1>
+      <p class="guide-standfirst">Your Skill library may hold private prompts, client work, or internal tooling. This guide builds a catalog with no GitHub request at all, then explains the two ways a build can be called complete and how to keep absolute paths out of the output.</p>
+      <p class="guide-meta">Needs Python 3.10+ &middot; Runs from the repository root &middot; <a href="offline-skill-catalog-zh.html">Read in Chinese</a></p>
+    </section>
+
+    <div class="guide-body">
+      <h2>Why a default build is not offline</h2>
+      <p>A build with no extra flags can touch the network in three ways. None of them are required to produce a working catalog, but each one needs its own switch if you want zero network activity:</p>
+      <table class="guide-table">
+        <thead><tr><th>Network read</th><th>What leaves your machine</th><th>Switch</th></tr></thead>
+        <tbody>
+          <tr><td>Repository discovery</td><td>Skill names are sent to the GitHub repository search API as <code>"&lt;name&gt;" in:name</code> queries to find candidate repositories for entries with no repository metadata yet.</td><td><code>--no-github-discovery</code></td></tr>
+          <tr><td>Preview images</td><td>For observed repositories, one public preview image is fetched from allowlisted GitHub hosts.</td><td><code>--no-github-images</code></td></tr>
+          <tr><td>README evidence</td><td>Public GitHub README excerpts are fetched as evidence while filling missing Chinese descriptions.</td><td><code>description_queue.py next --no-github-readmes</code></td></tr>
+        </tbody>
+      </table>
+      <p>GitHub reads are HTTPS-only, host-allowlisted, and size-limited. If a <code>GH_TOKEN</code> or <code>GITHUB_TOKEN</code> environment variable is set, or you are signed in with the GitHub CLI, that existing credential is reused for these reads and is never stored in the catalog.</p>
+
+      <h2>Step 1: Build the offline catalog</h2>
+      <p>Run from the repository root. Replace the two paths with your real Skill folder and an empty output folder. These two flags together produce a catalog with no GitHub request.</p>
+      <div class="os-block">
+        <h3>Bash (macOS, Linux, Windows Git Bash)</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell (Windows)</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p><strong>Expected result.</strong> Exit code 0, with <code>catalog.json</code> and a self-contained <code>index.html</code> in the output folder. No GitHub request is made. Open <code>index.html</code> to browse and search.</p>
+
+      <h2>Step 2: Choose your completion state</h2>
+      <p>A build can report success in two different ways, and it matters which one you need:</p>
+      <table class="guide-table">
+        <thead><tr><th>State</th><th>How you get it</th><th>What success means</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Quick preview</strong></td><td>The command above, without <code>--require-complete-descriptions</code>.</td><td>Exit code 0. Entries with missing Chinese descriptions still appear, so you can browse immediately.</td></tr>
+          <tr><td><strong>Enriched catalog</strong></td><td>Add <code>--require-complete-descriptions</code>.</td><td>Exit code 0 <em>and</em> <code>pending_description_count</code> equal to zero. Exit code 3 means Chinese descriptions are still pending &mdash; the gate is working, not crashing.</td></tr>
+        </tbody>
+      </table>
+      <p>The enriched state is what an agent drives. If you want a complete catalog without GitHub README evidence, keep the offline switches and let the agent fill descriptions from local <code>SKILL.md</code> content only:</p>
+      <div class="note"><p><span class="note-label">Scope of "offline".</span> These switches stop the Python scripts from making GitHub requests. They say nothing about the invoking Agent's own model calls: an Agent that writes Chinese descriptions may send local <code>SKILL.md</code> text to its model provider under that provider's own rules. Treat "offline" here as "the catalog build reads no GitHub", not as a guarantee about every tool in your session.</p></div>
+      <div class="os-block">
+        <h3>Bash</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/description_queue.py next \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-readmes</code></pre>
+        <h3>PowerShell</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/description_queue.py next `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-readmes</code></pre>
+      </div>
+      <p>After the agent writes a batch of Chinese descriptions and applies it with <code>description_queue.py apply</code>, rebuild with <code>--refresh --require-complete-descriptions</code> <em>together with the two offline switches</em>, until the queue is empty. Every rebuild needs the offline flags again; omitting them would allow a GitHub request on the next build:</p>
+      <div class="os-block">
+        <h3>Bash</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --output-dir "/path/to/catalog-output" \
+  --refresh \
+  --require-complete-descriptions \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --output-dir "C:\path\to\catalog-output" `
+  --refresh `
+  --require-complete-descriptions `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p>Progress is resumable from <code>catalog-curation.json</code>. The Python scripts never call a hidden model and need no provider key.</p>
+
+      <h2>Step 3: Decide what the output contains before you share it</h2>
+      <p>The generated page is a single self-contained HTML file. Treat it as a copy of your library's metadata, not as automatically safe to publish:</p>
+      <ul>
+        <li><strong>Absolute paths are redacted by default.</strong> Entries carry source-relative paths. <code>--include-absolute-paths</code> is a deliberate local diagnostic; never use it for a catalog you plan to share.</li>
+        <li><strong>Redaction is not the same as removing private content.</strong> Skill names, descriptions, relative source paths, and GitHub links still describe your library. Inspect <code>catalog.json</code> and the rendered page yourself before sharing anything.</li>
+        <li><strong>Local images can be embedded.</strong> A self-contained page may inline Skill-provided images that exist on your disk, so an offline build does not guarantee a sensitive-output-free file.</li>
+        <li><strong>Cached previews stay in the output folder.</strong> With <code>--no-github-images</code> there are no fetched previews; manual images you save are written to <code>curated-images/</code> in the same output directory.</li>
+      </ul>
+
+      <h2>Refreshing later, still offline</h2>
+      <p>After installing new Skills, re-run the same build command with the same <code>--root</code> and <code>--output-dir</code>. If the output folder already exists, the builder refuses to replace it and exits with an error; re-run with <code>--refresh</code> only after you have checked that the target folder holds a generated catalog you are willing to regenerate.</p>
+
+      <h2>Troubleshooting</h2>
+      <table class="guide-table">
+        <thead><tr><th>Symptom</th><th>Likely cause and fix</th></tr></thead>
+        <tbody>
+          <tr><td>Exit code 3 on the enriched build</td><td>Not a crash. Chinese descriptions are still pending. Run the description queue, or drop <code>--require-complete-descriptions</code> to accept a quick preview.</td></tr>
+          <tr><td>Builder exits with an error about the output directory</td><td>The folder already exists. Confirm it holds a catalog you want regenerated, then re-run with <code>--refresh</code>.</td></tr>
+          <tr><td>Some entries show <code>missing evidence</code> for images</td><td>Expected offline. No GitHub preview was fetched, so there is no image proof for those entries. The label is honest; a generated category cover is never shown as a Skill-specific image.</td></tr>
+          <tr><td>A build still reached GitHub</td><td>Both <code>--no-github-discovery</code> and <code>--no-github-images</code> are required for the builder. The README-evidence switch is separate and lives on <code>description_queue.py next</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <section class="guide-next">
+        <h2>Where to go next</h2>
+        <ul>
+          <li><a href="search-installed-skills.html">Search the agent skills you already installed</a> &mdash; the shortest path from a folder to a working search.</li>
+          <li><a href="skills-and-plugin-inventory.html">Inventory skills and plugins across folders</a> &mdash; scan several roots offline and keep plugins separate.</li>
+          <li><a href="../">Project overview</a> &middot; <a href="https://github.com/mianbaofang/agent-skill-catalog">Source repository</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer><div class="footer-inner"><span>Agent Skill Catalog &middot; MIT &middot; Independent open-source project</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> &middot; <a href="../">Overview</a> &middot; <a href="offline-skill-catalog-zh.html">中文</a></span></div></footer>
+</body>
+</html>

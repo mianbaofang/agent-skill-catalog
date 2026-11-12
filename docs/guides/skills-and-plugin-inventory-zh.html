@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>跨目录清点 Skill 与插件｜Agent Skill Catalog 教程</title>
+  <meta name="description" content="在一次构建里扫描多个 Skill 根目录，标记插件缓存，并读懂有证据的重复安装、同名冲突与主子家族的区别。不做同步或自动删除。">
+  <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory-zh.html">
+  <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory-zh.html">
+  <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="跨目录清点 Skill 与插件">
+  <meta property="og:description" content="从多个 Skill 根目录生成一份目录，让插件包在独立视图里展示，并读懂有证据的重复副本、同名冲突和家族。">
+  <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory-zh.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Agent Skill Catalog", "item": "https://mianbaofang.github.io/agent-skill-catalog/"},
+      {"@type": "ListItem", "position": 2, "name": "教程", "item": "https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory-zh.html"}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index-zh.html"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
+    <nav class="site-nav" aria-label="主导航">
+      <a href="search-installed-skills-zh.html">搜索 Skill</a>
+      <a href="offline-skill-catalog-zh.html">离线目录</a>
+      <a href="skills-and-plugin-inventory-zh.html">跨目录清点</a>
+      <a href="skills-and-plugin-inventory.html">English</a>
+      <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="guide-header">
+      <p class="guide-kicker">任务教程</p>
+      <h1>跨目录清点 Skill 与插件</h1>
+      <p class="guide-standfirst">当库里的内容不再只放在一个目录，平铺列表就回答不了一个有用的问题：这是独立 Skill、某个更大家族的子项，还是插件携带的能力？这篇教程把多个根目录扫描进同一份目录，并教你怎么读它给出的分组。</p>
+      <p class="guide-meta">需要 Python 3.10+ &middot; 从仓库根目录运行 &middot; <a href="skills-and-plugin-inventory.html">阅读英文版</a></p>
+    </section>
+
+    <div class="guide-body">
+      <h2>你会得到什么</h2>
+      <p>一份覆盖你指定全部根目录的本地目录，三种区别清楚可见，而不是被压平：</p>
+      <ul>
+        <li><strong>独立 Skill</strong> &mdash; 自成一体，各自来自自己的 <code>SKILL.md</code>。</li>
+        <li><strong>家族</strong> &mdash; 一个主条目，详情里列出它的子 Skill；之所以聚合，是因为它们共享可观察到的主入口。</li>
+        <li><strong>插件</strong> &mdash; 由插件缓存提供的 Skill，在独立视图里按服务商和插件名分组，不计入独立 Skill 数量。</li>
+      </ul>
+
+      <h2>第 1 步：指定每个根目录，并标记插件缓存</h2>
+      <p>扫描两个根目录最简单的办法是重复 <code>--root</code>。下面的例子同时使用<a href="offline-skill-catalog-zh.html">离线生成 Skill 目录</a>里的离线开关。</p>
+      <div class="os-block">
+        <h3>Bash</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --root "/path/to/plugin-cache" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --root "C:\path\to\plugin-cache" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p>想要可复用的配置，可以改用配置文件，它还能把每个根目录标成 <code>skill</code> 或 <code>plugin</code> 并命名。以你平台对应的示例文件为起点，<code>references/catalog-config.posix.example.json</code> 或 <code>references/catalog-config.windows.example.json</code>，再用 <code>--config</code> 传入：</p>
+      <pre><code>{
+  "roots": [
+    {"path": "/path/to/skills", "label": "Skills", "kind": "skill"},
+    {"path": "/path/to/plugin-cache", "label": "Plugins", "kind": "plugin"}
+  ],
+  "output_dir": "/path/to/catalog-output"
+}</code></pre>
+      <p><strong>预期结果。</strong> 退出码 0，目录同时覆盖两个根目录。来自插件根目录的条目出现在插件视图里，而不是抬高独立 Skill 的数量。</p>
+
+      <h2>第 2 步：读懂重复安装、同名冲突与家族</h2>
+      <p>这三种情况在文件浏览器里看起来很像，含义却不同。目录会把它们区分开：</p>
+      <table class="guide-table">
+        <thead><tr><th>情况</th><th>目录如何呈现</th></tr></thead>
+        <tbody>
+          <tr><td><strong>有证据的重复安装</strong></td><td>由同一已确认 GitHub 仓库和同名 Skill 支撑的副本合并成一个条目，而每个来源位置都在详情里保留为证据。</td></tr>
+          <tr><td><strong>同名冲突</strong></td><td>两个 Skill 可以同名却来自互不相关的发布者。缺少共享仓库证据时，它们会保持为独立条目，不会被合并。</td></tr>
+          <tr><td><strong>主子家族</strong></td><td>嵌套的 <code>SKILL.md</code> 会归到可观察到的主入口之下，呈现为一个主记录，详情里列出子项。只有当兄弟条目自己的来源说明写明了明确的产品归属或路由关系时才会并入家族；松散的关键词提及保持独立。</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><p><span class="note-label">归并是保守的。</span> 当证据不足以支持合并时，目录会让条目保持独立，并在分类不确定时标记复核。你能看到的家族或重复，都是扫描确实能支撑的。</p></div>
+
+      <h2>第 3 步：保持清点只读</h2>
+      <p>生成清点不会写入你的根目录。生成的 JSON、缓存预览图和手工图片覆盖全部进入你指定的输出目录。有两个边界值得明确说明：</p>
+      <ul>
+        <li><strong>不同步、不自动安装、不自动删除。</strong> 目录只报告它发现的内容，不会跨机器调和副本、安装或卸载 Skill，也不会整理你的文件夹。</li>
+        <li><strong>可选删除能力属于本地服务，且默认关闭。</strong> 只有通过 <code>allow_delete</code> 对某个根目录显式启用后，它才可能在确认完整 Skill 名称后永久删除一个顶层独立 Skill 目录。家族和插件条目被排除，它删除的也不是根目录配置。只想浏览时，请保持关闭。</li>
+      </ul>
+
+      <h2>排错</h2>
+      <table class="guide-table">
+        <thead><tr><th>现象</th><th>可能原因与处理</th></tr></thead>
+        <tbody>
+          <tr><td>插件缓存条目被算进独立 Skill</td><td>该根目录没有被标记为插件。在配置文件里用 <code>kind: "plugin"</code> 传入，或者检查 <code>--root</code> 是否指向插件缓存而不是混进了 Skills 根目录。</td></tr>
+          <tr><td>你预期合并的两个条目保持独立</td><td>它们缺少共享的仓库证据，或本地内容不同。这是有意为之：没有匹配证据时，目录不会猜测两个同名 Skill 是同一个。</td></tr>
+          <tr><td>主 Skill 和子 Skill 显示为独立条目</td><td>主 Skill 没有可观察到的主入口，或子项没有声明关系。想让它们聚合，可以使用显式的整理覆盖。</td></tr>
+          <tr><td>扫描到了你不想扫描的目录</td><td>只有你传入的根目录会被遍历。检查 <code>--root</code> 和 <code>--config</code> 参数；构建器不会向上遍历父文件夹。</td></tr>
+        </tbody>
+      </table>
+
+      <section class="guide-next">
+        <h2>接下来</h2>
+        <ul>
+          <li><a href="search-installed-skills-zh.html">搜索你已经安装的 Agent Skills</a> &mdash; 选定一个目录并搜索。</li>
+          <li><a href="offline-skill-catalog-zh.html">生成完全离线的 Skill 目录</a> &mdash; 让多根目录清点完全不联网。</li>
+          <li><a href="../index-zh.html">项目主页</a> &middot; <a href="https://github.com/mianbaofang/agent-skill-catalog">源码仓库</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer><div class="footer-inner"><span>Agent Skill Catalog &middot; MIT &middot; 独立开源项目</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> &middot; <a href="../index-zh.html">主页</a> &middot; <a href="skills-and-plugin-inventory.html">English</a></span></div></footer>
+</body>
+</html>

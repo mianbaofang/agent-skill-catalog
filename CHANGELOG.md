@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Preview a generated catalog offline, with optional enriched descriptions when GitHub evidence is available.
+- Serve the catalog correctly while offline and keep Skill deletion off unless it is explicitly enabled.
+- Adapt the catalog search and detail UI to narrow screens, and describe responsive layout and search as static capability claims backed by the shipped interface.
+- Generate a reproducible synthetic demo catalog that preserves same-name Skill collisions and shows a curated family and plugin grouping.
+- Add three bilingual task guides covering the primary install path and continuous integration.
+- Compile every Skill script and repository tool in CI from the directories that hold them, so newly added scripts are checked without editing the workflow.
+- Syntax-check the documentation demo recorder and verify demo and documentation reproducibility on every push and pull request, failing the build when the committed demo no longer matches its generator.
+- Publish the GitHub Pages site only after the test suite passes and the committed demo and documentation are confirmed reproducible, preventing a deploy from a mismatched generator.
+- Limit Pages publishing and identity-token permissions to the deploy job, so validation tests run without the ability to publish the site.
+
 ## 0.3.6 - 2026-08-18
 
 - Batch missing-repository discovery in groups of five, reuse authenticated GitHub CLI credentials in memory, and require a unique high-confidence match before associating a repository.

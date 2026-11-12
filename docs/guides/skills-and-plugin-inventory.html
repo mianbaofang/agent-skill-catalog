@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventory skills and plugins across folders | Agent Skill Catalog guide</title>
+  <meta name="description" content="Scan several Skill roots in one catalog, label a plugin cache, and read the difference between verified duplicate installs, same-name collisions, and parent-child families. No sync or auto-delete.">
+  <link rel="canonical" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html">
+  <link rel="alternate" hreflang="en" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory-zh.html">
+  <link rel="alternate" hreflang="x-default" href="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Inventory skills and plugins across folders">
+  <meta property="og:description" content="Build one catalog from several Skill roots, keep plugin bundles in their own view, and understand verified duplicates versus name collisions and families.">
+  <meta property="og:url" content="https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Agent Skill Catalog", "item": "https://mianbaofang.github.io/agent-skill-catalog/"},
+      {"@type": "ListItem", "position": 2, "name": "Guides", "item": "https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory.html"}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../"><span class="brand-mark">AC</span><span>Agent Skill Catalog</span></a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="search-installed-skills.html">Search skills</a>
+      <a href="offline-skill-catalog.html">Offline catalog</a>
+      <a href="skills-and-plugin-inventory.html">Inventory</a>
+      <a href="skills-and-plugin-inventory-zh.html">中文</a>
+      <a class="nav-button" href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="guide-header">
+      <p class="guide-kicker">Task guide</p>
+      <h1>Inventory skills and plugins across folders</h1>
+      <p class="guide-standfirst">Once your library outgrows one folder, a flat list stops answering the useful question: is this a standalone Skill, a child of a bigger family, or something a plugin carries? This guide scans several roots into one catalog and shows you how to read the grouping it reports.</p>
+      <p class="guide-meta">Needs Python 3.10+ &middot; Runs from the repository root &middot; <a href="skills-and-plugin-inventory-zh.html">Read in Chinese</a></p>
+    </section>
+
+    <div class="guide-body">
+      <h2>What you will end up with</h2>
+      <p>One local catalog that covers every root you name, with three distinctions visible instead of flattened:</p>
+      <ul>
+        <li><strong>Standalone Skills</strong> &mdash; self-contained entries, each from its own <code>SKILL.md</code>.</li>
+        <li><strong>Families</strong> &mdash; one parent entry whose child Skills are listed in the detail view, kept together because they share an observed main entry point.</li>
+        <li><strong>Plugins</strong> &mdash; Skills supplied by a plugin cache, grouped by provider and plugin name in a separate view, and not counted as standalone Skills.</li>
+      </ul>
+
+      <h2>Step 1: Name each root, and label the plugin cache</h2>
+      <p>The simplest way to scan two roots is to repeat <code>--root</code>. The example below also uses the offline switches from <a href="offline-skill-catalog.html">Build an offline skill catalog</a>.</p>
+      <div class="os-block">
+        <h3>Bash</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py \
+  --root "/path/to/skills" \
+  --root "/path/to/plugin-cache" \
+  --output-dir "/path/to/catalog-output" \
+  --no-github-discovery \
+  --no-github-images</code></pre>
+        <h3>PowerShell</h3>
+        <pre><code>python skills/agent-skill-catalog/scripts/build_catalog.py `
+  --root "C:\path\to\skills" `
+  --root "C:\path\to\plugin-cache" `
+  --output-dir "C:\path\to\catalog-output" `
+  --no-github-discovery `
+  --no-github-images</code></pre>
+      </div>
+      <p>For a repeatable setup, use a config file instead, which also lets you label each root as a <code>skill</code> or a <code>plugin</code> and name it. Start from the bundled example for your platform, <code>references/catalog-config.posix.example.json</code> or <code>references/catalog-config.windows.example.json</code>, and pass it with <code>--config</code>:</p>
+      <pre><code>{
+  "roots": [
+    {"path": "/path/to/skills", "label": "Skills", "kind": "skill"},
+    {"path": "/path/to/plugin-cache", "label": "Plugins", "kind": "plugin"}
+  ],
+  "output_dir": "/path/to/catalog-output"
+}</code></pre>
+      <p><strong>Expected result.</strong> Exit code 0 and a catalog spanning both roots. Entries from the plugin-labeled root appear under the plugin view rather than inflating the standalone count.</p>
+
+      <h2>Step 2: Read duplicate installs, name collisions, and families</h2>
+      <p>These three situations look similar in a file browser but mean different things. The catalog separates them:</p>
+      <table class="guide-table">
+        <thead><tr><th>Situation</th><th>How the catalog reports it</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Verified duplicate install</strong></td><td>Copies backed by the same observed GitHub repository and the same Skill name collapse to a single entry, and every source location is retained as evidence in the detail view.</td></tr>
+          <tr><td><strong>Same-name collision</strong></td><td>Two Skills can share a name yet come from unrelated publishers. Without shared repository evidence they stay separate entries rather than being merged.</td></tr>
+          <tr><td><strong>Parent-child family</strong></td><td>Nested <code>SKILL.md</code> files group under an observed main entry point and appear as one parent record with its children listed in the detail. Siblings join a family only when their own source description states a clear product-owner or routing relationship; loose keyword mentions stay separate.</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><p><span class="note-label">Grouping is conservative.</span> When the evidence does not clearly support merging, the catalog keeps entries separate and, for classification uncertainty, marks them for review. A family or duplicate you can see is one the scan could actually support.</p></div>
+
+      <h2>Step 3: Keep the inventory read-only</h2>
+      <p>Building an inventory never writes to your roots. Generated JSON, cached previews, and manual image overrides all go to the output directory you chose. Two boundaries are worth stating plainly:</p>
+      <ul>
+        <li><strong>No sync, no auto-install, no auto-delete.</strong> The catalog reports what it found; it does not reconcile copies across machines, install or remove Skills, or tidy your folders.</li>
+        <li><strong>The optional delete capability belongs to the local server, and is off unless you turn it on.</strong> When explicitly enabled for a root via <code>allow_delete</code>, it can permanently remove a top-level standalone Skill directory after you confirm the full Skill name. Family and plugin entries are excluded, and root configuration is not what it deletes. Leave it disabled if you only want to browse.</li>
+      </ul>
+
+      <h2>Troubleshooting</h2>
+      <table class="guide-table">
+        <thead><tr><th>Symptom</th><th>Likely cause and fix</th></tr></thead>
+        <tbody>
+          <tr><td>Plugin cache entries are counted as standalone Skills</td><td>The root was not labeled as a plugin. Pass it with <code>kind: "plugin"</code> in a config file, or check that you pointed <code>--root</code> at the plugin cache rather than mixing it into the Skills root.</td></tr>
+          <tr><td>Two entries you expected to merge stayed separate</td><td>They lack shared repository evidence, or their local content differs. This is intentional: without matching evidence the catalog will not guess that two same-name Skills are the same.</td></tr>
+          <tr><td>A parent and its children appear as separate entries</td><td>The parent has no observable main entry point, or the children do not declare a relationship. Use an explicit curation override if you want them grouped.</td></tr>
+          <tr><td>A root is scanned that you did not intend</td><td>Only the roots you pass are traversed. Check the <code>--root</code> and <code>--config</code> arguments; the builder does not walk parent folders.</td></tr>
+        </tbody>
+      </table>
+
+      <section class="guide-next">
+        <h2>Where to go next</h2>
+        <ul>
+          <li><a href="search-installed-skills.html">Search the agent skills you already installed</a> &mdash; pick one root and search it.</li>
+          <li><a href="offline-skill-catalog.html">Build an offline skill catalog</a> &mdash; keep a multi-root inventory off the network.</li>
+          <li><a href="../">Project overview</a> &middot; <a href="https://github.com/mianbaofang/agent-skill-catalog">Source repository</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer><div class="footer-inner"><span>Agent Skill Catalog &middot; MIT &middot; Independent open-source project</span><span><a href="https://github.com/mianbaofang/agent-skill-catalog">GitHub</a> &middot; <a href="../">Overview</a> &middot; <a href="skills-and-plugin-inventory-zh.html">中文</a></span></div></footer>
+</body>
+</html>

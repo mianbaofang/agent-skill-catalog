@@ -103,12 +103,12 @@ def test_scan_classify_image_and_refresh() -> None:
         assert (output / "index.html").is_file()
         html = (output / "index.html").read_text(encoding="utf-8")
         assert ".join('\\n')" in html
-        assert "grid-template-columns: repeat(6" in html
-        assert "grid-template-columns: 440px minmax(0,1fr)" in html
+        assert "grid-template-columns: repeat(auto-fill, minmax(min(100%, 292px), 1fr))" in html
+        assert "grid-template-columns: minmax(0, 400px) minmax(0, 1fr)" in html
         assert ".detail-media, .detail-content" in html
         assert "overscroll-behavior: contain" in html
         assert "function lockBackground()" in html
-        assert "const categoryArt=" in html
+        assert "const categoryIcons=" in html
         assert "records().filter(record=>record.category===id&&record.image?.value)" not in html
         assert "请输入完整 Skill 名称" in html
 

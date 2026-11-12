@@ -5,8 +5,8 @@
     "network": {
       "decision": "approved",
       "reviewer": "User-authorized product requirement",
-      "scope": "scripts/github_discovery.py may search exact repository names and verify matching remote SKILL.md files for family-primary Skills that lack a repository; scripts/github_preview.py may read verified or locally observed public repositories and allowlisted preview images; scripts/description_queue.py may read one bounded README excerpt for the same repository. All use HTTPS, fixed hosts, timeouts, and byte limits. --no-github-discovery disables discovery, --no-github-images disables preview reads, and --no-github-readmes disables README queue reads.",
-      "reason": "The catalog must recover missing repository links conservatively and use the corresponding verified project repository as the default preview-image source when one is available.",
+      "scope": "scripts/github_discovery.py may search GitHub by Skill name and verify matching remote SKILL.md files for family-primary Skills that lack a repository; scripts/github_preview.py may read verified or locally observed public repositories and allowlisted preview images; scripts/description_queue.py may read one bounded README excerpt for the same repository. These reads are optional and only run when the corresponding offline flag is not supplied: --no-github-discovery disables name search and candidate verification, --no-github-images disables preview reads, and --no-github-readmes disables README queue reads. Name search and token-gated reads may reuse an existing local GitHub CLI or GH_TOKEN/GITHUB_TOKEN login; no credential is written or stored. All requests use HTTPS, fixed hosts, timeouts, and byte limits.",
+      "reason": "The catalog can recover missing repository links conservatively and use the corresponding verified project repository as the default preview-image source when one is available; offline catalogs are produced with the explicit flags above.",
       "expires_at": "2027-08-12",
       "evidence": [
         "scripts/github_preview.py",
@@ -26,8 +26,8 @@
     "file_write": {
       "decision": "approved",
       "reviewer": "User-authorized local implementation task",
-      "scope": "Only the explicitly selected Agent Skill Catalog output directory may receive catalog.json and index.html; scanned roots remain read-only.",
-      "reason": "The user explicitly authorized this local Agent Skill Catalog implementation and refresh; this approval does not authorize writes outside the selected output directory.",
+      "scope": "Only the explicitly selected Agent Skill Catalog output directory may receive catalog.json, index.html, output-owned curated images, and curation state; scanned roots remain read-only for scanning, image selection, and refresh. The optional localhost server can additionally delete source content in one bounded case: a served config root marked \"allow_delete\": true, for a single top-level standalone Skill, only after the request confirms the full Skill name. This capability is off by default in every shipped config and example, and is never enabled by the Agent unless the operator explicitly asks; no other source path is ever written or deleted.",
+      "reason": "The user explicitly authorized this local Agent Skill Catalog implementation and refresh, which writes only inside the selected output directory; deleting source content under an allow_delete root is a separate capability that requires its own explicit operator opt-in and is not covered by this approval.",
       "expires_at": "2027-08-11",
       "evidence": [
         "scripts/build_catalog.py",
@@ -45,8 +45,8 @@
     "subprocess": {
       "decision": "approved",
       "reviewer": "User-authorized local implementation task",
-      "scope": "The local server may invoke only scripts/build_catalog.py with fixed startup config, curation files, output directory, and --refresh; HTTP requests cannot supply command arguments. The discovery script may invoke read-only gh auth token --hostname github.com to reuse an existing local login; no credential is written.",
-      "reason": "The page refresh button needs the fixed local builder process; this approval does not authorize arbitrary commands or HTTP-provided paths.",
+      "scope": "The local server may invoke only scripts/build_catalog.py with the fixed startup config, curation files, output directory, --refresh, and the operator-supplied startup flags --require-complete-descriptions, --no-github-discovery, and --no-github-images; HTTP requests cannot supply command arguments, roots, config paths, or curation paths, and the server rejects a startup contract that differs from the served catalog. The discovery script may invoke read-only gh auth token --hostname github.com to reuse an existing local login; no credential is written or stored.",
+      "reason": "The page refresh button needs the fixed local builder process, including the same offline flags the operator started the server with; this approval does not authorize arbitrary commands or HTTP-provided paths.",
       "expires_at": "2027-08-11",
       "evidence": [
         "scripts/serve_catalog.py",
