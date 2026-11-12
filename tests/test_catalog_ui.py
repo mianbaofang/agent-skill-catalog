@@ -89,6 +89,9 @@ def test_key_data_contract_ids_present(html: str) -> None:
         "detail-description", "github-panel", "detail-github", "subskills-label",
         "detail-subskills", "detail-locations", "detail-evidence", "danger-zone",
         "delete-open", "delete-confirm",
+        # targeted UX follow-up: cover/title open-details, gallery zoom, copy, larger view
+        "copy-invocation", "copy-status", "lightbox", "lightbox-close",
+        "lightbox-img", "lightbox-name", "lightbox-label", "lightbox-source",
     ):
         assert f'id="{element_id}"' in html, element_id
 
@@ -167,3 +170,112 @@ def test_minimal_catalog_renders_without_optional_fields() -> None:
     html = render_catalog_html(minimal)
     assert 'id="list"' in html
     assert 'id="overview"' in html
+
+
+def test_cover_and_title_are_native_open_details_buttons(html: str) -> None:
+    # cover is a native button carrying the record id and an explicit accessible name
+    assert 'class="thumb-button" type="button" data-record=' in html
+    assert 'aria-label="查看 ' in html and '详情"' in html
+    # the title keeps heading semantics while a native button inside opens the detail dialog
+    assert "<h3><button class=\"card-title\" type=\"button\" data-record=" in html
+    # one delegated handler drives cover / title / detail buttons after re-render
+    assert "querySelectorAll('[data-record]').forEach(button=>button.addEventListener" not in html
+    assert "closest('[data-record],[data-image-record]')" in html
+
+
+def test_cover_no_longer_hijacks_click_to_github(html: str) -> None:
+    # the inert cover div and the outbound cover anchor are gone
+    assert 'class="thumb-link"' not in html
+    # GitHub stays on the explicit detail dialog link
+    assert 'id="detail-github"' in html
+
+
+def test_cover_badge_is_not_a_nested_interactive_element(html: str) -> None:
+    # provenance badge is aria-hidden and pointer-events:none so it never swallows the click
+    assert 'class="image-badge" aria-hidden="true"' in html
+    assert ".image-badge {" in html and "pointer-events: none;" in html
+
+
+def test_gallery_images_are_zoom_buttons_with_source_explanation(html: str) -> None:
+    assert 'class="zoom-button" type="button" data-zoom=' in html
+    assert "放大查看" in html
+    # each caption explains provenance, and the generated fallback is called out as art, not a screenshot
+    assert "不代表技能的实际界面截图" in html
+    assert "不是图片生成操作的结果" in html
+    assert 'class="gallery-note"' in html
+
+
+def test_larger_view_uses_native_dialog_with_focus_return(html: str) -> None:
+    assert '<dialog id="lightbox" aria-labelledby="lightbox-name">' in html
+    assert "$('#lightbox').showModal()" in html
+    assert "$('#lightbox').close()" in html
+    # focus returns to the gallery button that opened it
+    assert "lightboxReturn=trigger" in html
+    assert "lightboxReturn.focus({preventScroll:true})" in html
+
+
+def test_copy_invocation_has_clipboard_fallback_and_status(html: str) -> None:
+    assert 'id="copy-invocation"' in html
+    assert 'id="copy-status"' in html
+    assert "navigator.clipboard" in html
+    assert "execCommand('copy')" in html
+    assert "已复制调用方式。" in html
+    assert "复制失败" in html
+
+
+def test_cover_thumb_button_keeps_16_7_frame(html: str) -> None:
+    # Regression: .thumb-button replaced the old .thumb wrapper but must keep the same
+    # framed box (16/7, centered, clipped) so a wide intrinsic cover cannot inflate the
+    # card or crop horizontally at any width.
+    assert ".thumb-button {" in html
+    assert "aspect-ratio: 16 / 7" in html
+    # the button is the clipping box and the image absolutely fills it, contained
+    assert "overflow: hidden;" in html
+    assert ".thumb-button img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;" in html
+    # the dead .thumb rules that used to own this box are gone (no duplicate sizing)
+    assert ".thumb {" not in html
+    assert ".thumb img" not in html
+
+
+def test_copy_fallback_runs_on_clipboard_rejection_not_just_absence(html: str) -> None:
+    # clipboard write is awaited inside try; a rejection must fall through to the
+    # textarea fallback rather than only using it when the API is entirely missing.
+    assert "await navigator.clipboard.writeText(text);copied=true" in html
+    assert "catch(error){copied=false}" in html
+    assert "if(!copied)copied=copyViaTextarea(text)" in html
+
+
+def test_copy_fallback_textarea_lives_inside_the_active_detail_dialog(html: str) -> None:
+    # content outside an open <dialog> is inert and cannot be selected, so the helper
+    # textarea must be appended to #detail and require it to be open.
+    assert "function copyViaTextarea(text){const dialog=$('#detail');if(!dialog||!dialog.open)return false;" in html
+    assert "dialog.appendChild(area)" in html
+    assert "document.body.appendChild(area)" not in html
+
+
+def test_copy_fallback_preserves_focus_and_cleans_up(html: str) -> None:
+    # focus returns to the trigger on a real copy, and the helper textarea is removed
+    assert "previous.focus({preventScroll:true})" in html
+    assert "area.remove()" in html
+    # reopening a record clears any leftover fallback textarea and resets the status
+    assert "cleanupCopyFallback()" in html
+
+
+def test_copy_reports_manual_select_instead_of_false_success(html: str) -> None:
+    # when both programmatic paths fail, the text is revealed/selected for a manual copy
+    # and the status explicitly says it failed rather than claiming success.
+    assert "area.classList.add('copy-fallback-manual')" in html
+    assert "复制失败，已选中调用方式文本，请按 Ctrl+C 手动复制。" in html
+    # the manual reveal has a visible, selectable box
+    assert ".copy-fallback-manual {" in html
+
+
+def test_open_details_controls_have_visible_hover_and_focus_feedback(html: str) -> None:
+    # cover ring + hint on hover/focus, title underline, orange focus-visible ring
+    assert ".thumb-button:hover::after, .thumb-button:focus-visible::after" in html
+    assert ".thumb-button:hover .image-hint, .thumb-button:focus-visible .image-hint" in html
+    assert ".card-title:hover" in html
+    assert ":focus-visible { outline: 3px solid var(--orange);" in html
+    # lightbox scrolls on small screens and the close control reaches 44px on phones
+    assert "#lightbox { width:" in html and "overflow-y: auto;" in html
+    assert ".lightbox-close { width: 44px; height: 44px; }" in html

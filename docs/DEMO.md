@@ -29,6 +29,30 @@ uses `--no-github-discovery --no-github-images`, it contains no live manual imag
 GitHub fetch, and no installation step; every image is either a generated category fallback
 (labelled as such, never presented as a Skill-specific preview) or no image at all.
 
+### What the in-page interactions actually do
+
+- **Open a detail entry** from a card's cover, its title, or its `查看详情` action button; each
+  opens the same native detail dialog for that record.
+- **Detail dialog** shows the invocation line with a `复制调用` copy button, the image gallery,
+  the bundled sub-skills, the source locations, and the classification evidence.
+- **Image gallery** shows the larger project images for the record and its bundled skills. Each
+  gallery figure is captioned with its provenance (`自动生成封面` for the offline demo, since the
+  fixtures ship no real images), so a generated category placeholder is never presented as a
+  Skill-specific screenshot.
+- **Copy invocation** uses the browser clipboard. Where the browser blocks clipboard access
+  (for example on a `file://` open, or without a user gesture / permission), the button reports
+  the failure honestly instead of claiming success; on a `file://` open the clipboard write may
+  be unavailable, and the button surfaces that error rather than pretending the copy succeeded.
+- **Search, category filter, and the plugin view** all operate on the generated catalog data
+  only.
+
+The generated page also ships a compact, **collapsible guide banner** (`操作指南`) above the
+product UI. It is collapsed by default so it never pushes content down, and its action buttons
+(`试试搜索`, `看家族详情`, `看插件`, `重置演示`) drive the page's own native controls — the search
+input, the mode/category buttons, and the real per-record detail button. The banner is labelled
+as synthetic demo data (`noindex` + a visible note) and states plainly that refresh, image save,
+and delete need a real local catalog service and are not simulated in the static page.
+
 ## Storyboard
 
 The recorder's timeline, driven by real interactions against the generated catalog:

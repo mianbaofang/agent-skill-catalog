@@ -325,7 +325,9 @@ await setBand(copy.searchChip, copy.search(familyName, familyMemberCount));
 await settle(4200);
 
 const familyCard = page.locator(".grid .card").filter({ has: page.locator("h3", { hasText: familyName }) }).first();
-await familyCard.locator("[data-record]").click();
+// A card exposes up to three [data-record] triggers (cover, title, actions button);
+// narrow to the explicit actions button so the click is unambiguous.
+await familyCard.locator(".card-actions [data-record]").click();
 await page.waitForSelector("#detail", { state: "visible" });
 await setBand(copy.detailChip, copy.detail);
 await settle(7200);

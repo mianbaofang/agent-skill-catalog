@@ -111,7 +111,7 @@ def test_output_is_deterministic_and_portable(builder, built) -> None:
     assert first == public_json(builder, rebuilt)
     # HTML re-rendered from the clean public catalog matches the shipped page.
     public = {key: value for key, value in built.items() if not key.startswith("__")}
-    assert builder.inject_banner(builder.load_builder().render_html(public)) == built["__html__"]
+    assert builder.inject_banner(builder.load_builder().render_html(public), public) == built["__html__"]
 
 
 def test_no_machine_specific_paths_in_output(built) -> None:
@@ -127,6 +127,66 @@ def test_demo_labels_and_noindex(built) -> None:
     html = built["__html__"]
     assert "noindex" in html
     assert "Demo data" in html and "演示数据" in html
+
+
+def test_guide_actions_are_compact_collapsible_and_accessible(built) -> None:
+    html = built["__html__"]
+    # Collapsed by default, toggle exposed with accessible state.
+    assert 'id="demo-guide-toggle"' in html
+    assert 'aria-expanded="false"' in html and 'aria-controls="demo-guide-panel"' in html
+    assert 'id="demo-guide-panel" hidden' in html
+    # Touch targets meet the 44px minimum.
+    assert "min-height:44px" in html
+    # Guide precedes the product UI and its wiring runs before </body>.
+    assert html.find("demo-banner") < html.find('class="topbar"')
+    assert html.find("demo-guide-panel") < html.rfind("</body>")
+
+
+def test_guide_buttons_derive_from_real_fixture_data(built) -> None:
+    html = built["__html__"]
+    families = {family["name"]: family for family in built["families"]}
+    family = families["note-keeper"]
+    plugin = built["plugins"][0]
+    members = len(family["skill_ids"])
+    # Labels quote the real family/plugin names and the real member count (no fabrication).
+    assert f"试试搜索 {family['name']}" in html
+    assert f"看家族详情（{family['name']}，{members} 个技能）" in html
+    assert f"看插件（{plugin['name']}）" in html
+    assert f"重置演示" in html
+    # The wiring targets the real record id so the native detail dialog opens.
+    assert json.dumps(family["id"]) in html
+
+
+def test_guide_actions_use_native_controls_only(built) -> None:
+    html = built["__html__"]
+    # Search fills the real input and dispatches the native input event.
+    assert "getElementById('search')" in html and "new Event('input'" in html
+    # Family detail / plugin / reset go through the page's own controls, no state copy.
+    assert "data-record=" in html
+    assert "data-mode=" in html and "data-category=" in html
+    assert "closest('[data-demo]')" in html
+    # The injected guide is the last script; it adds no network calls of its own.
+    demo_script = html.rsplit("<script>", 1)[1]
+    assert "demo-guide-panel" in demo_script
+    assert "fetch(" not in demo_script
+
+
+def test_guide_script_values_are_proper_js_literals(built) -> None:
+    """Regression guard: injected names/ids must be quoted JS literals.
+
+    A bare ``note-keeper`` parses as ``note - keeper`` (ReferenceError), and a
+    ``clickRecord('"family:..."')`` wraps the id in extra quotes so no record
+    matches. Both broke the guide in real browser runs.
+    """
+    html = built["__html__"]
+    family = next(f for f in built["families"] if f["name"] == "note-keeper")
+    demo_script = html.rsplit("<script>", 1)[1]
+    # The search/detail fallback assigns a quoted string literal, not a bare token.
+    assert f'input.value="{family["name"]}"' in demo_script
+    assert f'input.value={family["name"]}' not in demo_script
+    # clickRecord receives exactly the JSON string literal (no doubled quoting).
+    assert f"clickRecord({json.dumps(family['id'])})" in demo_script
+    assert 'clickRecord(\'"' not in demo_script
 
 
 def test_generated_demo_files_exist_and_match(builder) -> None:

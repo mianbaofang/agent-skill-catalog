@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="robots" content="noindex"><div class="demo-banner" role="note" style="margin:0;padding:10px 16px;background:#123b3a;color:#e6f2f0;font:14px/1.5 system-ui,sans-serif;text-align:center">演示数据 · Demo data — 合成示例目录，仅展示功能，不扫描访客设备，不提供真实服务。 Synthetic example catalog; limited functionality, nothing is executed or fetched.</div>
+  <meta name="robots" content="noindex"><div class="demo-banner" role="note" aria-label="演示数据说明"><style>.demo-banner{margin:0;padding:8px 16px 10px;background:#123b3a;color:#e6f2f0;font:14px/1.5 system-ui,-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;text-align:left}.demo-banner__row{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;justify-content:space-between}.demo-banner__note{margin:0;font-size:13px;line-height:1.45}.demo-banner__note strong{font-weight:700;color:#fff}.demo-banner__note .demo-banner__en{color:#bcd8d4}.demo-guide__toggle{flex:0 0 auto;min-height:44px;min-width:44px;padding:8px 16px;border:1px solid rgba(230,242,240,.55);border-radius:6px;background:transparent;color:#e6f2f0;font:inherit;font-weight:700;cursor:pointer}.demo-guide__toggle:hover{background:rgba(255,255,255,.08)}.demo-guide__panel{max-width:1180px;margin:8px auto 0;padding:12px 14px;border-radius:8px;background:#fff;color:#1b2a2c;border:1px solid #cfd8d5}.demo-guide__actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;padding:0;list-style:none}.demo-action{min-height:44px;min-width:44px;padding:8px 14px;border:0;border-radius:6px;background:#0f766e;color:#fff;font:inherit;font-weight:700;cursor:pointer}.demo-action:hover{background:#0b5d56}.demo-guide__note{margin:6px 0 0;font-size:13px;line-height:1.5;color:#33474a}.demo-guide__note b{color:#123b3a}</style><div class="demo-banner__row"><p class="demo-banner__note"><strong>演示数据 · Demo data</strong> — 合成示例目录，仅展示功能，不扫描访客设备，不提供真实服务。 <span class="demo-banner__en">Synthetic example catalog; limited functionality, nothing is executed or fetched.</span><br>可试用：搜索 · 家族详情 · 插件视图 · 重置</p><button class="demo-guide__toggle" type="button" id="demo-guide-toggle" aria-expanded="false" aria-controls="demo-guide-panel">操作指南 ▾</button></div><div class="demo-guide__panel" id="demo-guide-panel" hidden><ul class="demo-guide__actions"><li><button class="demo-action" type="button" data-demo="search">试试搜索 note-keeper</button></li><li><button class="demo-action" type="button" data-demo="details">看家族详情（note-keeper，3 个技能）</button></li><li><button class="demo-action" type="button" data-demo="plugins">看插件（toolkit）</button></li><li><button class="demo-action" type="button" data-demo="reset">重置演示</button></li></ul><p class="demo-guide__note"><b>说明</b> 点击封面或“查看详情”打开详情；自动封面是按分类生成的占位图，不是图片生成器，也不代表真实项目截图。 静态演示可用：搜索、分类筛选、家族/插件详情、查看自动封面图。 刷新、换图保存、删除需真实本地服务（serve_catalog），静态页不做模拟。</p><p class="demo-guide__note"><b>Note</b> A cover or “查看详情” opens the detail dialog. The auto cover is a per-category placeholder, not an image generator and not a real project screenshot. Works offline: search, category filter, family/plugin detail, cover gallery. Refresh, image save and delete need a real local catalog service and are not simulated here.</p></div></div>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="搜索你已安装的 Agent Skills：可搜索、可查看来源与调用方式的本地 HTML 目录。">
   <title>Agent Skill Catalog</title>
@@ -86,11 +86,22 @@
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 292px), 1fr)); gap: 16px; }
     .card { display: grid; min-width: 0; grid-template-rows: auto 1fr; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 5px 16px rgba(29,52,54,.06); transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease); }
     .card:hover { transform: translateY(-2px); border-color: #afc3bc; box-shadow: 0 12px 26px rgba(29,52,54,.12); }
-    .thumb { position: relative; display: grid; aspect-ratio: 16 / 7; place-items: center; overflow: hidden; background: #e9eeeb; }
-    .thumb img { width: 100%; height: 100%; object-fit: contain; transition: transform .38s var(--ease); }
-    .card:hover .thumb img { transform: scale(1.02); }
-    .thumb-link { display: block; color: inherit; }
-    .image-badge { position: absolute; right: 8px; bottom: 8px; max-width: calc(100% - 16px); padding: 4px 7px; border-radius: 4px; color: #f0f7f5; background: rgba(8,36,36,.84); font-size: 11px; overflow-wrap: anywhere; backdrop-filter: blur(6px); }
+    /* Cover opens the detail dialog (public demo has no outbound link on the cover).
+       It keeps the original 16/7 thumb frame. The image is absolutely filled and
+       contained so a wide intrinsic cover can never inflate or crop the card. */
+    .thumb-button { position: relative; display: block; width: 100%; aspect-ratio: 16 / 7; overflow: hidden; padding: 0; border: 0; color: inherit; background: #e9eeeb; cursor: pointer; }
+    .thumb-button img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: transform .38s var(--ease); }
+    .card:hover .thumb-button img { transform: scale(1.02); }
+    .thumb-button::after { content: ""; position: absolute; inset: 0; border: 0 solid var(--teal); pointer-events: none; transition: border-width .16s var(--ease); }
+    .thumb-button:hover::after, .thumb-button:focus-visible::after { border-width: 3px; }
+    .image-hint { position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 4px; color: #fff; background: rgba(8,36,36,.86); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-3px); transition: opacity .16s var(--ease), transform .16s var(--ease); }
+    .thumb-button:hover .image-hint, .thumb-button:focus-visible .image-hint { opacity: 1; transform: none; }
+    .image-badge { position: absolute; right: 8px; bottom: 8px; z-index: 1; max-width: calc(100% - 16px); padding: 4px 7px; border-radius: 4px; color: #f0f7f5; background: rgba(8,36,36,.84); font-size: 11px; overflow-wrap: anywhere; backdrop-filter: blur(6px); pointer-events: none; }
+    /* Title opens the same detail dialog; the h3 keeps heading semantics while the
+       native button inside carries the click and the accessible name. */
+    .card-top h3 { min-width: 0; margin: 0; font-size: 16px; font-weight: 700; line-height: 1.35; }
+    .card-title { display: block; width: 100%; padding: 0; border: 0; color: var(--ink); background: none; cursor: pointer; font: inherit; font-size: 16px; font-weight: 700; line-height: 1.35; text-align: left; text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 3px; transition: text-decoration-color .16s var(--ease), color .16s var(--ease); }
+    .card-title:hover { color: var(--teal); text-decoration-color: currentColor; }
     .card-body { display: flex; min-width: 0; flex-direction: column; padding: 14px 15px 15px; }
     .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .card h3 { min-width: 0; margin: 0; font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -113,11 +124,41 @@
     .close { position: absolute; z-index: 5; top: 12px; right: 12px; display: grid; width: 38px; height: 38px; place-items: center; padding: 0; border: 1px solid #cdd6d2; border-radius: 5px; color: #476064; background: rgba(255,255,255,.94); cursor: pointer; box-shadow: 0 3px 10px rgba(18,41,42,.08); }
     .close:hover { color: var(--green); background: #fff; }
     .gallery { display: grid; gap: 14px; }
+    .gallery-note { margin: 0; padding: 10px 12px; border: 1px solid #cbd6d1; border-radius: 6px; color: var(--muted); background: rgba(255,255,255,.86); font-size: 12px; line-height: 1.55; }
     .gallery figure { margin: 0; overflow: hidden; border: 1px solid #cfd8d3; border-radius: 6px; background: #fff; }
     .gallery a, .gallery div { display: grid; min-height: 200px; place-items: center; background: #f8faf8; }
     .gallery img { display: block; width: 100%; max-height: 460px; object-fit: contain; }
-    .gallery figcaption { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-top: 1px solid #dbe2de; color: #617277; font-size: 11px; }
+    .gallery figcaption { display: grid; gap: 6px; padding: 8px 10px; border-top: 1px solid #dbe2de; color: #617277; font-size: 11px; }
     .gallery figcaption span { min-width: 0; overflow-wrap: anywhere; }
+    .gallery figcaption .gallery-source { color: #7d8a8d; line-height: 1.5; }
+    /* Whole image is a button that opens the larger view */
+    .zoom-button { position: relative; display: block; width: 100%; min-height: 200px; padding: 0; border: 0; background: #f8faf8; cursor: zoom-in; }
+    .zoom-button img { transition: transform .3s var(--ease); }
+    .zoom-button:hover img { transform: scale(1.02); }
+    .zoom-button::after { content: ""; position: absolute; inset: 0; border: 0 solid var(--teal); pointer-events: none; transition: border-width .16s var(--ease); }
+    .zoom-button:hover::after, .zoom-button:focus-visible::after { border-width: 3px; }
+    .zoom-hint { position: absolute; right: 8px; bottom: 8px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 4px; color: #fff; background: rgba(8,36,36,.86); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(3px); transition: opacity .16s var(--ease), transform .16s var(--ease); }
+    .zoom-button:hover .zoom-hint, .zoom-button:focus-visible .zoom-hint { opacity: 1; transform: none; }
+    /* Copy invocation */
+    .invocation-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .copy { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 34px; padding: 6px 11px; border: 1px solid #b9c8c2; border-radius: 5px; color: var(--green); background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color .16s var(--ease), background-color .16s var(--ease); }
+    .copy:hover { border-color: var(--teal); background: #f4f8f6; }
+    .copy-status { min-height: 18px; margin-top: 6px; color: var(--green); font-size: 12px; }
+    /* Offscreen helper textarea for the non-secure / denied clipboard fallback. It lives
+       inside the open dialog because content outside a modal is inert and cannot be
+       selected. The manual variant is revealed so the user can copy with Ctrl+C. */
+    .copy-fallback { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; }
+    .copy-fallback-manual { position: static; width: 100%; min-height: 64px; margin-top: 8px; padding: 8px 10px; border: 1px solid #c6d0cb; border-radius: 5px; opacity: 1; color: var(--ink); background: #fff; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    /* Larger view dialog */
+    #lightbox { width: min(1100px, calc(100vw - 2 * var(--gutter))); max-height: calc(100dvh - 2 * var(--gutter)); overflow-y: auto; overscroll-behavior: contain; border-radius: 8px; background: #fff; box-shadow: 0 30px 90px rgba(4,18,20,.42); }
+    .lightbox-body { position: relative; display: grid; gap: 10px; padding: 18px 18px 20px; }
+    #lightbox img { display: block; width: 100%; max-height: 68dvh; object-fit: contain; border-radius: 4px; background: #f8faf8; }
+    .lightbox-close { position: absolute; top: 10px; right: 10px; display: grid; width: 38px; height: 38px; place-items: center; padding: 0; border: 1px solid #cdd6d2; border-radius: 5px; color: #476064; background: rgba(255,255,255,.94); cursor: pointer; }
+    .lightbox-close:hover { color: var(--green); background: #fff; }
+    .lightbox-caption { display: grid; gap: 4px; padding-right: 46px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .lightbox-caption strong { color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
+    .lightbox-caption span { overflow-wrap: anywhere; }
+    .lightbox-caption .lightbox-source { color: #7d8a8d; }
     .media-tools { margin-top: 16px; padding: 14px; border: 1px solid #cbd6d1; border-radius: 6px; background: rgba(255,255,255,.86); }
     .media-tools h3 { margin: 0 0 6px; font-size: 14px; }
     .media-tools p { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.55; }
@@ -182,8 +223,12 @@
       .overview { gap: 7px; }
       .button { min-height: 44px; }
       .category-chip { min-height: 44px; }
+      .card-title { min-height: 44px; }
       .card-actions .button { min-height: 44px; }
+      .copy { min-height: 44px; }
       .close { width: 44px; height: 44px; }
+      .lightbox-close { width: 44px; height: 44px; }
+      #lightbox { width: 100vw; max-height: 100dvh; border-radius: 0; }
     }
     @media (max-width: 360px) {
       .card-actions { width: 100%; }
@@ -239,7 +284,7 @@
       <section class="detail-content" id="detail-content">
         <header class="detail-heading"><span class="tag" id="detail-tag"></span><h2 id="detail-name"></h2><p class="detail-summary" id="detail-description"></p></header>
         <section id="github-panel" hidden><div class="section-label">GitHub 仓库</div><a class="github" id="detail-github" target="_blank" rel="noreferrer"></a></section>
-        <div class="section-label">调用方式</div><div class="code" id="detail-invocation"></div>
+        <div class="section-label">调用方式</div><div class="invocation-head"><div class="code" id="detail-invocation"></div><button class="copy" id="copy-invocation" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>复制调用</button></div><span class="copy-status" id="copy-status" role="status" aria-live="polite"></span>
         <section id="subskills-panel"><div class="section-label" id="subskills-label"></div><div class="subskills" id="detail-subskills"></div></section>
         <div class="section-label">来源位置</div><div class="code" id="detail-locations"></div>
         <div class="section-label">整理依据</div><section class="detail-evidence" id="detail-evidence"></section>
@@ -250,6 +295,15 @@
 
   <dialog id="delete-confirm" aria-labelledby="delete-title">
     <form class="confirm-body" method="dialog" id="delete-form"><h2 id="delete-title">确认删除 Skill</h2><p>请输入完整 Skill 名称 <strong id="delete-name"></strong>。此操作会删除它的整个顶层目录。</p><label>Skill 名称<input id="delete-input" autocomplete="off" spellcheck="false"></label><div class="confirm-status" id="delete-status" role="status" aria-live="polite"></div><div class="confirm-actions"><button class="button" id="delete-cancel" type="button">取消</button><button class="button danger" id="delete-submit" type="submit" disabled>永久删除</button></div></form>
+  </dialog>
+
+  <!-- Larger image view: one reused native dialog, Escape / close button / focus return -->
+  <dialog id="lightbox" aria-labelledby="lightbox-name">
+    <div class="lightbox-body">
+      <button class="lightbox-close" id="lightbox-close" type="button" title="关闭大图" aria-label="关闭大图"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <img id="lightbox-img" src="" alt="">
+      <figcaption class="lightbox-caption" id="lightbox-caption"><strong id="lightbox-name"></strong><span id="lightbox-label"></span><span class="lightbox-source" id="lightbox-source"></span></figcaption>
+    </div>
   </dialog>
 
   <script>
@@ -274,8 +328,14 @@
     const recordText=record=>[record.name,record.description,record.invocation,...(record.locations||[]),record.github?.url,...recordSkills(record).flatMap(item=>[item.name,item.description,item.relative_path,item.github?.url])].join(' ').toLowerCase();
     const filtered=()=>records().filter(record=>(state.category==='all'||record.category===state.category)&&(!state.query||recordText(record).includes(state.query)));
     const imageLabel=image=>image?.status==='curated-local'?'人工预览图':image?.status==='github-repository'?'GitHub 项目图片':image?.status==='github-social-preview'?'GitHub 仓库封面':image?.status==='verified-local'?'Skill 自带图片':image?.status==='remote-metadata'?'远程图片信息':'自动生成封面';
-    function preview(record){const image=record.image||{};const picture=`<div class="thumb"><img src="${escapeHtml(image.value||'')}" alt="${escapeHtml(record.name)} 的预览图"><span class="image-badge">${escapeHtml(imageLabel(image))}</span></div>`;return record.github?.url?`<a class="thumb-link" href="${escapeHtml(record.github.url)}" target="_blank" rel="noreferrer" title="打开 GitHub 仓库">${picture}</a>`:picture}
-    function card(record){const skillCount=(record.skill_ids||[]).length;const countText=state.mode==='plugins'?`携带 ${skillCount} 个技能`:(skillCount>1?`包含 ${skillCount} 个子技能`:'独立技能');const imageAction=SERVER_MODE?`<button class="button" type="button" data-image-record="${escapeHtml(record.id)}">换图</button>`:'';return `<article class="card">${preview(record)}<div class="card-body"><div class="card-top"><h3>${escapeHtml(record.name)}</h3><span class="tag">${escapeHtml(labels[record.category]||record.category)}</span></div><p class="card-description">${escapeHtml(record.description)}</p><div class="card-meta"><span class="card-count">${countText}</span><div class="card-actions"><button class="button" type="button" data-record="${escapeHtml(record.id)}">查看详情</button>${imageAction}</div></div></div></article>`}
+    const ZOOM_ICON='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6M11 8v6M8 11h6"/></svg>';
+    const COPY_ICON='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+    // The cover is one native button that opens the detail dialog. Its accessible name
+    // already says "查看详情", so the visible provenance badge is aria-hidden (not a nested
+    // interactive element) and stays a plain span. GitHub stays on an explicit link inside
+    // the detail dialog, never overloaded onto the cover.
+    function preview(record){const image=record.image||{};const name=escapeHtml(record.name);return `<button class="thumb-button" type="button" data-record="${escapeHtml(record.id)}" aria-label="查看 ${name} 详情"><img src="${escapeHtml(image.value||'')}" alt="${name} 的预览图"><span class="image-hint">${ZOOM_ICON}查看详情</span><span class="image-badge" aria-hidden="true">${escapeHtml(imageLabel(image))}</span></button>`}
+    function card(record){const skillCount=(record.skill_ids||[]).length;const countText=state.mode==='plugins'?`携带 ${skillCount} 个技能`:(skillCount>1?`包含 ${skillCount} 个子技能`:'独立技能');const name=escapeHtml(record.name);const imageAction=SERVER_MODE?`<button class="button" type="button" data-image-record="${escapeHtml(record.id)}">换图</button>`:'';return `<article class="card">${preview(record)}<div class="card-body"><div class="card-top"><h3><button class="card-title" type="button" data-record="${escapeHtml(record.id)}">${name}</button></h3><span class="tag">${escapeHtml(labels[record.category]||record.category)}</span></div><p class="card-description">${escapeHtml(record.description)}</p><div class="card-meta"><span class="card-count">${countText}</span><div class="card-actions"><button class="button" type="button" data-record="${escapeHtml(record.id)}">查看详情</button>${imageAction}</div></div></div></article>`}
     const categoryIcons={
       visual:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 17l4.5-5 3.5 4 3-3 5 5"/>',
       video:'<rect x="3" y="5" width="12" height="14" rx="2"/><path d="M15 10l6-3v10l-6-3z"/>',
@@ -293,12 +353,16 @@
     };
     const iconSvg=(id,size=16)=>`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${categoryIcons[id]||categoryIcons.other}</svg>`;
     function renderOverview(){const counts=records().reduce((out,item)=>(out[item.category]=(out[item.category]||0)+1,out),{});const unit=state.mode==='plugins'?'插件':'技能';const entries=[['all','全部',records().length],...Object.keys(labels).filter(id=>counts[id]).map(id=>[id,labels[id],counts[id]])];$('#overview').innerHTML=entries.map(([id,label,count])=>`<button class="category-chip ${state.category===id?'active':''}" data-category="${escapeHtml(id)}" type="button">${id==='all'?'':iconSvg(id)}${escapeHtml(label)}<span class="count">${count} ${unit}</span></button>`).join('')}
-    function render(){const items=filtered();$('#total').textContent=records().length;$('#stat-label').textContent=state.mode==='plugins'?'已整理插件':'已整理主技能';$('#result-title').textContent=state.category==='all'?(state.mode==='plugins'?'全部插件':'全部技能'):(labels[state.category]||state.category);$('#count').textContent=`${items.length} 项结果 · ${data.generated_at||'尚未生成'}`;renderOverview();$('#list').innerHTML=items.length?items.map(card).join(''):'<div class="empty">没有找到匹配的 Skill 或插件。</div>';document.querySelectorAll('[data-category]').forEach(button=>button.addEventListener('click',()=>{state.category=button.dataset.category;render()}));document.querySelectorAll('[data-record]').forEach(button=>button.addEventListener('click',()=>openRecord(button.dataset.record)));document.querySelectorAll('[data-image-record]').forEach(button=>button.addEventListener('click',()=>openRecord(button.dataset.imageRecord,true)))}
+    function render(){const items=filtered();$('#total').textContent=records().length;$('#stat-label').textContent=state.mode==='plugins'?'已整理插件':'已整理主技能';$('#result-title').textContent=state.category==='all'?(state.mode==='plugins'?'全部插件':'全部技能'):(labels[state.category]||state.category);$('#count').textContent=`${items.length} 项结果 · ${data.generated_at||'尚未生成'}`;renderOverview();$('#list').innerHTML=items.length?items.map(card).join(''):'<div class="empty">没有找到匹配的 Skill 或插件。</div>';document.querySelectorAll('[data-category]').forEach(button=>button.addEventListener('click',()=>{state.category=button.dataset.category;render()}))}
+    // Delegated so cover / title / detail buttons and the editor shortcut all work
+    // after every re-render without rebinding per-card listeners.
+    $('#list').addEventListener('click',event=>{const trigger=event.target.closest('[data-record],[data-image-record]');if(!trigger)return;if(trigger.dataset.imageRecord)openRecord(trigger.dataset.imageRecord,true);else openRecord(trigger.dataset.record)});
     function lockBackground(){if(document.body.classList.contains('modal-locked'))return;lockedScrollY=window.scrollY;document.body.style.position='fixed';document.body.style.top=`-${lockedScrollY}px`;document.body.style.width='100%';document.body.classList.add('modal-locked')}
     function unlockBackground(){if(!document.body.classList.contains('modal-locked'))return;document.body.classList.remove('modal-locked');document.body.style.position='';document.body.style.top='';document.body.style.width='';const restore=()=>window.scrollTo(0,lockedScrollY);requestAnimationFrame(()=>{restore();requestAnimationFrame(restore)})}
     function uniqueGallery(record){const entries=[{name:record.name,image:record.image,github:record.github?.url},...recordSkills(record).map(item=>({name:item.name,image:item.image,github:item.github?.url}))];const seen=new Set();return entries.filter(entry=>{const value=entry.image?.value||'';if(!value||seen.has(value))return false;seen.add(value);return true})}
     function canDelete(record){if(!SERVER_MODE)return false;const skills=recordSkills(record);const item=primarySkill(record);return state.mode==='skills'&&skills.length===1&&item?.allow_delete===true&&item?.family_size===1}
-    function openRecord(id,focusImage=false){const record=records().find(entry=>entry.id===id);if(!record)return;lastFocus=document.activeElement;activeRecord=record;selectedImage=null;const skills=recordSkills(record);const image=record.image||{};$('#image-file').value='';$('#image-save').disabled=true;$('#image-remove').hidden=image.status!=='curated-local';$('#image-editor-status').textContent='';const gallery=uniqueGallery(record);$('#detail-gallery').innerHTML=gallery.map((entry,index)=>`<figure>${entry.github?`<a href="${escapeHtml(entry.github)}" target="_blank" rel="noreferrer" title="打开 GitHub 仓库">`: '<div>'}<img src="${escapeHtml(entry.image.value)}" alt="${escapeHtml(entry.name)} 的项目图片">${entry.github?'</a>':'</div>'}<figcaption><span>${escapeHtml(index===0?record.name:entry.name)}</span><span>${escapeHtml(imageLabel(entry.image))}</span></figcaption></figure>`).join('');$('#detail-tag').textContent=labels[record.category]||record.category;$('#detail-name').textContent=state.mode==='plugins'?`${record.name} 插件`:record.name;$('#detail-description').textContent=record.description;$('#detail-invocation').textContent=record.invocation;$('#detail-locations').textContent=(record.locations||[]).join('\n');const github=record.github?.url;$('#github-panel').hidden=!github;if(github){$('#detail-github').href=github;$('#detail-github').textContent=github}$('#subskills-label').textContent=state.mode==='plugins'?`插件携带技能（${skills.length}）`:(skills.length>1?`包含的子技能（${skills.length}）`:'技能说明');$('#detail-subskills').innerHTML=skills.map(item=>`<article class="subskill"><strong>${escapeHtml(item.name)}</strong><span class="tag">${escapeHtml(labels[item.category]||item.category)}</span><p>${escapeHtml(item.description)}</p><p>调用：${escapeHtml(item.invocation)}</p></article>`).join('');$('#detail-evidence').innerHTML=`<div><strong>分类依据</strong>${escapeHtml(record.category_tie_reason||record.category_tie_break||'未说明')}</div><div><strong>分类置信度</strong>${Math.round(Number(record.confidence||0)*100)}%</div><div><strong>图片状态</strong>${escapeHtml(imageLabel(image))}</div><div><strong>图片来源</strong>${escapeHtml(image.source||'unknown')}</div>`;$('#danger-zone').hidden=!canDelete(record);lockBackground();$('#detail').showModal();$('#detail-media').scrollTop=0;$('#detail-content').scrollTop=0;$('#close').focus({preventScroll:true});if(focusImage)requestAnimationFrame(()=>{$('#detail-media').scrollTop=$('#image-editor').offsetTop-20;$('#image-editor').focus({preventScroll:true})})}
+    function galleryCaption(image){return image?.status==='remote-metadata'?'来源：仅记录远程图片元信息，尚未抓取或核验实际图片。':image?.status==='github-repository'||image?.status==='github-social-preview'?'来源：GitHub 项目页面抓取的公开图片。':image?.status==='curated-local'||image?.status==='verified-local'?'来源：Skill 作者或整理者提供的人工图片。':'说明：这张封面是按技能分类生成的示意图，不代表技能的实际界面截图，也不是图片生成操作的结果。'}
+    function openRecord(id,focusImage=false){const record=records().find(entry=>entry.id===id);if(!record)return;lastFocus=document.activeElement;activeRecord=record;selectedImage=null;const skills=recordSkills(record);const image=record.image||{};$('#image-file').value='';$('#image-save').disabled=true;$('#image-remove').hidden=image.status!=='curated-local';$('#image-editor-status').textContent='';$('#copy-status').textContent='';cleanupCopyFallback();const gallery=uniqueGallery(record);const generated=gallery.some(entry=>!(entry.image&&['github-repository','github-social-preview','remote-metadata','curated-local','verified-local'].includes(entry.image.status)));$('#detail-gallery').innerHTML=gallery.map((entry,index)=>{const caption=galleryCaption(entry.image);return `<figure><button class="zoom-button" type="button" data-zoom="${index}" aria-label="放大查看 ${escapeHtml(entry.name)} 的图片"><img src="${escapeHtml(entry.image.value)}" alt="${escapeHtml(entry.name)} 的项目图片"><span class="zoom-hint">${ZOOM_ICON}放大查看</span></button><figcaption><span>${escapeHtml(index===0?record.name:entry.name)} · ${escapeHtml(imageLabel(entry.image))}</span><span class="gallery-source">${escapeHtml(caption)}</span>${entry.github?`<a class="github" href="${escapeHtml(entry.github)}" target="_blank" rel="noreferrer">打开来源仓库</a>`:''}</figcaption></figure>`}).join('')+(generated?'<p class="gallery-note">带“自动生成封面”的图片是按分类生成的示意图，不是技能的真实截图；其余图片来自 GitHub 或人工提供。</p>':'');$('#detail-tag').textContent=labels[record.category]||record.category;$('#detail-name').textContent=state.mode==='plugins'?`${record.name} 插件`:record.name;$('#detail-description').textContent=record.description;$('#detail-invocation').textContent=record.invocation;$('#detail-locations').textContent=(record.locations||[]).join('\n');const github=record.github?.url;$('#github-panel').hidden=!github;if(github){$('#detail-github').href=github;$('#detail-github').textContent=github}$('#subskills-label').textContent=state.mode==='plugins'?`插件携带技能（${skills.length}）`:(skills.length>1?`包含的子技能（${skills.length}）`:'技能说明');$('#detail-subskills').innerHTML=skills.map(item=>`<article class="subskill"><strong>${escapeHtml(item.name)}</strong><span class="tag">${escapeHtml(labels[item.category]||item.category)}</span><p>${escapeHtml(item.description)}</p><p>调用：${escapeHtml(item.invocation)}</p></article>`).join('');$('#detail-evidence').innerHTML=`<div><strong>分类依据</strong>${escapeHtml(record.category_tie_reason||record.category_tie_break||'未说明')}</div><div><strong>分类置信度</strong>${Math.round(Number(record.confidence||0)*100)}%</div><div><strong>图片状态</strong>${escapeHtml(imageLabel(image))}</div><div><strong>图片来源</strong>${escapeHtml(image.source||'unknown')}</div>`;$('#danger-zone').hidden=!canDelete(record);lockBackground();$('#detail').showModal();$('#detail-media').scrollTop=0;$('#detail-content').scrollTop=0;$('#close').focus({preventScroll:true});if(focusImage)requestAnimationFrame(()=>{$('#detail-media').scrollTop=$('#image-editor').offsetTop-20;$('#image-editor').focus({preventScroll:true})})}
     function closeDetail(){if($('#delete-confirm').open)$('#delete-confirm').close();if($('#detail').open)$('#detail').close()}
     function applyStaticMode(){const refresh=$('#refresh');refresh.disabled=true;refresh.title='静态目录：刷新需通过本地服务 (serve_catalog) 打开';$('#status').textContent='静态目录：刷新、更换预览图与删除需通过本地服务打开。';$('#image-editor').hidden=true}
     function applyServerMode(){if(SERVER_MODE)return;SERVER_MODE=true;const refresh=$('#refresh');refresh.disabled=false;refresh.title='';$('#status').textContent='';$('#image-editor').hidden=false;render()}
@@ -308,6 +372,19 @@
     $('#close').addEventListener('click',closeDetail);
     $('#detail').addEventListener('cancel',event=>{event.preventDefault();closeDetail()});
     $('#detail').addEventListener('close',()=>{unlockBackground();activeRecord=null;if(lastFocus&&typeof lastFocus.focus==='function')lastFocus.focus({preventScroll:true})});
+    // Gallery zoom: the whole image is a button that opens the reused lightbox dialog.
+    let lightboxReturn=null;
+    $('#detail-gallery').addEventListener('click',event=>{const trigger=event.target.closest('[data-zoom]');if(!trigger||!activeRecord)return;const entries=uniqueGallery(activeRecord);const entry=entries[Number(trigger.dataset.zoom)];if(!entry)return;lightboxReturn=trigger;$('#lightbox-img').src=entry.image.value;$('#lightbox-img').alt=`${entry.name} 的大图`;$('#lightbox-name').textContent=entry.name;$('#lightbox-label').textContent=imageLabel(entry.image);$('#lightbox-source').textContent=galleryCaption(entry.image);$('#lightbox').showModal();$('#lightbox-close').focus({preventScroll:true})});
+    $('#lightbox').addEventListener('close',()=>{$('#lightbox-img').removeAttribute('src');if(lightboxReturn&&typeof lightboxReturn.focus==='function')lightboxReturn.focus({preventScroll:true});lightboxReturn=null});
+    $('#lightbox-close').addEventListener('click',()=>$('#lightbox').close());
+    // Copy invocation. The async clipboard API is tried first; when it is unavailable OR
+    // rejects (denied permission, file://), a helper textarea inside the open dialog is
+    // attempted as a user-gesture fallback. Success is only reported for a real copy; if
+    // both programmatic paths fail the text is revealed and selected so the user can copy
+    // it manually, and the status says so instead of claiming success.
+    function copyViaTextarea(text){const dialog=$('#detail');if(!dialog||!dialog.open)return false;const area=document.createElement('textarea');area.className='copy-fallback';area.value=text;area.setAttribute('readonly','');area.setAttribute('aria-hidden','true');dialog.appendChild(area);const previous=document.activeElement;area.focus();area.select();let ok=false;try{ok=document.execCommand('copy')}catch(error){ok=false}if(ok){area.remove();if(previous&&typeof previous.focus==='function')previous.focus({preventScroll:true});return true}area.classList.add('copy-fallback-manual');area.focus();area.select();return false}
+    function cleanupCopyFallback(){document.querySelectorAll('.copy-fallback').forEach(area=>area.remove())}
+    $('#copy-invocation').addEventListener('click',async()=>{const text=activeRecord?String(activeRecord.invocation||''):'',status=$('#copy-status');if(!text){status.textContent='这项没有可复制的调用方式。';return}cleanupCopyFallback();status.textContent='正在复制…';let copied=false;try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);copied=true}}catch(error){copied=false}if(!copied)copied=copyViaTextarea(text);if(copied){cleanupCopyFallback();status.textContent='已复制调用方式。'}else{status.textContent='复制失败，已选中调用方式文本，请按 Ctrl+C 手动复制。'}});
     $('#refresh').addEventListener('click',async()=>{const button=$('#refresh'),status=$('#status');button.disabled=true;status.textContent='正在重新扫描并整理目录…';try{const response=await fetch('/api/refresh',{method:'POST'});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.details||payload.error||'刷新失败');location.reload()}catch(error){status.textContent=`无法刷新：${error.message||'请通过本地服务打开页面'}`;button.disabled=false}});
     $('#image-file').addEventListener('change',event=>{const file=event.target.files?.[0]||null;selectedImage=file;if(!file){$('#image-save').disabled=true;$('#image-editor-status').textContent='';return}if(file.size>2*1024*1024){selectedImage=null;$('#image-save').disabled=true;$('#image-editor-status').textContent='图片不能超过 2 MiB。';return}$('#image-save').disabled=false;$('#image-editor-status').textContent=`已选择：${file.name}`});
     $('#image-save').addEventListener('click',async()=>{if(!activeRecord||!selectedImage)return;const button=$('#image-save'),status=$('#image-editor-status'),item=primarySkill(activeRecord);button.disabled=true;status.textContent='正在保存并刷新目录…';try{const response=await fetch('/api/image',{method:'POST',headers:{'Content-Type':selectedImage.type||'application/octet-stream','X-Catalog-Skill-Name':item.name,'X-Catalog-Relative-Path':item.relative_path},body:selectedImage});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'保存失败');location.reload()}catch(error){status.textContent=`无法保存：${error.message||'请通过本地服务打开页面'}`;button.disabled=false}});
@@ -321,5 +398,61 @@
     render();
     probeServerMode();
   </script>
-</body>
+<script>
+  (function(){
+    var panel=document.getElementById('demo-guide-panel');
+    var toggle=document.getElementById('demo-guide-toggle');
+    function setMode(mode){
+      var tab=document.querySelector('[data-mode="'+mode+'"]');
+      if(tab&&!(tab.classList.contains('active')))tab.click();
+    }
+    function clearSearch(){
+      var input=document.getElementById('search');
+      if(input&&input.value){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}))}
+    }
+    function closeDetail(){
+      var dialog=document.getElementById('detail');
+      if(dialog&&dialog.open&&typeof dialog.close==='function')dialog.close();
+    }
+    function reset(){
+      closeDetail();clearSearch();setMode('skills');
+      var all=document.querySelector('[data-category="all"]');
+      if(all&&!(all.classList.contains('active')))all.click();
+    }
+    function clickRecord(id){
+      if(!id)return false;
+      var button=document.querySelector('[data-record="'+id+'"]');
+      if(button){button.click();return true}
+      return false;
+    }
+    var actions={
+      search:function(){reset();setMode('skills');
+        var input=document.getElementById('search');
+        if(input){input.value="note-keeper";input.dispatchEvent(new Event('input',{bubbles:true}))}},
+      details:function(){reset();setMode('skills');
+        if(!clickRecord("family:\u4e2a\u4eba\u6280\u80fd\u793a\u4f8b:family:note-keeper")){var input=document.getElementById('search');
+          if(input){input.value="note-keeper";input.dispatchEvent(new Event('input',{bubbles:true}))}}},
+      plugins:function(){reset();setMode('plugins')},
+      reset:function(){reset()}
+    };
+    if(panel&&!panel.dataset.demoWired){
+      panel.dataset.demoWired='1';
+      panel.addEventListener('click',function(event){
+        var button=event.target.closest('[data-demo]');
+        if(!button)return;
+        var action=actions[button.getAttribute('data-demo')];
+        if(action)action();
+      });
+    }
+    if(toggle&&!toggle.dataset.demoWired){
+      toggle.dataset.demoWired='1';
+      toggle.addEventListener('click',function(){
+        var open=toggle.getAttribute('aria-expanded')==='true';
+        toggle.setAttribute('aria-expanded',open?'false':'true');
+        if(panel)panel.hidden=open;
+        toggle.textContent=open?'操作指南 ▾':'收起指南 ▴';
+      });
+    }
+  })();
+  </script></body>
 </html>

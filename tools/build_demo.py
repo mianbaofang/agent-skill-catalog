@@ -68,15 +68,214 @@ DEMO_CURATION_JSON = (
 )
 
 BANNER_MARK = '<meta charset="utf-8">'
-BANNER_HTML = (
-    '<meta name="robots" content="noindex">'
-    '<div class="demo-banner" role="note" '
-    'style="margin:0;padding:10px 16px;background:#123b3a;color:#e6f2f0;'
-    'font:14px/1.5 system-ui,sans-serif;text-align:center">'
-    "演示数据 · Demo data — 合成示例目录，仅展示功能，不扫描访客设备，不提供真实服务。"
-    " Synthetic example catalog; limited functionality, nothing is executed or fetched."
-    "</div>"
+BODY_END_MARK = "</body>"
+
+# Synthetic-boundary meta line (always visible, one compact row).
+DEMO_NOTE_ZH = "合成示例目录，仅展示功能，不扫描访客设备，不提供真实服务。"
+DEMO_NOTE_EN = "Synthetic example catalog; limited functionality, nothing is executed or fetched."
+
+# Collapsed one-line action summary so the guide never pushes content down.
+DEMO_ACTIONS_SUMMARY = "可试用：搜索 · 家族详情 · 插件视图 · 重置"
+
+# Static-demo guidance: what genuinely works offline vs. what needs the local service.
+GUIDE_AVAILABLE = (
+    "静态演示可用：搜索、分类筛选、家族/插件详情、查看自动封面图。"
+    " 刷新、换图保存、删除需真实本地服务（serve_catalog），静态页不做模拟。"
 )
+GUIDE_AVAILABLE_EN = (
+    "Works offline: search, category filter, family/plugin detail, cover gallery. "
+    "Refresh, image save and delete need a real local catalog service and are not simulated here."
+)
+COVER_NOTE = (
+    "点击封面或“查看详情”打开详情；自动封面是按分类生成的占位图，不是图片生成器，也不代表真实项目截图。"
+)
+COVER_NOTE_EN = (
+    "A cover or “查看详情” opens the detail dialog. The auto cover is a per-category placeholder, "
+    "not an image generator and not a real project screenshot."
+)
+
+# Styling: teal/white, compact, collapsed by default, >=44px touch targets.
+DEMO_STYLE = (
+    "<style>"
+    ".demo-banner{margin:0;padding:8px 16px 10px;background:#123b3a;color:#e6f2f0;"
+    "font:14px/1.5 system-ui,-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;text-align:left}"
+    ".demo-banner__row{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;"
+    "align-items:center;gap:6px 14px;justify-content:space-between}"
+    ".demo-banner__note{margin:0;font-size:13px;line-height:1.45}"
+    ".demo-banner__note strong{font-weight:700;color:#fff}"
+    ".demo-banner__note .demo-banner__en{color:#bcd8d4}"
+    ".demo-guide__toggle{flex:0 0 auto;min-height:44px;min-width:44px;padding:8px 16px;"
+    "border:1px solid rgba(230,242,240,.55);border-radius:6px;background:transparent;"
+    "color:#e6f2f0;font:inherit;font-weight:700;cursor:pointer}"
+    ".demo-guide__toggle:hover{background:rgba(255,255,255,.08)}"
+    ".demo-guide__panel{max-width:1180px;margin:8px auto 0;padding:12px 14px;border-radius:8px;"
+    "background:#fff;color:#1b2a2c;border:1px solid #cfd8d5}"
+    ".demo-guide__actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;padding:0;list-style:none}"
+    ".demo-action{min-height:44px;min-width:44px;padding:8px 14px;border:0;border-radius:6px;"
+    "background:#0f766e;color:#fff;font:inherit;font-weight:700;cursor:pointer}"
+    ".demo-action:hover{background:#0b5d56}"
+    ".demo-guide__note{margin:6px 0 0;font-size:13px;line-height:1.5;color:#33474a}"
+    ".demo-guide__note b{color:#123b3a}"
+    "</style>"
+)
+
+
+def demo_values(catalog: Dict[str, Any]) -> Dict[str, str]:
+    """Derive truthful guide targets from the real (normalized) fixture catalog.
+
+    No counts or names are invented: the sample family is the largest real family and
+    the sample plugin is the first real plugin, taken from the built catalog itself.
+    """
+    families = [family for family in catalog.get("families", []) if family.get("skill_ids")]
+    family = max(families, key=lambda entry: len(entry.get("skill_ids") or []), default=None)
+    plugins = [plugin for plugin in catalog.get("plugins", []) if plugin.get("name")]
+    plugin = plugins[0] if plugins else None
+    members = len(family.get("skill_ids") or []) if family else 0
+    return {
+        "family_id": str(family.get("id") or "") if family else "",
+        "family_name": str(family.get("name") or "") if family else "",
+        "family_members": str(members),
+        "plugin_name": str(plugin.get("name") or "") if plugin else "",
+    }
+
+
+def demo_guide_html(catalog: Dict[str, Any]) -> str:
+    """Render the compact, collapsible hands-on guide from real fixture values."""
+    values = demo_values(catalog)
+    family = values["family_name"]
+    members = values["family_members"]
+    plugin = values["plugin_name"]
+    search_label = f"试试搜索 {family}" if family else "试试搜索"
+    detail_label = f"看家族详情（{family}，{members} 个技能）" if family else "看家族详情"
+    plugin_label = f"看插件（{plugin}）" if plugin else "看插件"
+    reset_label = "重置演示"
+    return (
+        '<div class="demo-banner" role="note" aria-label="演示数据说明">'
+        + DEMO_STYLE
+        + '<div class="demo-banner__row">'
+        '<p class="demo-banner__note"><strong>演示数据 · Demo data</strong> — '
+        + DEMO_NOTE_ZH
+        + ' <span class="demo-banner__en">'
+        + DEMO_NOTE_EN
+        + "</span><br>"
+        + DEMO_ACTIONS_SUMMARY
+        + "</p>"
+        '<button class="demo-guide__toggle" type="button" id="demo-guide-toggle" '
+        'aria-expanded="false" aria-controls="demo-guide-panel">操作指南 ▾</button>'
+        "</div>"
+        '<div class="demo-guide__panel" id="demo-guide-panel" hidden>'
+        '<ul class="demo-guide__actions">'
+        f'<li><button class="demo-action" type="button" data-demo="search">{search_label}</button></li>'
+        f'<li><button class="demo-action" type="button" data-demo="details">{detail_label}</button></li>'
+        f'<li><button class="demo-action" type="button" data-demo="plugins">{plugin_label}</button></li>'
+        f'<li><button class="demo-action" type="button" data-demo="reset">{reset_label}</button></li>'
+        "</ul>"
+        f'<p class="demo-guide__note"><b>说明</b> {COVER_NOTE} {GUIDE_AVAILABLE}</p>'
+        f'<p class="demo-guide__note"><b>Note</b> {COVER_NOTE_EN} {GUIDE_AVAILABLE_EN}</p>'
+        "</div>"
+        "</div>"
+    )
+
+
+# Wiring template: every action drives the page's own native controls (search input
+# event, category/mode buttons, the real per-record "查看详情" button). No product
+# state is duplicated and no fetch is made. __FAMILY_ID__/__FAMILY__ are filled from
+# the real fixture catalog at build time.
+DEMO_SCRIPT_TEMPLATE = """<script>
+  (function(){
+    var panel=document.getElementById('demo-guide-panel');
+    var toggle=document.getElementById('demo-guide-toggle');
+    function setMode(mode){
+      var tab=document.querySelector('[data-mode="'+mode+'"]');
+      if(tab&&!(tab.classList.contains('active')))tab.click();
+    }
+    function clearSearch(){
+      var input=document.getElementById('search');
+      if(input&&input.value){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}))}
+    }
+    function closeDetail(){
+      var dialog=document.getElementById('detail');
+      if(dialog&&dialog.open&&typeof dialog.close==='function')dialog.close();
+    }
+    function reset(){
+      closeDetail();clearSearch();setMode('skills');
+      var all=document.querySelector('[data-category="all"]');
+      if(all&&!(all.classList.contains('active')))all.click();
+    }
+    function clickRecord(id){
+      if(!id)return false;
+      var button=document.querySelector('[data-record="'+id+'"]');
+      if(button){button.click();return true}
+      return false;
+    }
+    var actions={
+      search:function(){reset();setMode('skills');
+        var input=document.getElementById('search');
+        if(input){input.value=__FAMILY__;input.dispatchEvent(new Event('input',{bubbles:true}))}},
+      details:function(){reset();setMode('skills');
+        if(!clickRecord(__FAMILY_ID__)){var input=document.getElementById('search');
+          if(input){input.value=__FAMILY__;input.dispatchEvent(new Event('input',{bubbles:true}))}}},
+      plugins:function(){reset();setMode('plugins')},
+      reset:function(){reset()}
+    };
+    if(panel&&!panel.dataset.demoWired){
+      panel.dataset.demoWired='1';
+      panel.addEventListener('click',function(event){
+        var button=event.target.closest('[data-demo]');
+        if(!button)return;
+        var action=actions[button.getAttribute('data-demo')];
+        if(action)action();
+      });
+    }
+    if(toggle&&!toggle.dataset.demoWired){
+      toggle.dataset.demoWired='1';
+      toggle.addEventListener('click',function(){
+        var open=toggle.getAttribute('aria-expanded')==='true';
+        toggle.setAttribute('aria-expanded',open?'false':'true');
+        if(panel)panel.hidden=open;
+        toggle.textContent=open?'操作指南 ▾':'收起指南 ▴';
+      });
+    }
+  })();
+  </script>"""
+
+
+def demo_script(catalog: Dict[str, Any]) -> str:
+    """Wire the guide actions to the real catalog's sample family id/name.
+
+    Values are JSON-encoded so they land as proper JS string literals (a bare
+    ``note-keeper`` would otherwise parse as ``note - keeper``).
+    """
+    values = demo_values(catalog)
+    return (
+        DEMO_SCRIPT_TEMPLATE.replace("__FAMILY_ID__", json.dumps(values["family_id"]))
+        .replace("__FAMILY__", json.dumps(values["family_name"]))
+    )
+
+
+def inject_banner(rendered: str, catalog: Dict[str, Any] | None = None) -> str:
+    """Add noindex + a compact, collapsible synthetic-demo guide to the generated UI.
+
+    The banner markup is anchored right after the charset meta so it precedes the
+    product UI; the wiring script is anchored before ``</body>`` so the native
+    controls it drives already exist. With no catalog supplied, a static boundary
+    banner (no action buttons) is emitted.
+    """
+    values = demo_values(catalog) if catalog is not None else {
+        "family_id": "", "family_name": "", "family_members": "0", "plugin_name": ""
+    }
+    banner = demo_guide_html(catalog or {"families": [], "plugins": []})
+    script = demo_script({"families": [], "plugins": []}) if catalog is None else demo_script(catalog)
+    head = '<meta name="robots" content="noindex">' + banner
+    if BODY_END_MARK in rendered:
+        rendered = rendered.replace(BODY_END_MARK, script + BODY_END_MARK, 1)
+    else:
+        rendered = rendered + script
+    if head in rendered:
+        return rendered
+    if BANNER_MARK in rendered:
+        return rendered.replace(BANNER_MARK, BANNER_MARK + "\n  " + head, 1)
+    return head + rendered
 
 
 def load_builder():
@@ -276,7 +475,7 @@ def normalize(builder, catalog: Dict[str, Any]) -> Dict[str, Any]:
     catalog.pop("previous_generated_at", None)
 
     # Render from the exact normalized public catalog (no bookkeeping keys).
-    catalog["__html__"] = inject_banner(builder.render_html(catalog))  # type: ignore[assignment]
+    catalog["__html__"] = inject_banner(builder.render_html(catalog), catalog)  # type: ignore[assignment]
     return catalog
 
 
@@ -287,15 +486,6 @@ def stable_family_id(family: Dict[str, Any]) -> str:
     raw = str(family.get("id") or "")
     kind = "singleton" if ":singleton:" in raw else "family"
     return f"family:{label}:{kind}:{name}"
-
-
-def inject_banner(rendered: str) -> str:
-    """Add noindex + a visible synthetic-demo banner to the generated UI."""
-    if BANNER_HTML in rendered:
-        return rendered
-    if BANNER_MARK in rendered:
-        return rendered.replace(BANNER_MARK, BANNER_MARK + "\n  " + BANNER_HTML, 1)
-    return BANNER_HTML + rendered
 
 
 def build_normalized(builder) -> Dict[str, Any]:
