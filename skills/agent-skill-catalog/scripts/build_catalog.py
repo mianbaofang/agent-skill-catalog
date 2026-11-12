@@ -1157,7 +1157,7 @@ def scan(
                 "source": public_label(spec["label"], include_absolute_paths),
                 "kind": "plugin" if spec.get("kind") == "plugin" else "skill",
                 "relative_path": relative,
-                "invocation": f"在你的 Agent 中明确说明任务，并要求它按 {relative} 的 SKILL.md 执行。",
+                "invocation": f"在你的 Agent 中明确说明任务，并要求它按 {(relative[:-len('SKILL.md')].rstrip('/') + '/SKILL.md') if relative.endswith('SKILL.md') and relative[:-len('SKILL.md')].rstrip('/') else relative} 执行。",
                 "image": {},
                 "root_basename": root.name,
                 "root_id": fingerprint(str(root.resolve())),
