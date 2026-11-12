@@ -436,6 +436,56 @@ def product_affiliation_families(
     return result
 
 
+def repository_families(
+    items: List[Dict[str, Any]],
+    inferred: Dict[str, Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    """Collect independently named Skills with the same observed repository."""
+    buckets: Dict[str, List[Dict[str, Any]]] = {}
+    for item in items:
+        repository = github_key(item)
+        if item.get("kind") == "skill" and repository:
+            buckets.setdefault(repository, []).append(item)
+    result = dict(inferred)
+    for repository, members in buckets.items():
+        if len(members) < 2:
+            continue
+        slug = repository.rsplit("/", 1)[-1]
+        related_ids = {
+            str(inferred[str(item["id"])].get("id") or "")
+            for item in members if str(item["id"]) in inferred
+        }
+        # Preserve a proven local router when its children supply the repository.
+        for family_id in related_ids:
+            related = [item for item in items if inferred.get(str(item["id"]), {}).get("id") == family_id]
+            observed = {github_key(item) for item in related if github_key(item)}
+            if observed == {repository}:
+                for item in related:
+                    if item not in members:
+                        members.append(item)
+        names = {str(item.get("name") or ""): item for item in members}
+        candidates = {
+            str(inferred[str(item["id"])].get("name") or "")
+            for item in members if str(item["id"]) in inferred
+        }
+        parent_name = slug
+        if slug not in names and len(candidates) == 1:
+            candidate = next(iter(candidates))
+            if candidate in names:
+                parent_name = candidate
+        parent = names.get(parent_name)
+        family = {
+            "id": f"family:github:{repository}",
+            "name": parent_name,
+            "evidence": {"type": "github-repository", "repository": repository, "member_count": len(members)},
+        }
+        if parent:
+            family["category"] = str(parent.get("category") or "other")
+        for item in members:
+            result[str(item["id"])] = family
+    return result
+
+
 def family_identity(
     item: Dict[str, Any],
     config: Dict[str, Any],
@@ -465,9 +515,9 @@ def family_identity(
 def best_image_member(members: List[Dict[str, Any]], primary: Dict[str, Any]) -> Dict[str, Any]:
     status_rank = {
         "curated-local": 5,
-        "github-repository": 4,
-        "github-social-preview": 3,
-        "verified-local": 2,
+        "verified-local": 4,
+        "github-repository": 3,
+        "github-social-preview": 2,
     }
 
     primary_repository = github_key(primary)
@@ -479,7 +529,7 @@ def best_image_member(members: List[Dict[str, Any]], primary: Dict[str, Any]) ->
         image_repository = github_key({"github": {"url": image.get("repository")}})
         return (
             0 if status == "curated-local" else 1,
-            0 if primary_repository and image_repository == primary_repository else 1,
+            0 if not image_repository or not primary_repository or image_repository == primary_repository else 1,
             -evidence_rank,
             0 if item.get("id") == primary.get("id") else 1,
             -float(item.get("confidence", 0.0)),
@@ -502,6 +552,7 @@ def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List
     inferred = rooted_sibling_families(items)
     inferred.update(contained_skill_families(items))
     inferred = product_affiliation_families(items, inferred)
+    inferred = repository_families(items, inferred)
     for item in items:
         if item["kind"] != "skill":
             continue
@@ -539,6 +590,7 @@ def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List
             "category": category,
             "description": primary["description"],
             "description_source": primary.get("description_source", "source"),
+            "description_sources": primary.get("description_sources", []),
             "source": primary.get("source", "unknown"),
             "image": image_member["image"],
             "image_source_member_id": image_member["id"],
@@ -558,7 +610,7 @@ def assign_families(items: List[Dict[str, Any]], config: Dict[str, Any]) -> List
                 for location in (member.get("locations") or [member["relative_path"]])
                 if str(location)
             }),
-            "family_evidence": primary.get("deduplication") or primary.get("category_evidence", []),
+            "family_evidence": inferred.get(str(primary["id"]), {}).get("evidence") or primary.get("deduplication") or primary.get("category_evidence", []),
         })
     return sorted(families, key=lambda family: str(family["name"]).casefold())
 

@@ -40,5 +40,13 @@ python scripts/build_catalog.py --config references/catalog-config.json --output
 ## 图片证据
 
 ```text
-请按 `references/image-priority.md` 检查图片。默认先保留人工选择图，再从已识别的 GitHub 仓库获取并缓存公开仓库图片，随后才检查 Skill 自带本地图片。区分 `curated-local`、`github-repository`、`github-social-preview`、`verified-local`、`generated-fallback`、`remote-metadata`、`category-cover` 和 `missing`；不要把类别封面当作 Skill 预览。网页详情里的“选择图片”只能写入输出目录的 `curated-images/` 和 `catalog-curation.json`，不得改写 Skill 源目录。生成的说明封面必须写明 Skill 名称和功能摘要，不得伪装成源项目截图。
+请按 `references/image-priority.md` 检查图片。先保留人工选择图，再检查 Skill 自带的 frontmatter、sidecar 与 README 本地图片，仅缺图时从已识别的 GitHub 仓库获取图片。目录与详情封面统一 16:9，优先横图；只有竖图时完整放入横向画框，不拉伸，放大保留原图。区分 `curated-local`、`github-repository`、`github-social-preview`、`verified-local`、`generated-fallback`、`remote-metadata`、`category-cover` 和 `missing`；不要把类别封面当作 Skill 预览。网页详情里的“选择图片”只能写入输出目录的 `curated-images/` 和 `catalog-curation.json`，不得改写 Skill 源目录。生成的说明封面必须写明 Skill 名称和功能摘要，不得伪装成源项目截图。
 ```
+
+## 联网补充公开介绍（需要 Agent 具备联网能力）
+
+```text
+在已有目录上运行 description_queue.py next --root <相同根目录> --output-dir <输出目录> --web-research --no-github-readmes。按批次的 public_search 查询，用 Agent 可用的搜索和浏览工具打开公开资料，核对仓库、作者、安装路径或具体能力，避免同名项目误配。只总结已核实内容，返回 web_research: true，并为每项写入 sources: [{url, title, retrieved_at: YYYY-MM-DD, identity_evidence}]。使用正常 apply 命令写入输出目录的 catalog-curation.json，再以相同配置 --refresh 重建，详情中展示介绍来源链接。可用于已有完整中文说明的 Skill。没有联网工具、打不开页面或无法确认身份时保留本地说明并报告未解决，不编造搜索成功。
+```
+
+同一已观察或验证的 GitHub 仓库下的多份 Skill 自动归为一个家族，详情展开所有成员及调用方式，不要求名字有共同前缀。不同仓库和插件身份保持独立。

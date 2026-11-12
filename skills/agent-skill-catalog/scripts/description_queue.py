@@ -14,6 +14,7 @@ from http.client import HTTPException, IncompleteRead
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import Request
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -214,7 +215,24 @@ def prepare_batch(args: argparse.Namespace) -> int:
     specs = root_specs(config, args.root or None)
     image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
     github_request_timeout = max(1, int(image_config.get("github_request_timeout_seconds", 15) or 15))
+    web_research = bool(getattr(args, "web_research", False))
     pending = pending_items(queue, curation)
+    if web_research:
+        catalog = load_object(output_dir / "catalog.json")
+        completed = curation.get("description_sources", {})
+        if not isinstance(completed, dict):
+            raise ValueError("description_sources must be an object")
+        pending = []
+        for item in catalog.get("items", []):
+            if not isinstance(item, dict):
+                continue
+            key = str(item.get("id") or "")
+            if key and not completed.get(key):
+                pending.append({
+                    **item, "curation_key": key,
+                    "current_description": item.get("description", ""),
+                    "github_url": (item.get("github") or {}).get("url", ""),
+                })
     batch_size = max(1, min(int(args.batch_size), MAX_BATCH_SIZE))
     selected = pending[:batch_size]
     items: list[dict[str, Any]] = []
@@ -241,21 +259,38 @@ def prepare_batch(args: argparse.Namespace) -> int:
                 "reasons": item.get("reasons", []),
                 "local_skill": read_source_evidence(item, specs),
                 "github": github_evidence,
+                "public_search": {
+                    "enabled": web_research,
+                    "execution_owner": "invoking-agent",
+                    "query": f'{item.get("name", "")} skill {github_url}'.strip(),
+                    "identity": {"name": item.get("name"), "repository_url": github_url},
+                    "instructions": "Use the Agent's available web search. Open sources and match this exact Skill by repository, author or installation path. Keep failures explicit; never invent a result or infer from a same-name hit.",
+                },
             }
         )
     batch_path = Path(args.output).expanduser().resolve() if args.output else output_dir / "description-batch.json"
     payload = {
         "schema_version": "1.0",
         "generated_at": utc_now(),
+        "web_research": web_research,
         "pending_before": len(pending),
         "batch_count": len(items),
         "pending_after_batch": max(0, len(pending) - len(items)),
         "items": items,
         "response_contract": {
             "path": str((output_dir / "description-batch.responses.json").name),
-            "shape": {"items": [{"curation_key": "copy from batch", "description": "natural Chinese description"}]},
+            "shape": {
+                "web_research": web_research,
+                "items": [{
+                    "curation_key": "copy from batch",
+                    "description": "natural Chinese description",
+                    "sources": [{"url": "opened public URL", "title": "page title", "retrieved_at": "YYYY-MM-DD", "identity_evidence": "how this page matches the exact Skill"}] if web_research else [],
+                }],
+            },
             "requirements": [
-                "Use only the supplied local Skill and GitHub README evidence.",
+                "Use supplied local Skill and GitHub README evidence; when public_search.enabled is true, also use opened, identity-matched public sources.",
+                "For public search, return sources: [{url, title, retrieved_at: YYYY-MM-DD, identity_evidence}]. Write only claims supported by those sources and local evidence.",
+                "If networking is unavailable or no exact match is verified, skip the research item and report it unresolved; do not claim it completed.",
                 "Write natural Chinese covering purpose, typical use, and important output or limits.",
                 "Do not invent unsupported capabilities; keep missing evidence explicit.",
             ],
@@ -283,7 +318,13 @@ def apply_batch(args: argparse.Namespace) -> int:
         for item in queue_items
         if isinstance(item, dict)
     }
+    catalog_path = output_dir / "catalog.json"
+    if catalog_path.is_file():
+        for item in load_object(catalog_path).get("items", []):
+            if isinstance(item, dict) and item.get("id"):
+                allowed.setdefault(str(item["id"]), item)
     updates: dict[str, str] = {}
+    source_updates: dict[str, list[dict[str, str]]] = {}
     for raw in raw_items:
         if not isinstance(raw, dict):
             raise ValueError("Every response item must be an object")
@@ -296,12 +337,41 @@ def apply_batch(args: argparse.Namespace) -> int:
         review = description_review(description, "curation", str(queue.get("locale") or "zh-CN"))
         if review["needed"]:
             raise ValueError(f"Description for {key} failed review: {', '.join(review['reasons'])}")
+        raw_sources = raw.get("sources", [])
+        if not isinstance(raw_sources, list) or len(raw_sources) > 8:
+            raise ValueError(f"sources for {key} must be an array of at most eight sources")
+        sources: list[dict[str, str]] = []
+        for source in raw_sources:
+            if not isinstance(source, dict):
+                raise ValueError(f"Every source for {key} must be an object")
+            url = str(source.get("url") or "").strip()
+            parsed = urlsplit(url)
+            title = str(source.get("title") or "").strip()
+            identity = str(source.get("identity_evidence") or "").strip()
+            retrieved_at = str(source.get("retrieved_at") or "").strip()
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or len(url) > 2048 or any(ord(c) < 32 for c in url):
+                raise ValueError(f"Invalid public source URL for {key}")
+            if not title or len(title) > 300 or not identity or len(identity) > 1000:
+                raise ValueError(f"Source title and identity_evidence are required for {key}")
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", retrieved_at):
+                raise ValueError(f"Source retrieval date must be YYYY-MM-DD for {key}")
+            if dt.date.fromisoformat(retrieved_at) > dt.datetime.now(dt.timezone.utc).date():
+                raise ValueError(f"Source retrieval date is in the future for {key}")
+            sources.append({"url": url, "title": title, "retrieved_at": retrieved_at, "identity_evidence": identity})
+        if responses.get("web_research") and not sources:
+            raise ValueError(f"Public research for {key} requires at least one opened source")
         updates[key] = description
+        if sources or not curation.get("description_sources", {}).get(key):
+            source_updates[key] = sources
 
     overrides = curation.setdefault("description_overrides", {})
     if not isinstance(overrides, dict):
         raise ValueError("catalog-curation.json description_overrides must be an object")
+    provenance = curation.setdefault("description_sources", {})
+    if not isinstance(provenance, dict):
+        raise ValueError("catalog-curation.json description_sources must be an object")
     overrides.update(updates)
+    provenance.update(source_updates)
     atomic_write_text(curation_path, json.dumps(curation, ensure_ascii=False, indent=2) + "\n")
     remaining = pending_items(queue, curation)
     print(f"Applied {len(updates)} description(s); {len(remaining)} queued item(s) remain before rebuild.")
@@ -319,6 +389,7 @@ def parser() -> argparse.ArgumentParser:
     next_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     next_parser.add_argument("--output", help="Batch JSON path; defaults inside the catalog output directory")
     next_parser.add_argument("--no-github-readmes", action="store_true", help="Do not retrieve public GitHub README evidence")
+    next_parser.add_argument("--web-research", action="store_true", help="Prepare public-introduction research for the invoking Agent, including Skills with complete local descriptions; this script does not provide a search engine")
     next_parser.set_defaults(handler=prepare_batch)
 
     apply_parser = subparsers.add_parser("apply", help="Validate and merge Agent-written Chinese descriptions")

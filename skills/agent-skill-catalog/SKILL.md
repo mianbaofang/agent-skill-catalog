@@ -49,6 +49,14 @@ fetches:
 8. Check `summary.image_evidence` and every `image.status`; use only observed GitHub sources.
 9. Open `index.html`, or serve it with `python scripts/serve_catalog.py --output-dir OUTPUT --root PATH --require-complete-descriptions` (add the same offline flags to keep refreshes offline).
 
+## Images and optional public introductions
+
+Select actual Skill images before GitHub: manual/configured override, local frontmatter, sidecars, then local README images. Fetch GitHub images only for remaining gaps. All cover frames are 16:9; preserve originals and animation. See `references/image-priority.md`.
+
+When the user requests public introductions and the invoking Agent has web access, prepare `python scripts/description_queue.py next --root PATH --output-dir OUTPUT --web-research --no-github-readmes` (or use the matching config). The Agent uses its available search/browser tools, opens exact-identity matches, and returns the batch contract with `web_research: true`, factual Chinese descriptions, and `sources` containing URL, title, retrieval date and identity evidence. Apply with the normal `apply` command and rebuild with the same roots/config. The details show clickable introduction sources. This mode includes Skills whose local description was already complete.
+
+The Python scripts do not contain a search engine, invoke hidden models, or require a provider key. Search is supplied by the Agent runtime. If it cannot browse, or no exact match is verified, leave that research item unresolved and retain its local description. A normal offline preview never triggers public research.
+
 ## Output Contract
 
 The output directory contains `catalog.json`, `description-enrichment.json`, a
@@ -61,7 +69,7 @@ roots stay redacted unless `--include-absolute-paths` is explicit.
 - Network is opt-out, not opt-in. Without the flags below, a build may search GitHub by Skill name, verify candidate repositories, read public repository pages and images for observed repositories, and read one README excerpt per queue item; these reads may reuse an existing local `gh`/token login and never store credentials. Use `--no-github-discovery --no-github-images` for an offline build; the description queue additionally needs `--no-github-readmes`.
 - The optional localhost server offers an explicit, opt-in deletion action for one top-level standalone Skill: it runs only when the serving config marks that root `allow_delete: true`, the item is an independent top-level Skill, and the request confirms the full Skill name. It is disabled by default in every shipped config, including the Windows example. Never enable it unless the user asks, and a deleted Skill directory is removed from its root. The shipped static page and CLI defaults never delete anything.
 - Manual images live in output-owned `curated-images/` and `catalog-curation.json`; unavailable proof stays `missing evidence`.
-- Family grouping requires an observed main entry point. Nested `SKILL.md` files are grouped under that entry point; standalone siblings join only when their source description states an unambiguous product-owner or routing relationship. Loose keyword mentions remain separate and can use explicit curation.
+- Skills with the same observed or verified GitHub repository automatically share a family, including independently named Skills without a parent router. Details retain every member and its invocation. Nested entry-point and explicit product-affiliation evidence also remain supported. Different repositories, plugin identities, and unverified same-name matches stay separate; manual family overrides win.
 - Refresh reuses recorded roots, config, and curation; HTTP callers cannot supply roots, config, or command arguments. The queue validates Agent-written Chinese copy; these Python scripts never call a hidden model or require a provider key. The Agent runtime that writes that copy is a separate boundary: it may send local Skill evidence to its own model provider, so only the fully offline script preview (`--no-github-discovery --no-github-images`, with `--no-github-readmes` for the queue) is a claim that this tool makes no network request.
 
 ## Resources

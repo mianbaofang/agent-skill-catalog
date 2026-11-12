@@ -14,9 +14,10 @@ import re
 import sys
 import tempfile
 import time
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +65,7 @@ from github_preview import (
     github_repository,
     image_data_uri,
     image_data_uri_from_bytes,
+    image_dimensions,
 )
 from catalog_aggregation import (
     aggregate_github,
@@ -240,7 +242,7 @@ def load_curation(paths: Optional[Any], config: Dict[str, Any]) -> None:
         payload = read_json(curation_path, {}, strict=True)
         if not isinstance(payload, dict):
             raise ValueError(f"Curation must be a JSON object: {curation_path}")
-        for key in ("description_overrides", "category_overrides", "github_overrides", "family_overrides", "image_overrides"):
+        for key in ("description_overrides", "description_sources", "category_overrides", "github_overrides", "family_overrides", "image_overrides"):
             value = payload.get(key, {})
             if value:
                 if not isinstance(value, (dict, list)) or (key != "category_overrides" and not isinstance(value, dict)):
@@ -261,7 +263,7 @@ def load_curation(paths: Optional[Any], config: Dict[str, Any]) -> None:
             if not isinstance(legacy_skills, dict):
                 raise ValueError(f"Legacy skills must be an object: {curation_path}")
             target.setdefault("description_overrides", {}).update(legacy_skills)
-        if not any(key in payload for key in ("description_overrides", "category_overrides", "github_overrides", "family_overrides", "image_overrides", "skills")):
+        if not any(key in payload for key in ("description_overrides", "description_sources", "category_overrides", "github_overrides", "family_overrides", "image_overrides", "skills")):
             if not all(isinstance(value, str) for value in payload.values()):
                 raise ValueError(f"Flat legacy curation must map names to strings: {curation_path}")
             target.setdefault("description_overrides", {}).update(payload)
@@ -284,6 +286,7 @@ def ensure_output_curation(config: Dict[str, Any], output_dir: Path) -> Path:
             json.dumps(
                 {
                     "description_overrides": {},
+                    "description_sources": {},
                     "category_overrides": [],
                     "github_overrides": {},
                     "family_overrides": {},
@@ -531,12 +534,18 @@ def github_from_nearby_metadata(skill_path: Path, root: Path, include_readmes: b
 
 
 def github_from_skill_text(text: str) -> str:
-    labeled = re.compile(r"(?:\bgithub\b(?!\.com)|\brepository\b|\brepo\b|\bsource\b|项目仓库|代码仓库|源码|项目主页)", re.I)
+    clone_urls = {
+        github_from_values([match.group(1)])
+        for match in re.finditer(r"\bgit\s+clone\s+(https?://github\.com/[^\s'\"`<>]+|git@github\.com:[^\s'\"`<>]+)", text, re.I)
+    } - {""}
+    labeled = re.compile(r"^\s*(?:[-*]\s*)?(?:github|repository|repo|source|来源仓库|项目仓库|代码仓库|源码|项目主页)\s*[:：]\s*", re.I)
     for line in text.splitlines():
         if labeled.search(line):
             url = github_from_values([line])
             if url:
                 return url
+    if len(clone_urls) == 1:
+        return next(iter(clone_urls))
     urls: List[str] = []
     for match in GITHUB_URL.finditer(text):
         url = github_from_values([match.group(0).rstrip(".,;:)]}`")])
@@ -860,6 +869,86 @@ def local_path_value(value: str, skill_path: Path) -> str:
     return str(candidate.resolve())
 
 
+class ReadmeImages(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.images: List[str] = []
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
+        if tag.lower() == "img":
+            source = dict(attrs).get("src")
+            if source:
+                self.images.append(source)
+
+
+def local_readme_image(skill_path: Path, max_bytes: int) -> Dict[str, Any]:
+    folder = skill_path.parent.resolve()
+    for readme_name in ("README.md", "README.zh-CN.md", "README.en.md", "README_en.md"):
+        readme = folder / readme_name
+        try:
+            if not readme.is_file() or readme.stat().st_size > 128 * 1024:
+                continue
+            if not readme.resolve().is_relative_to(folder):
+                continue
+            text = readme.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError):
+            continue
+        # README images are evidence; never execute HTML or fetch remote URLs here.
+        parser = ReadmeImages()
+        parser.feed(text)
+        sources = parser.images + re.findall(
+            r'!\[[^\]\n]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)', text
+        )
+        seen = set()
+        portrait_image: Dict[str, Any] = {}
+        for source in sources[:32]:
+            source = html.unescape(source.strip().strip("<>"))
+            try:
+                parsed = urlsplit(source)
+            except ValueError:
+                continue
+            if parsed.scheme or parsed.netloc or source.startswith(("/", "\\")):
+                continue
+            relative = unquote(parsed.path)
+            if not relative or "\\" in relative:
+                continue
+            try:
+                candidate = (folder / relative).resolve()
+            except (OSError, ValueError):
+                continue
+            if candidate in seen or not candidate.is_relative_to(folder):
+                continue
+            seen.add(candidate)
+            if candidate.suffix.lower() not in IMAGE_EXTENSIONS or not candidate.is_file():
+                continue
+            if re.search(r"(?:badge|shield|favicon|avatar|qrcode|qr-code)", candidate.stem, re.I):
+                continue
+            try:
+                if max_bytes and candidate.stat().st_size > max_bytes:
+                    continue
+            except OSError:
+                continue
+            data_uri = image_data_uri(candidate, max_bytes)
+            if data_uri:
+                image = {
+                    "status": "verified-local",
+                    "source": f"readme:{readme_name}:{candidate.relative_to(folder).as_posix()}",
+                    "value": data_uri,
+                    "missing_evidence": False,
+                }
+                try:
+                    width, height = image_dimensions(candidate.read_bytes(), candidate.suffix.lower())
+                except OSError:
+                    continue
+                if width >= height or not width or not height:
+                    return image
+                if not portrait_image:
+                    portrait_image = image
+        if portrait_image:
+            return portrait_image
+    return {}
+
+
 def choose_image(
     skill_path: Path,
     frontmatter: Dict[str, Any],
@@ -871,6 +960,7 @@ def choose_image(
     github_url: str = "",
     image_cache_dir: Optional[Path] = None,
     github_previews: Optional[Dict[str, Dict[str, Any]]] = None,
+    local_only: bool = False,
 ) -> Dict[str, Any]:
     image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
     categories = config.get("categories") if isinstance(config.get("categories"), dict) else {}
@@ -885,26 +975,22 @@ def choose_image(
         data_uri = image_data_uri(local, max_bytes) if local.is_file() else ""
         if data_uri:
             return {"status": "curated-local", "source": "catalog-curation:image_overrides", "value": data_uri, "missing_evidence": False}
-    if github_url and image_cache_dir is not None:
-        if github_previews is not None and github_url not in github_previews:
-            github_previews[github_url] = github_preview_image(github_url, image_config, image_cache_dir)
-        github_image = github_previews.get(github_url, {}) if github_previews is not None else github_preview_image(github_url, image_config, image_cache_dir)
-        if github_image:
-            return dict(github_image)
     curated_image = curation_value(curation.get("image_overrides"), name, relative_path)
     if curated_image:
         local = Path(local_path_value(curated_image, skill_path))
         data_uri = image_data_uri(local, max_bytes) if local.is_file() else ""
         if data_uri:
             return {"status": "curated-local", "source": "curation:image_overrides", "value": data_uri, "missing_evidence": False}
+    deferred_metadata: Dict[str, Any] = {}
+    invalid_source = ""
     keys = image_config.get("frontmatter_keys", [])
     for key in keys if isinstance(keys, list) else []:
         raw = str(frontmatter.get(key) or "").strip()
         if not raw:
             continue
         if re.match(r"^https?://", raw, re.I):
-            if image_config.get("allow_remote_metadata", True):
-                return {
+            if image_config.get("allow_remote_metadata", True) and not deferred_metadata:
+                deferred_metadata = {
                     "status": "remote-metadata",
                     "source": f"frontmatter:{key}",
                     "value": fallback,
@@ -916,7 +1002,7 @@ def choose_image(
         data_uri = image_data_uri(local, max_bytes) if local.is_file() else ""
         if data_uri:
             return {"status": "verified-local", "source": f"frontmatter:{key}", "value": data_uri, "missing_evidence": False}
-        return {"status": "generated-fallback", "source": f"invalid-frontmatter:{key}", "value": fallback, "missing_evidence": True}
+        invalid_source = invalid_source or f"invalid-frontmatter:{key}"
 
     sidecars = image_config.get("sidecar_names", [])
     for name in sidecars if isinstance(sidecars, list) else []:
@@ -924,6 +1010,23 @@ def choose_image(
         data_uri = image_data_uri(candidate, max_bytes) if candidate.is_file() and candidate.suffix.lower() in IMAGE_EXTENSIONS else ""
         if data_uri:
             return {"status": "verified-local", "source": f"sidecar:{name}", "value": data_uri, "missing_evidence": False}
+
+    readme_image = local_readme_image(skill_path, max_bytes)
+    if readme_image:
+        return readme_image
+    if local_only:
+        return {}
+
+    if github_url and image_cache_dir is not None and image_config.get("github_repository_previews", True):
+        if github_previews is not None and github_url not in github_previews:
+            github_previews[github_url] = github_preview_image(github_url, image_config, image_cache_dir)
+        github_image = github_previews.get(github_url, {}) if github_previews is not None else github_preview_image(github_url, image_config, image_cache_dir)
+        if github_image:
+            return dict(github_image)
+    if deferred_metadata:
+        return deferred_metadata
+    if invalid_source:
+        return {"status": "generated-fallback", "source": invalid_source, "value": fallback, "missing_evidence": True}
 
     cover = str(metadata.get("cover") or "").strip()
     if cover and image_config.get("category_cover_fallback", True):
@@ -1061,6 +1164,15 @@ def scan(
                 "allow_delete": bool(spec.get("allow_delete", False)),
             }
             item["locations"] = [f"{item['source']}:{relative}"]
+            source_map = curation.get("description_sources", {})
+            if curated_description and isinstance(source_map, dict):
+                for source_key in (item_id, relative, name):
+                    sources = source_map.get(source_key)
+                    if isinstance(sources, list):
+                        item["description_sources"] = [
+                            dict(source) for source in sources if isinstance(source, dict)
+                        ]
+                        break
             item["location_evidence"] = [{"source": item["source"], "relative_path": relative}]
             if github_url:
                 verification = "curation-confirmed" if github_source == "curation" else "observed-local"
@@ -1145,9 +1257,15 @@ def scan(
             image_contexts = refreshed_contexts
     config["_github_discovery_report"] = discovery_report
     image_config = config.get("image") if isinstance(config.get("image"), dict) else {}
+    local_images: Dict[str, Dict[str, Any]] = {}
     repository_urls: Dict[str, str] = {}
-    for context in image_contexts:
-        repository_url = str(context[-1] or "")
+    for item, skill_path, frontmatter, category, name, relative, description, repository_url in image_contexts:
+        local_image = choose_image(
+            skill_path, frontmatter, category, name, relative, description, config, local_only=True,
+        )
+        if local_image:
+            local_images[str(item["id"])] = local_image
+            continue
         repository_key = github_key({"github": {"url": repository_url}})
         if repository_key:
             repository_urls.setdefault(repository_key, repository_key)
@@ -1169,7 +1287,7 @@ def scan(
         repository_key = github_key({"github": {"url": github_url}})
         if repository_key and repository_key in github_previews:
             github_previews[github_url] = github_previews[repository_key]
-        image = choose_image(
+        image = local_images.get(str(item["id"])) or choose_image(
             skill_path,
             frontmatter,
             category,

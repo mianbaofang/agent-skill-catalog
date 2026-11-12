@@ -119,7 +119,7 @@ or GitHub CLI login without storing it. Source detection accepts explicit
 curation, `gh skill install` lock/frontmatter metadata, nearby package or plugin
 metadata, manifest values, an explicit GitHub URL in the Skill body, a local Git
 remote, or a uniquely verified discovery result. When an observed or verified
-GitHub repository URL is available, the default image pass may read the public
+GitHub repository URL is available and no usable local preview exists, the default image pass may read the public
 repository page and cache one size-limited, signature-checked GitHub image in
 `<output-dir>/github-image-cache/`, and the description queue may read one README
 excerpt for that repository. Family and plugin aggregates select the strongest
@@ -127,3 +127,11 @@ verified member image. Use `--no-github-discovery --no-github-images` for an
 offline build; the description queue additionally needs `--no-github-readmes`. Remote
 image URLs found only in a Skill frontmatter remain metadata-only. No category or
 family is inferred from an unverified repository or description-only ecosystem marker.
+
+## Optional Agent-owned public research
+
+Use `description_queue.py next --web-research` with the same roots/config/output to prepare public-introduction work, even for already complete descriptions. The Agent searches and opens exact Skill matches using its own networking tools. Responses carry `web_research: true` and per-item `sources` with URL, title, `retrieved_at` date and `identity_evidence`. `apply` validates these fields, persists them in output-owned `description_sources`, and the rebuilt detail shows clickable sources. This validates the response format, not independent web truth: the Agent must actually inspect the sources. If browsing is unavailable or no exact identity match can be verified, retain local copy and report that research item unresolved. Offline previews never enable this mode.
+
+## Repository collections and landscape previews
+
+Multiple standalone Skills with one observed/verified repository are grouped automatically, including differently named members and installations across scan roots. Details retain all members and invocations. Explicit manual family mappings take precedence. Plugin identities and conflicting repositories are not merged. Local actual previews win before GitHub fallback, and both cards and detail-gallery covers use 16:9 frames while preserving original media and animation.

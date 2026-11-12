@@ -223,12 +223,11 @@ def test_copy_invocation_has_clipboard_fallback_and_status(html: str) -> None:
     assert "复制失败" in html
 
 
-def test_cover_thumb_button_keeps_16_7_frame(html: str) -> None:
-    # Regression: .thumb-button replaced the old .thumb wrapper but must keep the same
-    # framed box (16/7, centered, clipped) so a wide intrinsic cover cannot inflate the
-    # card or crop horizontally at any width.
+def test_cover_thumb_button_uses_uniform_landscape_frame(html: str) -> None:
+    # Landscape frames stay uniform even when original media is portrait.
+    # Containment preserves the full original rather than stretching or cropping it.
     assert ".thumb-button {" in html
-    assert "aspect-ratio: 16 / 7" in html
+    assert "aspect-ratio: 16 / 9" in html
     # the button is the clipping box and the image absolutely fills it, contained
     assert "overflow: hidden;" in html
     assert ".thumb-button img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;" in html

@@ -638,6 +638,7 @@
       "category": "other",
       "description": "把本机 Skill 与插件按用途、来源、调用方式和预览整理成可检索目录；支持家族聚合、插件视图、GitHub 预览与离线静态目录。",
       "description_source": "source",
+      "description_sources": [],
       "source": "社区技能示例",
       "image": {
         "status": "verified-local",
@@ -695,6 +696,7 @@
       "category": "data",
       "description": "清洗表格数据，统一列名、去除重复行、填补缺失值并输出整洁的 CSV 文件。",
       "description_source": "source",
+      "description_sources": [],
       "source": "社区技能示例",
       "image": {
         "status": "generated-fallback",
@@ -760,6 +762,7 @@
       "category": "productivity",
       "description": "记录、整理与检索个人笔记，支持标签分类、全文搜索和按项目分组的笔记管理。",
       "description_source": "source",
+      "description_sources": [],
       "source": "个人技能示例",
       "image": {
         "status": "generated-fallback",
@@ -804,12 +807,10 @@
         "个人技能示例:note-keeper-web/SKILL.md",
         "个人技能示例:note-keeper/SKILL.md"
       ],
-      "family_evidence": [
-        {
-          "type": "description-keyword",
-          "value": "项目"
-        }
-      ]
+      "family_evidence": {
+        "type": "structural-sibling",
+        "source": "个人技能示例"
+      }
     },
     {
       "id": "family:社区技能示例:singleton:weather-lookup",
@@ -817,6 +818,7 @@
       "category": "other",
       "description": "查询指定城市的当前天气与未来三天预报，返回结构化的温度、降水与风力信息。",
       "description_source": "source",
+      "description_sources": [],
       "source": "社区技能示例",
       "image": {
         "status": "generated-fallback",
@@ -870,6 +872,7 @@
       "category": "other",
       "description": "查询指定城市的当前天气与未来三天预报，返回结构化的温度、降水与风力信息。",
       "description_source": "source",
+      "description_sources": [],
       "source": "个人技能示例",
       "image": {
         "status": "generated-fallback",

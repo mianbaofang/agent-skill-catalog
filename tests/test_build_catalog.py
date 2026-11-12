@@ -285,7 +285,12 @@ def test_rooted_sibling_family_inference_is_conservative() -> None:
         assert all(item["family_size"] == 3 for item in research_items)
 
         conflict_items = [item for item in catalog["items"] if item["name"].startswith("conflict")]
-        assert all(item["family_size"] == 1 for item in conflict_items)
+        same_repo = [item for item in conflict_items if item["name"] in {"conflict", "conflict-one"}]
+        foreign_repo = next(item for item in conflict_items if item["name"] == "conflict-two")
+        assert {item["family_size"] for item in same_repo} == {2}
+        assert len({item["family_id"] for item in same_repo}) == 1
+        assert foreign_repo["family_size"] == 1
+        assert all(item["family_id"] != foreign_repo["family_id"] for item in same_repo)
         assert all(item["family_id"] != research["id"] for item in conflict_items)
 
         agent_items = [item for item in catalog["items"] if item["name"].startswith("agent-")]
@@ -645,7 +650,7 @@ def test_system_ops_category_and_delete_root_metadata() -> None:
     assert module.root_fingerprints(specs) != module.root_fingerprints([{**specs[0], "allow_delete": False}])
 
 
-def test_manual_image_wins_then_github_wins_over_legacy_curation() -> None:
+def test_manual_and_configured_local_images_win_over_github() -> None:
     module = load_builder()
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp)
@@ -675,6 +680,13 @@ def test_manual_image_wins_then_github_wins_over_legacy_curation() -> None:
         assert selected["source"] == "catalog-curation:image_overrides"
 
         config["_manual_image_overrides"] = {}
+        selected = module.choose_image(
+            skill_path, {}, "other", "demo", "demo/SKILL.md", "demo", config,
+            github_url="https://github.com/example/demo", image_cache_dir=fixture, github_previews=previews,
+        )
+        assert selected["source"] == "curation:image_overrides"
+
+        config["curation"]["image_overrides"] = {}
         selected = module.choose_image(
             skill_path, {}, "other", "demo", "demo/SKILL.md", "demo", config,
             github_url="https://github.com/example/demo", image_cache_dir=fixture, github_previews=previews,
