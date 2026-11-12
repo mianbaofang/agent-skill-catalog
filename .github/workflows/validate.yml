@@ -35,7 +35,7 @@ jobs:
       - name: Check committed demo and documentation are reproducible
         run: python tools/build_demo.py --check
       - name: Install test dependencies
-        run: python -m pip install pytest
+        run: python -m pip install pytest Pillow
       - run: python -m pytest tests -q
       - run: python tools/package_skill.py .
       - uses: actions/upload-artifact@v4

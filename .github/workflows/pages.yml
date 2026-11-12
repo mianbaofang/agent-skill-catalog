@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install test dependencies
-        run: python -m pip install pytest
+        run: python -m pip install pytest Pillow
       - name: Run tests
         run: python -m pytest tests -q
       - name: Check generated documentation and demo are reproducible
