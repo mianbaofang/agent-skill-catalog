@@ -72,7 +72,7 @@
       "source": "社区技能示例",
       "kind": "skill",
       "relative_path": "csv-clean/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 csv-clean/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 csv-clean/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -145,7 +145,7 @@
       "source": "个人技能示例",
       "kind": "skill",
       "relative_path": "note-keeper-cli/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper-cli/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper-cli/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -208,7 +208,7 @@
       "source": "社区技能示例",
       "kind": "skill",
       "relative_path": "agent-skill-catalog/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 agent-skill-catalog/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 agent-skill-catalog/SKILL.md 执行。",
       "image": {
         "status": "verified-local",
         "source": "frontmatter:preview_image",
@@ -283,7 +283,7 @@
       "source": "社区技能示例",
       "kind": "skill",
       "relative_path": "weather-lookup/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -346,7 +346,7 @@
       "source": "个人技能示例",
       "kind": "skill",
       "relative_path": "weather-lookup/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -409,7 +409,7 @@
       "source": "个人技能示例",
       "kind": "skill",
       "relative_path": "note-keeper/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -480,7 +480,7 @@
       "source": "个人技能示例",
       "kind": "skill",
       "relative_path": "note-keeper-web/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper-web/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper-web/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -545,7 +545,7 @@
       "source": "插件缓存示例",
       "kind": "plugin",
       "relative_path": "demo-corp/toolkit/1.0.0/skills/refresh-cache/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 demo-corp/toolkit/1.0.0/skills/refresh-cache/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 demo-corp/toolkit/1.0.0/skills/refresh-cache/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -607,7 +607,7 @@
       "source": "插件缓存示例",
       "kind": "plugin",
       "relative_path": "demo-corp/toolkit/1.0.0/skills/review-draft/SKILL.md",
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 demo-corp/toolkit/1.0.0/skills/review-draft/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 demo-corp/toolkit/1.0.0/skills/review-draft/SKILL.md 执行。",
       "image": {
         "status": "generated-fallback",
         "source": "generated",
@@ -653,7 +653,7 @@
         "source": "frontmatter",
         "verification": "observed-local"
       },
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 agent-skill-catalog/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 agent-skill-catalog/SKILL.md 执行。",
       "category_evidence": [
         {
           "type": "fallback",
@@ -707,7 +707,7 @@
       },
       "image_source_member_id": "skill:0:csv-clean/SKILL.md",
       "github": {},
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 csv-clean/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 csv-clean/SKILL.md 执行。",
       "category_evidence": [
         {
           "type": "description-keyword",
@@ -773,7 +773,7 @@
       },
       "image_source_member_id": "skill:1:note-keeper/SKILL.md",
       "github": {},
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 note-keeper/SKILL.md 执行。",
       "category_evidence": [
         {
           "type": "description-keyword",
@@ -829,7 +829,7 @@
       },
       "image_source_member_id": "skill:0:weather-lookup/SKILL.md",
       "github": {},
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 执行。",
       "category_evidence": [
         {
           "type": "fallback",
@@ -883,7 +883,7 @@
       },
       "image_source_member_id": "skill:1:weather-lookup/SKILL.md",
       "github": {},
-      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 的 SKILL.md 执行。",
+      "invocation": "在你的 Agent 中明确说明任务，并要求它按 weather-lookup/SKILL.md 执行。",
       "category_evidence": [
         {
           "type": "fallback",

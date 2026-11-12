@@ -17,10 +17,12 @@ def test_both_readmes_present() -> None:
 
 
 def test_primary_install_pins_current_release_with_optional_main() -> None:
+    version = _read("VERSION").strip()
+    assert re.fullmatch(r"\d+\.\d+\.\d+", version), version
     for name in ("README.md", "README.zh-CN.md"):
         text = _read(name)
         # The primary, stable install path pins the current tagged release.
-        assert "gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.0 --agent codex --scope user" in text, name
+        assert f"gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v{version} --agent codex --scope user" in text, name
         # --pin main stays available as an explicitly labeled development path.
         assert "gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user" in text, f"{name} dropped the optional --pin main dev path"
         # A stale tagged release must not be presented as the install target.

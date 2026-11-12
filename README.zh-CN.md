@@ -1,40 +1,40 @@
 # Agent Skill Catalog 本地 Skill 与插件目录
 
-把机器上已有的 Agent Skills 汇总成一份可搜索的本地目录——可保留项目动图预览，并展示每条的来源与调用方式。
+把机器上已有的 Agent Skills 汇总成一份可搜索的本地目录——每一条都使用 Skill 自己的封面图，并展示来源与调用方式。
 
-把它指向存放 `SKILL.md` 的目录，它会生成一份自包含的 HTML 目录。它把独立 Skill、有证据的主/子家族和插件携带的能力分别聚合成独立视图，让它们可搜索，并记录每一条的来源和调用方式。当某个 Skill 的 GitHub README 里带有动态 GIF 或 WebP 时，目录可以保留它的原始动图帧，你在卡片里看到的就是会动的 Skill，而不是一张静态封面；没有动图证据的条目会退回为封面或 `missing evidence`。
+把它指向存放 `SKILL.md` 的目录，它会生成一份自包含的 HTML 目录。选图先从 Skill 自带的内容开始：frontmatter、sidecar 图片，或它自己 README 里引用的图片，GIF/WebP 的原始动画字节完整保留；只有本地仍然没有图片的条目才会读取 GitHub。同一个 GitHub 仓库安装的多个 Skill 会自动归成一个家族，即使名称没有共同前缀；插件单独成视图；详情弹窗展示调用方式，以及带抓取日期的公开介绍来源。
 
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/"><strong>打开在线演示</strong></a>
   &middot;
-  <a href="#安装"><strong>安装 v0.4.0</strong></a>
+  <a href="#安装"><strong>安装 v0.5.0</strong></a>
   &middot;
   <a href="README.md">English</a>
 </p>
 
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/">
-    <img src="docs/media/agent-skill-catalog-demo.v0.4.0.gif" alt="离线生成目录的录制演示：一张卡片播放本项目公开宣传动画的本地派生动图，其余家族与插件记录为合成数据，随后分组显示 Skill、家族与插件视图、搜索收窄结果，以及带来源与调用方式的详情弹窗" width="100%">
+    <img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="生成的目录总览：分类芯片与计数、可搜索的 Skill 网格；有本地封面的条目使用 Skill 自己的图片，没有的保留明确标注的自动生成封面" width="100%">
   </a>
 </p>
 
 <p align="center">
-  <em>卡片里的动图是本项目公开宣传动画的本地派生片段，由实际扫描器读入并保留动图；它不代表演示页面现场联网抓取。
-  周围的家族和插件记录是合成夹具。这是离线目录的录制演示，无需联网即可复现。</em>
+  <em>截图来自仓库内提交的离线演示，无需联网即可复现。有真实本地封面的卡片会标注来源；没有的条目保留明确标注的自动生成封面。</em>
 </p>
 
-## v0.4.0 更新内容
+## v0.5.0 更新内容
 
-- **从封面、标题或按钮打开详情。** 点击卡片的封面图、标题或显式按钮，都会打开同一个详情弹窗；卡片正文区域不响应点击。
-- **看清预览图来自哪里。** 每张图片都会标注来源——已确认的 GitHub 仓库预览、Skill 自带的本地证据、生成的分类封面，或 `missing evidence`——详情视图会解释它背后的出处。
-- **复制调用方式。** 详情弹窗提供 `复制调用` 操作，复制可直接粘贴给 Agent 的原文。当浏览器阻止剪贴板访问时（例如以 `file://` 方式打开），它会如实报告失败，而不是谎报成功。
-- **可引导的演示。** 演示页面内置可折叠的操作指南，其按钮直接驱动目录自身的搜索、家族和插件控件，方便你亲手复现每个交互。
+- **优先使用 Skill 自己的图片。** 选图依次读取 frontmatter、sidecar 文件和 Skill 自己的 README（Markdown 与 HTML），之后才向 GitHub 要图；GIF/WebP 的原始字节完整保留，卡片上看到的就是 Skill 的真实预览，而不是替代图。
+- **统一横屏预览。** 卡片封面与详情图片统一放在 16:9 画框内，并以 `contain` 完整展示原图，竖版与横版 Skill 不再出现高低错落。
+- **同仓库自动归集。** 同一个 GitHub 仓库安装的独立 Skill 会归成一个家族，即使名称没有共同前缀；插件保持独立视图，手动指定的归集仍然优先。
+- **带出处的公开介绍。** 使用 `--web-research` 时，由调用方 Agent 搜索公开页面；写入的介绍会保留来源 URL、标题、抓取日期和身份证据，并在详情弹窗中显示为可点击链接。离线预览不会触发联网研究，找不到匹配时保留本地介绍。
+- **诚实的兜底。** 本地文件与 GitHub 都没有图片时，生成的分类封面会保持明确标注；不会凭空生成新封面，也不会把原始图片转成横版。
 
 完整列表见[更新记录](CHANGELOG.md)。
 
 当前生成的目录界面是中文。本仓库文档提供英文和中文两个版本，但这不代表生成的界面本身支持双语。
 
-<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.4.0"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td></tr></table>
+<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.0"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td></tr></table>
 
 <p align="center">
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
@@ -54,18 +54,16 @@
 
 下面截图来自一份真实生成的目录，生成的界面是中文。每张都是用已提交的演示夹具（一份真实公开参考与合成示例）构建的离线截图，无需联网即可复现。
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.v0.4.0.png" alt="生成的目录总览图，包含分类标签、可搜索的 Skill 列表、技能与插件独立视图以及分类计数" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="生成的目录总览：分类芯片与计数、可搜索的 Skill 网格；有本地封面的条目使用 Skill 自己的图片，没有的保留明确标注的自动生成封面" width="100%"></td></tr></table>
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.v0.4.0.png" alt="生成的目录搜索一个多成员家族后的结果，把网格收窄到该家族携带的 Skill" width="100%"></td></tr></table>
-
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.v0.4.0.png" alt="生成的目录详情弹窗，显示 Skill 摘要、带复制操作的调用方式、来源位置和图片来源" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.v0.5.0.png" alt="生成的目录详情弹窗：同一仓库的三个子 Skill、带复制操作的调用方式，以及图片来源证据" width="100%"></td></tr></table>
 
 ## 安装
 
 用 GitHub CLI 安装已发布的版本（这是在 Windows 上实测通过的路径）：
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.0 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.0 --agent codex --scope user
 ```
 
 想跟踪 `main` 分支上的最新源码而不是某个打标签的版本，可以固定分支：
@@ -74,7 +72,7 @@ gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.
 gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user
 ```
 
-`--pin main` 安装的是仓库 `main` 分支上当前的内容，它会在各版本之间变动；要稳定版本请用上面的 `v0.4.0` 命令。
+`--pin main` 安装的是仓库 `main` 分支上当前的内容，它会在各版本之间变动；要稳定版本请用上面的 `v0.5.0` 命令。
 
 安装后告诉 Agent 要扫描哪些目录：
 
@@ -208,7 +206,7 @@ CHANGELOG.md                       版本记录
 
 ## 状态
 
-- 当前已发布版本是 [`v0.4.0`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.4.0)。
+- 当前已发布版本是 [`v0.5.0`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.0)。
 - 可安装包是 [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)。
 - 包校验文件是 [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)。
 - 校验范围包括 GitHub Skill 发现、安装包结构、Python 编译、目录测试和发布打包，CI 与发布前都会运行这些检查。

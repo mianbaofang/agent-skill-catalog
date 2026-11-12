@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0 - 2026-11-13
+
+- Prefer the images a Skill already ships: frontmatter, sidecar files, and its local README (Markdown and HTML) are read before any GitHub request, and original GIF/WebP bytes are preserved.
+- Request GitHub images only for entries that still have no local image, and keep the generated category cover explicitly labelled when nothing is available.
+- Render every card cover and detail image in a uniform 16:9 frame with the whole original visible, instead of mixing portrait and landscape heights.
+- Group standalone Skills installed from the same GitHub repository into one family even when their names share no prefix; plugins stay in a separate view and manual family overrides still win.
+- Add optional Agent-owned public introduction research (`description_queue.py next --web-research`) with persisted source URL, title, retrieval date, and identity evidence shown as links in the detail dialog.
+- Fix repository inference that could mistake an installer repository mentioned in a README for the Skill's own source; prefer an explicit source or a unique git clone URL.
+- Fix the invocation text so a Skill whose path already ends in `SKILL.md` no longer renders "SKILL.md 的 SKILL.md".
+- Rebuild the reproducible public demo and refresh the README screenshots; extend regression coverage for local README previews, repository families, sourced introductions, and installation-source inference.
+
+
 ## 0.4.0 - 2026-11-12
 
 - Separate fast offline preview from optional completed Chinese descriptions.

@@ -1,41 +1,40 @@
 # Agent Skill Catalog
 
-Turn the Agent Skills already on your machine into one searchable local catalog — one that can keep a project's animated preview and shows each entry's source and invocation.
+Turn the Agent Skills already on your machine into one searchable local catalog — with each Skill's own cover image, its source, and its invocation.
 
-Point it at the folders where your `SKILL.md` files live and it builds a self-contained HTML catalog. It aggregates standalone Skills, real parent/child families, and plugin bundles into separate views, makes them searchable, and records where each one came from and how to invoke it. When a Skill's GitHub README carries an animated GIF or WebP, the catalog can keep those raw animated frames, so you see the Skill moving in the card rather than a static cover; entries with no animated evidence fall back to a cover or `missing evidence`.
+Point it at the folders where your `SKILL.md` files live and it builds a self-contained HTML catalog. Cover discovery starts with what each Skill already ships: a frontmatter or sidecar image, or a picture linked from its own README, with original GIF/WebP animation kept intact. GitHub is read only for entries that still have no local image. Skills installed from one repository are grouped into one family even when their names share no prefix, plugins keep their own view, and the detail dialog shows the invocation plus any sourced public introduction with its retrieval date.
 
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/"><strong>Open the live demo</strong></a>
   &middot;
-  <a href="#install"><strong>Install v0.4.0</strong></a>
+  <a href="#install"><strong>Install v0.5.0</strong></a>
   &middot;
   <a href="README.zh-CN.md">中文</a>
 </p>
 
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/">
-    <img src="docs/media/agent-skill-catalog-demo.en.v0.4.0.gif" alt="Recorded demo of the offline-generated catalog: one card playing a locally derived clip of this project's own public promo animation, the remaining family and plugin records synthetic, then grouped Skill, family, and plugin views, search narrowing the grid, and a detail dialog with source and invocation" width="100%">
+    <img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="Generated catalog overview with category chips and counts, a searchable Skill grid using each Skill's own local cover where one exists, and a labelled generated fallback elsewhere" width="100%">
   </a>
 </p>
 
 <p align="center">
-  <em>The clip in the card is a locally derived fragment of this project's own public promo animation, read in by the real scanner and kept as animation; it does not represent a live network fetch by the demo page.
-  The surrounding family and plugin records are synthetic fixtures. This is a recorded demo of the offline catalog,
-  reproducible without a network.</em>
+  <em>Screenshots come from the committed offline demo and are reproducible without a network. Cards with a real local cover are marked as such; entries without one keep the explicitly labelled generated fallback.</em>
 </p>
 
-## What's new in v0.4.0
+## What's new in v0.5.0
 
-- **Open a detail from the cover, the title, or the button.** Clicking a card's cover image, its title, or its explicit action button opens the same detail dialog; the card's body area is not clickable.
-- **See where a preview came from.** Each image states its provenance — verified GitHub repository preview, Skill-provided local evidence, a generated category cover, or `missing evidence` — and the detail view explains the source behind it.
-- **Copy the invocation.** The detail dialog has a `Copy invocation` action for the exact text you paste to your agent. Where the browser blocks clipboard access (for example on a `file://` open), it reports the failure instead of claiming success.
-- **A guided demo.** The demo page ships a collapsible action guide whose buttons drive the catalog's own search, family, and plugin controls, so you can reproduce each interaction yourself.
+- **Use each Skill's own images first.** Cover discovery reads the Skill's frontmatter, sidecar files, and its local README (Markdown and HTML) before asking GitHub for anything. Original GIF and WebP bytes are preserved, so the card shows the Skill's real preview instead of a stand-in.
+- **Uniform landscape previews.** Every card cover and detail image sits in a 16:9 frame with the whole original visible (`contain`), so portrait and landscape Skills no longer produce a ragged mix of heights.
+- **Group Skills from one repository.** Standalone Skills installed from the same GitHub repository become one family, even when their names share no prefix. Plugins stay in their own separate view, and a manual override still wins.
+- **Sourced public introductions.** With `--web-research`, the invoking Agent searches public pages for a Skill; the applied description keeps the source URL, title, retrieval date, and identity evidence, shown as links in the detail dialog. Offline previews never trigger research, and a missing match keeps the local description.
+- **Honest fallbacks.** When neither the local files nor GitHub provide an image, the generated category cover stays explicitly labelled. No new AI cover is invented and no source image is converted to landscape.
 
 See the [Changelog](CHANGELOG.md) for the full list.
 
 The generated catalog interface is Chinese. This documentation is available in English and Chinese; that does not make the generated UI bilingual.
 
-<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.4.0"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td></tr></table>
+<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.0"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td></tr></table>
 
 <p align="center">
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
@@ -56,18 +55,16 @@ The generated catalog interface is Chinese. This documentation is available in E
 The screenshots come from a real generated catalog; the interface is Chinese. Each one is a captured
 offline snapshot built from committed demo fixtures (one real public reference and synthetic examples), reproducible without a network.
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.en.v0.4.0.png" alt="Generated catalog overview with category chips, a searchable Skill list, separate Skills and plugins views, and category counts" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="Generated catalog overview with category chips and counts, a searchable Skill grid using each Skill's own local cover where one exists, and a labelled generated fallback elsewhere" width="100%"></td></tr></table>
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.en.v0.4.0.png" alt="Generated catalog search results for a multi-member family, narrowing the grid to that family's bundled Skills" width="100%"></td></tr></table>
-
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.en.v0.4.0.png" alt="Generated catalog detail dialog showing the Skill summary, invocation text with a copy action, source location, and image provenance" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.v0.5.0.png" alt="Generated catalog detail dialog for a family of Skills installed from one repository, showing the family's three sub-Skills, the invocation text with a copy action, and image provenance" width="100%"></td></tr></table>
 
 ## Install
 
 Install the published release with GitHub CLI (the path validated on Windows):
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.4.0 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.0 --agent codex --scope user
 ```
 
 To track the latest source on `main` instead of a tagged release, pin the branch:
@@ -77,7 +74,7 @@ gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main 
 ```
 
 `--pin main` installs whatever is currently on the repository's `main` branch, which moves between
-releases; prefer the `v0.4.0` command above for a stable build.
+releases; prefer the `v0.5.0` command above for a stable build.
 
 Then tell your agent which roots to scan:
 
@@ -232,7 +229,7 @@ CHANGELOG.md                       release history
 
 ## Status
 
-- Current published release: [`v0.4.0`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.4.0)
+- Current published release: [`v0.5.0`](https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.0)
 - Installable package: [`agent-skill-catalog-skill.zip`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip)
 - Package checksum: [`agent-skill-catalog-skill.zip.sha256`](https://github.com/mianbaofang/agent-skill-catalog/releases/latest/download/agent-skill-catalog-skill.zip.sha256)
 - Validation: GitHub Skill discovery, package structure, Python compilation, deterministic catalog tests, and release packaging run in CI and before release.
