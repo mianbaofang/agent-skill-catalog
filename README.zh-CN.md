@@ -28,7 +28,7 @@
 
 <p align="center">
   <a href="docs/DEMO.md">
-    <img src="docs/media/agent-skill-catalog-demo.gif" alt="Agent Skill Catalog 产品演示：选择明确根目录、生成目录、搜索 Skill 名称、查看其来源与调用方式，并对比家族和插件条目" width="100%">
+    <img src="docs/media/agent-skill-catalog-demo.gif" alt="Agent Skill Catalog 产品演示：合成生成目录的静态演示——总览、搜索 Skill 家族、查看来源与调用方式，以及独立的插件视图" width="100%">
   </a>
 </p>
 
@@ -139,7 +139,7 @@ python skills/agent-skill-catalog/scripts/serve_catalog.py `
 
 <table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.png" alt="生成的目录总览图，包含分类标签、可搜索的 Skill 列表、技能与插件独立视图以及分类计数" width="100%"></td></tr></table>
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.png" alt="生成的目录搜索 agent-skill-catalog 后的结果，显示匹配的 Skill 卡片、预览图和分类筛选" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.png" alt="生成的目录搜索 note-keeper 家族后的结果，显示匹配的卡片、生成的兜底配图和分类筛选" width="100%"></td></tr></table>
 
 <table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.png" alt="生成的目录详情弹窗，显示 Skill 摘要、调用方式、来源位置和证据状态" width="100%"></td></tr></table>
 

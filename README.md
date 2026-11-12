@@ -34,7 +34,7 @@ library must stay off the network.
 
 <p align="center">
   <a href="docs/DEMO.md">
-    <img src="docs/media/agent-skill-catalog-demo.en.gif" alt="Agent Skill Catalog product walkthrough: choose explicit roots, generate the catalog, search a Skill name, inspect its source and invocation, and compare family and plugin entries" width="100%">
+    <img src="docs/media/agent-skill-catalog-demo.en.gif" alt="Agent Skill Catalog demo walkthrough of a synthetic generated catalog: overview, searching a Skill family, inspecting its source and invocation, and the separate plugins view" width="100%">
   </a>
 </p>
 
@@ -171,9 +171,9 @@ is Chinese. The recorded demo animation above is a promotional walkthrough built
 from non-personal synthetic test fixtures; it is not an install or runtime
 dependency.
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.en.png" alt="Generated catalog overview with category tabs, a searchable Skill list, separate Skills and plugins views, and category counts" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.en.png" alt="Generated catalog overview with category chips, a searchable Skill list, separate Skills and plugins views, and category counts" width="100%"></td></tr></table>
 
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.en.png" alt="Generated catalog search results for agent-skill-catalog showing the matching Skill card, preview image, and category filters" width="100%"></td></tr></table>
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-filter.en.png" alt="Generated catalog search results for the note-keeper family showing the matching card, generated fallback cover, and category chips" width="100%"></td></tr></table>
 
 <table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.en.png" alt="Generated catalog detail dialog showing the Skill summary, invocation text, source location, and evidence state" width="100%"></td></tr></table>
 
