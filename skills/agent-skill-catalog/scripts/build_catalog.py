@@ -740,8 +740,21 @@ def iter_skill_files(
     root = root.resolve()
     if not root.is_dir():
         return
-    for current, dirs, files in os.walk(root):
+    # followlinks only takes effect when the operator opted in; the resolved-dir
+    # set guards against junction/symlink cycles that walk() would otherwise
+    # loop over.
+    visited_dirs: set[str] = set()
+    for current, dirs, files in os.walk(root, followlinks=follow_linked):
         current_path = Path(current)
+        try:
+            resolved_current = str(current_path.resolve()).casefold()
+        except (OSError, ValueError):
+            dirs[:] = []
+            continue
+        if resolved_current in visited_dirs:
+            dirs[:] = []
+            continue
+        visited_dirs.add(resolved_current)
         try:
             depth = len(current_path.relative_to(root).parts)
         except ValueError:
