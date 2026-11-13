@@ -61,6 +61,12 @@ offline snapshot built from committed demo fixtures (one real public reference a
 
 ## Install
 
+One line with the `skills` CLI (works for Claude Code, Codex, Cursor, Gemini CLI and more; also lists the skill on [skills.sh](https://www.skills.sh/mianbaofang/agent-skill-catalog)):
+
+```bash
+npx skills add mianbaofang/agent-skill-catalog
+```
+
 Install the published release with GitHub CLI (the path validated on Windows):
 
 ```powershell
