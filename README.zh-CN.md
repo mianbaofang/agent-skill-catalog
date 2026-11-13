@@ -60,6 +60,12 @@
 
 ## 安装
 
+用 `skills` CLI 一行安装（适用于 Claude Code、Codex、Cursor、Gemini CLI 等；同时会把本 Skill 收录到 [skills.sh](https://www.skills.sh/mianbaofang/agent-skill-catalog)）：
+
+```bash
+npx skills add mianbaofang/agent-skill-catalog
+```
+
 用 GitHub CLI 安装已发布的版本（这是在 Windows 上实测通过的路径）：
 
 ```powershell
