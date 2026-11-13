@@ -729,7 +729,13 @@ def root_specs(config: Dict[str, Any], cli_roots: Optional[List[str]]) -> List[D
     return specs
 
 
-def iter_skill_files(root: Path, skip_dirs: Iterable[str], max_depth: int) -> Iterable[Path]:
+def iter_skill_files(
+    root: Path,
+    skip_dirs: Iterable[str],
+    max_depth: int,
+    follow_linked: bool = False,
+    skipped_linked: Optional[List[Dict[str, str]]] = None,
+) -> Iterable[Path]:
     skip = {str(item).lower() for item in skip_dirs}
     root = root.resolve()
     if not root.is_dir():
@@ -752,9 +758,15 @@ def iter_skill_files(root: Path, skip_dirs: Iterable[str], max_depth: int) -> It
                     continue
                 # Directory junctions on Windows and symlinks on POSIX can make
                 # os.walk surface a file that really lives outside the explicit
-                # scan root. Never read that file into the catalog.
+                # scan root. Skip it unless the operator asked to follow links,
+                # and never skip silently.
                 if not resolved_skill.is_relative_to(root):
-                    continue
+                    if not follow_linked:
+                        if skipped_linked is not None:
+                            skipped_linked.append(
+                                {"name": skill_path.parent.name, "resolved": str(resolved_skill)}
+                            )
+                        continue
                 if is_packaged_mirror_skill(skill_path):
                     continue
                 yield skill_path
@@ -1141,13 +1153,15 @@ def scan(
     seen: set[str] = set()
     skip_dirs = config.get("scan", {}).get("skip_dirs", sorted(DEFAULT_SKIP_DIRS))
     max_depth = int(config.get("scan", {}).get("max_depth", 12) or 12)
+    follow_linked = bool(config.get("scan", {}).get("follow_linked_dirs", False))
+    skipped_linked: List[Dict[str, str]] = []
     for spec in specs:
         root = Path(spec["path"])
         if not root.is_dir():
             unresolved.append({"path": str(root), "label": spec["label"], "reason": "root does not exist or is not a directory"})
             continue
         install_locks = install_lock_entries(root)
-        for skill_path in iter_skill_files(root, skip_dirs, max_depth):
+        for skill_path in iter_skill_files(root, skip_dirs, max_depth, follow_linked, skipped_linked):
             resolved = str(skill_path.resolve()).casefold()
             if resolved in seen:
                 continue
@@ -1155,7 +1169,14 @@ def scan(
             try:
                 relative = skill_path.resolve().relative_to(root.resolve()).as_posix()
             except ValueError:
-                relative = skill_path.name
+                # A linked directory resolves outside the root, so the resolved
+                # path cannot be made relative. Use the lexical path the user
+                # actually has under the root; a bare file name would collapse
+                # every linked skill onto the same identity.
+                try:
+                    relative = skill_path.relative_to(root).as_posix()
+                except ValueError:
+                    relative = skill_path.name
             text = skill_path.read_text(encoding="utf-8-sig", errors="replace")
             frontmatter = parse_frontmatter(text)
             name = skill_name(skill_path, frontmatter)
@@ -1354,6 +1375,7 @@ def scan(
         image["evidence"] = "missing" if image.get("missing_evidence", True) else "verified"
         item["image"] = image
     items.sort(key=lambda item: (str(item["category"]), str(item["name"]).casefold(), str(item["relative_path"]).casefold()))
+    config["_skipped_linked_dirs"] = skipped_linked
     return items, raw_plugins, unresolved
 
 
@@ -1511,6 +1533,8 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
         config.setdefault("image", {})["github_repository_previews"] = False
     if getattr(args, "no_github_discovery", False):
         config.setdefault("github_discovery", {})["enabled"] = False
+    if getattr(args, "follow_linked_dirs", False):
+        config.setdefault("scan", {})["follow_linked_dirs"] = True
     load_curation(getattr(args, "curation", None), config)
     cli_roots = args.root if args.root else None
     specs = root_specs(config, cli_roots)
@@ -1535,6 +1559,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
         "attempted": 0,
         "results": [],
     })
+    skipped_linked = config.pop("_skipped_linked_dirs", [])
     families = assign_families(items, config)
     plugins = merge_plugins(raw_plugins, items, config)
     previous = read_json(output_dir / "catalog.json", {}) if output_dir.is_dir() else {}
@@ -1555,6 +1580,7 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
         "description_enrichment": descriptions,
         "github_discovery": discovery_report,
         "unresolved_roots": public_unresolved(unresolved, include_absolute),
+        "skipped_linked_dirs": sorted({entry["name"] for entry in skipped_linked}),
         "warnings": [
             {"type": "invalid-category-override", **entry}
             for entry in config.get("invalid_category_overrides", [])
@@ -1611,6 +1637,11 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--no-github-images", action="store_true", help="Do not fetch or reuse GitHub repository preview images for this build")
     result.add_argument("--no-github-discovery", action="store_true", help="Do not search GitHub to verify missing Skill repository links for this build")
     result.add_argument(
+        "--follow-linked-dirs",
+        action="store_true",
+        help="Include skills reached through directory junctions or symlinks that resolve outside the scan root",
+    )
+    result.add_argument(
         "--require-complete-descriptions",
         action="store_true",
         help="Write outputs but return exit code 3 while the Agent-owned Chinese description queue is incomplete",
@@ -1633,6 +1664,14 @@ def main() -> int:
     )
     if catalog.get("unresolved_roots"):
         print(f"Unresolved roots: {len(catalog['unresolved_roots'])}", file=sys.stderr)
+    if catalog.get("skipped_linked_dirs"):
+        names = ", ".join(catalog["skipped_linked_dirs"][:8])
+        more = "" if len(catalog["skipped_linked_dirs"]) <= 8 else f" and {len(catalog['skipped_linked_dirs']) - 8} more"
+        print(
+            "Skipped linked skills outside the scan root: "
+            f"{names}{more}. Rerun with --follow-linked-dirs to include them.",
+            file=sys.stderr,
+        )
     if args.require_complete_descriptions and summary["pending_description_count"]:
         print(
             f"Pending description enrichment: {summary['pending_description_count']} item(s). "

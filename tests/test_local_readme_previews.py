@@ -163,3 +163,69 @@ def test_scan_does_not_follow_links_outside_root(builder, tmp_path):
         tmp_path / 'cache',
     )
     assert items == []
+
+
+def _make_dir_link(link: Path, target: Path) -> bool:
+    if sys.platform == 'win32':
+        created = subprocess.run(
+            ['cmd', '/c', 'mklink', '/J', str(link), str(target)],
+            capture_output=True,
+            text=True,
+        )
+        return created.returncode == 0
+    try:
+        link.symlink_to(target, target_is_directory=True)
+        return True
+    except OSError:
+        return False
+
+
+def test_follow_linked_dirs_opts_in_and_keeps_unique_identities(builder, tmp_path):
+    """--follow-linked-dirs includes junctioned skills, each with its own identity."""
+
+    first = tmp_path / 'first-target'
+    second = tmp_path / 'second-target'
+    for outside, name in ((first, 'linked-one'), (second, 'linked-two')):
+        outside.mkdir()
+        (outside / 'SKILL.md').write_text(
+            f'---\nname: {name}\ndescription: linked outside the scan root\n---\n',
+            encoding='utf-8',
+        )
+    root = tmp_path / 'root'
+    root.mkdir()
+    links = []
+    for outside in (first, second):
+        linked = root / outside.name
+        if not _make_dir_link(linked, outside):
+            pytest.skip('Directory link creation is unavailable in this environment')
+        links.append(linked)
+    config = builder.load_config(builder.DEFAULT_CONFIG)
+    config['github_discovery']['enabled'] = False
+    config['image']['github_repository_previews'] = False
+
+    # Default: skipped, never silently.
+    items, _, _ = builder.scan(
+        config,
+        [{'path': str(root), 'label': 'Skills', 'kind': 'skill'}],
+        False,
+        tmp_path / 'cache-default',
+    )
+    assert items == []
+    assert sorted(entry['name'] for entry in config['_skipped_linked_dirs']) == [
+        'first-target',
+        'second-target',
+    ]
+
+    # Opt-in: both linked skills included, with distinct ids and real relative paths.
+    config['scan']['follow_linked_dirs'] = True
+    config.pop('_skipped_linked_dirs', None)
+    items, _, _ = builder.scan(
+        config,
+        [{'path': str(root), 'label': 'Skills', 'kind': 'skill'}],
+        False,
+        tmp_path / 'cache-follow',
+    )
+    names = {item['name'] for item in items}
+    assert names == {'linked-one', 'linked-two'}
+    assert {item['id'] for item in items} and len(items) == 2
+    assert all(item['relative_path'].endswith('SKILL.md') and '/' in item['relative_path'] for item in items)
