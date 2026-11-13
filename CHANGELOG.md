@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Keep Skill-provided frontmatter and sidecar preview images inside the Skill's own folder, so a scanned `SKILL.md` cannot read an arbitrary local image from outside the selected root.
+- Skip `SKILL.md` files that resolve outside the explicit scan root, including files reached through a Windows directory junction or a directory symlink.
+- Check a local image's size before reading it into memory, so an oversized preview is rejected without allocating the whole file.
+- Place the reproducible demo's banner and guide markup inside `<body>` instead of after the charset meta in `<head>`; keep the `noindex` meta in the document head and regenerate `docs/demo`.
+- Reject foreign `Host` and cross-site `Origin` values on the local catalog server, so a DNS-rebinding or CSRF page cannot drive refresh, image, or delete endpoints.
+- Escape an HTML comment opener in the embedded catalog payload so untrusted Skill text cannot put the inline script into an escaped parser state.
+- Read UTF-8 BOM JSON and `SKILL.md` files on Windows, including the server's config and output curation, instead of dropping frontmatter or overwriting existing curation.
+- Fail fast when an explicitly requested `--curation` file is missing instead of silently building without it.
+- Prefer the Git `origin` remote over submodule or upstream URLs when inferring a Skill repository, and let a later curation category override win an exact selector tie.
+- Add regression coverage for the image path boundary, linked-directory scan boundary, oversized-image rejection, demo banner placement, BOM inputs, missing curation, Git remote preference, category tie-breaking, payload escaping, and server request-origin checks.
+
 ## 0.5.0 - 2026-11-13
 
 - Prefer the images a Skill already ships: frontmatter, sidecar files, and its local README (Markdown and HTML) are read before any GitHub request, and original GIF/WebP bytes are preserved.

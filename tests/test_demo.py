@@ -130,6 +130,22 @@ def test_demo_labels_and_noindex(built) -> None:
     assert "Demo data" in html and "演示数据" in html
 
 
+def test_demo_banner_is_inside_body_before_product_ui(built) -> None:
+    html = built["__html__"]
+    head_end = html.find("</head>")
+    body_start = html.lower().find("<body")
+    banner = html.find('class="demo-banner"')
+    topbar = html.find('class="topbar"')
+    assert 0 <= head_end < body_start < banner < topbar, (
+        "demo banner must be document content inside <body> and before the topbar"
+    )
+    assert html.find('<meta name="robots" content="noindex">') < head_end
+    # Repeated injection must not duplicate the banner.
+    builder = load_build_demo()
+    assert builder.inject_banner("<html><head><meta charset=\"utf-8\"></head><body></body></html>") == \
+        builder.inject_banner(builder.inject_banner("<html><head><meta charset=\"utf-8\"></head><body></body></html>"))
+
+
 def test_guide_actions_are_compact_collapsible_and_accessible(built) -> None:
     html = built["__html__"]
     # Collapsed by default, toggle exposed with accessible state.

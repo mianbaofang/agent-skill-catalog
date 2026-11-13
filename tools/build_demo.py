@@ -69,6 +69,9 @@ DEMO_CURATION_JSON = (
 
 BANNER_MARK = '<meta charset="utf-8">'
 BODY_END_MARK = "</body>"
+ROBOTS_META = '<meta name="robots" content="noindex">'
+BANNER_SENTINEL = 'class="demo-banner"'
+BODY_START = re.compile(r"<body\b[^>]*>", re.I)
 
 # Synthetic-boundary meta line (always visible, one compact row).  The demo mixes
 # one real public project preview with synthetic example records, so the note says
@@ -260,26 +263,32 @@ def demo_script(catalog: Dict[str, Any]) -> str:
 def inject_banner(rendered: str, catalog: Dict[str, Any] | None = None) -> str:
     """Add noindex + a compact, collapsible synthetic-demo guide to the generated UI.
 
-    The banner markup is anchored right after the charset meta so it precedes the
-    product UI; the wiring script is anchored before ``</body>`` so the native
+    The noindex meta stays in ``<head>``; the banner is anchored immediately after
+    the ``<body>`` start tag so it is valid document content and still precedes the
+    product UI. The wiring script is anchored before ``</body>`` so the native
     controls it drives already exist. With no catalog supplied, a static boundary
     banner (no action buttons) is emitted.
     """
     values = demo_values(catalog) if catalog is not None else {
         "family_id": "", "family_name": "", "family_members": "0", "plugin_name": ""
     }
+    if BANNER_SENTINEL in rendered:
+        return rendered
     banner = demo_guide_html(catalog or {"families": [], "plugins": []})
     script = demo_script({"families": [], "plugins": []}) if catalog is None else demo_script(catalog)
-    head = '<meta name="robots" content="noindex">' + banner
     if BODY_END_MARK in rendered:
         rendered = rendered.replace(BODY_END_MARK, script + BODY_END_MARK, 1)
     else:
         rendered = rendered + script
-    if head in rendered:
-        return rendered
-    if BANNER_MARK in rendered:
-        return rendered.replace(BANNER_MARK, BANNER_MARK + "\n  " + head, 1)
-    return head + rendered
+    if ROBOTS_META not in rendered:
+        if BANNER_MARK in rendered:
+            rendered = rendered.replace(BANNER_MARK, BANNER_MARK + "\n  " + ROBOTS_META, 1)
+        else:
+            rendered = ROBOTS_META + rendered
+    body_start = BODY_START.search(rendered)
+    if body_start:
+        return rendered[: body_start.end()] + "\n  " + banner + rendered[body_start.end():]
+    return banner + rendered
 
 
 def load_builder():
