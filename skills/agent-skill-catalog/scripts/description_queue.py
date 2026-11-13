@@ -117,7 +117,7 @@ def read_source_evidence(item: dict[str, Any], specs: list[dict[str, str]]) -> d
     if path is None:
         return {"status": "missing-evidence", "excerpt": "", "truncated": False}
     try:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
     except OSError:
         return {"status": "missing-evidence", "excerpt": "", "truncated": False}
     excerpt, truncated = bounded_excerpt(text, MAX_SOURCE_CHARS)
