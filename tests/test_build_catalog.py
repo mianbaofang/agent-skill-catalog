@@ -939,6 +939,79 @@ def test_folded_frontmatter_description() -> None:
     assert fields["description"] == "First sentence. Second sentence."
 
 
+def test_utf8_bom_skill_frontmatter_is_parsed() -> None:
+    module = load_builder()
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "skills"
+        skill = root / "folder-name"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: real-name\ndescription: 中文说明，用于测试 Windows BOM 文件。\n---\n# Body\n",
+            encoding="utf-8-sig",
+        )
+        config = module.load_config(ROOT / "references" / "catalog-config.json")
+        config["github_discovery"]["enabled"] = False
+        config["image"]["github_repository_previews"] = False
+        items, _, _ = module.scan(
+            config,
+            [{"path": str(root), "label": "Root 1", "kind": "skill"}],
+            False,
+            Path(temp) / "cache",
+        )
+        assert items[0]["name"] == "real-name"
+        assert items[0]["source_description_origin"] == "frontmatter"
+        assert items[0]["source_description"].startswith("中文说明")
+
+
+def test_missing_curation_file_fails_instead_of_being_ignored() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "skills"
+        skill = root / "demo"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("---\nname: demo\ndescription: 本地技能说明。\n---\n", encoding="utf-8")
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--root",
+                str(root),
+                "--curation",
+                str(Path(temp) / "missing-curation.json"),
+                "--output-dir",
+                str(Path(temp) / "output"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 2
+        assert "Curation does not exist" in result.stderr
+
+
+def test_git_config_prefers_origin_and_ignores_submodule_remotes() -> None:
+    module = load_builder()
+    text = (
+        '[submodule "vendor"]\n'
+        "\turl = https://github.com/example/vendor.git\n"
+        '[remote "upstream"]\n'
+        "\turl = https://github.com/example/upstream.git\n"
+        '[remote "origin"]\n'
+        "\turl = https://github.com/example/actual.git\n"
+    )
+    assert module.github_from_git_config_text(text) == "https://github.com/example/actual"
+    submodule_only = '[submodule "vendor"]\n\turl = https://github.com/example/vendor.git\n'
+    assert module.github_from_git_config_text(submodule_only) == ""
+
+
+def test_curation_category_override_wins_an_exact_tie() -> None:
+    module = load_builder()
+    config = module.load_config(ROOT / "references" / "catalog-config.json")
+    config["category_overrides"] = [{"name": "shared", "category": "visual"}]
+    config["curation"]["category_overrides"] = [{"name": "shared", "category": "data"}]
+    category, _, _, detail = module.classify("shared", "", "SKILL.md", {}, config)
+    assert category == "data"
+    assert detail["tie_reason"] == "explicit-override"
+
+
 def test_gh_install_metadata_and_skill_body_urls_drive_github_previews() -> None:
     module = load_builder()
     with tempfile.TemporaryDirectory() as temp:

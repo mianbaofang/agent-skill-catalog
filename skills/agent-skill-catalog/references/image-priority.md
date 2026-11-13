@@ -4,8 +4,8 @@ Image selection is deterministic and local-first. Scanning never changes Skill r
 
 1. **Manual override**: an image selected in the detail panel is copied into the output directory and recorded in `catalog-curation.json` (`curated-local`).
 2. **Configured local override**: a valid local `curation.image_overrides` image (`curated-local`).
-3. **Local frontmatter**: valid `preview_image`, `image`, `cover`, or `preview` paths (`verified-local`). Missing or remote values do not hide later local evidence.
-4. **Local sidecar**: configured `sidecar_names` next to `SKILL.md` or under `assets/` (`verified-local`).
+3. **Local frontmatter**: valid `preview_image`, `image`, `cover`, or `preview` paths (`verified-local`). The resolved file must stay inside the Skill's own folder; a path that escapes it is ignored and later local evidence is still considered. Missing or remote values do not hide later local evidence.
+4. **Local sidecar**: configured `sidecar_names` next to `SKILL.md` or under `assets/` (`verified-local`), also confined to the Skill's own folder.
 5. **Local README image**: bounded local README HTML/Markdown links to existing images inside the same Skill directory (`verified-local`, `readme:<filename>:<relative-path>`). Skip remote links, path escapes, badges, malformed URLs and oversized files. Prefer a landscape candidate within the README; use the first valid portrait if no landscape candidate is found.
 6. **GitHub image fallback**: only entries without a usable local image request the observed repository's GitHub-hosted README image, then its social preview (`github-repository` / `github-social-preview`). Requests are deduplicated per repository and cached in the output. A repository image describes the repository, not necessarily each individual Skill.
 7. **Metadata or category fallback**: remote frontmatter stays metadata-only; configured category covers are labeled `category-cover` and are not proof of the Skill itself.

@@ -239,6 +239,8 @@ def load_curation(paths: Optional[Any], config: Dict[str, Any]) -> None:
     values = paths if isinstance(paths, list) else [paths]
     for path in values:
         curation_path = Path(path).resolve()
+        if not curation_path.is_file():
+            raise ValueError(f"Curation does not exist: {curation_path}")
         payload = read_json(curation_path, {}, strict=True)
         if not isinstance(payload, dict):
             raise ValueError(f"Curation must be a JSON object: {curation_path}")
@@ -562,6 +564,33 @@ def github_from_skill_text(text: str) -> str:
     return urls[0] if len(urls) == 1 else ""
 
 
+def github_from_git_config_text(text: str) -> str:
+    """Return a repository URL from a Git config, preferring the origin remote."""
+    section = ""
+    remotes: List[Tuple[str, str]] = []
+    for line in str(text or "").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", ";")):
+            continue
+        header = re.match(r"^\[([^\]]+)\]", stripped)
+        if header:
+            section = header.group(1).strip().casefold()
+            continue
+        match = re.match(r"^url\s*=\s*(.+)$", stripped, re.I)
+        if not match:
+            continue
+        url = github_from_values([match.group(1).strip()])
+        remote = re.match(r'^remote(?:\s+"([^"]+)"|\.([^.\]]+))$', section)
+        if url and remote:
+            remotes.append(((remote.group(1) or remote.group(2) or "").casefold(), url))
+    # A submodule or fetch ref in the same file must not be mistaken for the
+    # Skill's own repository. Only remote sections are source evidence.
+    for name, url in remotes:
+        if name == "origin":
+            return url
+    return remotes[0][1] if remotes else ""
+
+
 def github_from_git_config(skill_path: Path, root: Path) -> str:
     current = skill_path.parent
     resolved_root = root.resolve()
@@ -573,7 +602,7 @@ def github_from_git_config(skill_path: Path, root: Path) -> str:
         config_path = current / ".git" / "config"
         if config_path.is_file():
             try:
-                url = github_from_values([config_path.read_text(encoding="utf-8", errors="replace")])
+                url = github_from_git_config_text(config_path.read_text(encoding="utf-8", errors="replace"))
             except OSError:
                 url = ""
             if url:
@@ -717,6 +746,15 @@ def iter_skill_files(root: Path, skip_dirs: Iterable[str], max_depth: int) -> It
         for name in sorted(files):
             if name.lower() == "skill.md":
                 skill_path = current_path / name
+                try:
+                    resolved_skill = skill_path.resolve()
+                except (OSError, ValueError):
+                    continue
+                # Directory junctions on Windows and symlinks on POSIX can make
+                # os.walk surface a file that really lives outside the explicit
+                # scan root. Never read that file into the catalog.
+                if not resolved_skill.is_relative_to(root):
+                    continue
                 if is_packaged_mirror_skill(skill_path):
                     continue
                 yield skill_path
@@ -733,8 +771,8 @@ def is_packaged_mirror_skill(skill_path: Path) -> bool:
     if not root_skill.is_file():
         return False
     try:
-        root_fields = parse_frontmatter(root_skill.read_text(encoding="utf-8", errors="replace"))
-        package_fields = parse_frontmatter(skill_path.read_text(encoding="utf-8", errors="replace"))
+        root_fields = parse_frontmatter(root_skill.read_text(encoding="utf-8-sig", errors="replace"))
+        package_fields = parse_frontmatter(skill_path.read_text(encoding="utf-8-sig", errors="replace"))
     except OSError:
         return False
     root_name = str(root_fields.get("name") or "").strip().casefold()
@@ -773,7 +811,8 @@ def category_override(
                 continue
         if selector_name and selector_name != name_key:
             continue
-        # More specific selectors win; stable order breaks otherwise.
+        # More specific selectors win; a later-loaded override breaks an otherwise
+        # exact tie, so output-owned curation can revise a shipped default.
         specificity = bool(selector_root) + bool(selector_path) * 2 + bool(selector_name) * 4
         matches.append((specificity, index, entry, {
             "type": "override",
@@ -781,7 +820,7 @@ def category_override(
         }))
     if not matches:
         return None
-    _, index, selected, evidence = sorted(matches, key=lambda value: (-value[0], value[1]))[0]
+    _, index, selected, evidence = sorted(matches, key=lambda value: (-value[0], -value[1]))[0]
     evidence["key"] = str(selected.get("id") or selected.get("name") or index)
     return str(selected["category"]), evidence
 
@@ -867,6 +906,19 @@ def local_path_value(value: str, skill_path: Path) -> str:
     if not candidate.is_absolute():
         candidate = skill_path.parent / candidate
     return str(candidate.resolve())
+
+
+def local_skill_image(value: str, skill_path: Path) -> Optional[Path]:
+    """Resolve a Skill-provided image only while it stays in that Skill folder."""
+    candidate = expand_path(value)
+    if not candidate.is_absolute():
+        candidate = skill_path.parent / candidate
+    try:
+        resolved = candidate.resolve()
+        folder = skill_path.parent.resolve()
+    except (OSError, ValueError):
+        return None
+    return resolved if resolved.is_relative_to(folder) else None
 
 
 class ReadmeImages(HTMLParser):
@@ -998,16 +1050,16 @@ def choose_image(
                     "missing_evidence": True,
                 }
             continue
-        local = Path(local_path_value(raw, skill_path))
-        data_uri = image_data_uri(local, max_bytes) if local.is_file() else ""
+        local = local_skill_image(raw, skill_path)
+        data_uri = image_data_uri(local, max_bytes) if local and local.is_file() else ""
         if data_uri:
             return {"status": "verified-local", "source": f"frontmatter:{key}", "value": data_uri, "missing_evidence": False}
         invalid_source = invalid_source or f"invalid-frontmatter:{key}"
 
     sidecars = image_config.get("sidecar_names", [])
     for name in sidecars if isinstance(sidecars, list) else []:
-        candidate = skill_path.parent / str(name)
-        data_uri = image_data_uri(candidate, max_bytes) if candidate.is_file() and candidate.suffix.lower() in IMAGE_EXTENSIONS else ""
+        candidate = local_skill_image(str(name), skill_path)
+        data_uri = image_data_uri(candidate, max_bytes) if candidate and candidate.is_file() and candidate.suffix.lower() in IMAGE_EXTENSIONS else ""
         if data_uri:
             return {"status": "verified-local", "source": f"sidecar:{name}", "value": data_uri, "missing_evidence": False}
 
@@ -1104,7 +1156,7 @@ def scan(
                 relative = skill_path.resolve().relative_to(root.resolve()).as_posix()
             except ValueError:
                 relative = skill_path.name
-            text = skill_path.read_text(encoding="utf-8", errors="replace")
+            text = skill_path.read_text(encoding="utf-8-sig", errors="replace")
             frontmatter = parse_frontmatter(text)
             name = skill_name(skill_path, frontmatter)
             source_description = description_for(text, frontmatter)

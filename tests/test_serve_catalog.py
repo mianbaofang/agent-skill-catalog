@@ -1,3 +1,4 @@
+import http.client
 import json
 import socket
 import subprocess
@@ -289,3 +290,71 @@ def test_delete_helper_rejects_non_top_level_grouped_plugin_and_disabled_roots()
             with pytest.raises(PermissionError):
                 module.delete_catalog_skill(output, specs, request)
             assert skill.is_dir()
+
+
+def test_server_reads_utf8_bom_config_and_curation(tmp_path: Path) -> None:
+    module = _load_server_module()
+    root = tmp_path / "skills"
+    root.mkdir()
+    config = tmp_path / "catalog-config.json"
+    config.write_text(
+        json.dumps({"roots": [{"path": str(root), "label": "Skills", "kind": "skill"}]}),
+        encoding="utf-8-sig",
+    )
+    specs = module.config_root_specs(config)
+    assert specs[0]["path"] == str(root.resolve())
+
+    output = tmp_path / "output"
+    output.mkdir()
+    curation_path = output / "catalog-curation.json"
+    curation_path.write_text(
+        json.dumps({"description_overrides": {"demo": "保留的中文说明。"}}, ensure_ascii=False),
+        encoding="utf-8-sig",
+    )
+    curation = module.load_output_curation(output)
+    assert curation["description_overrides"] == {"demo": "保留的中文说明。"}
+
+
+def test_server_rejects_foreign_host_and_origin() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        fixture = Path(temp)
+        root = fixture / "skills"
+        skill = root / "demo"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("---\nname: demo\ndescription: 本地安全测试技能。\n---\n", encoding="utf-8")
+        output = fixture / "output"
+        subprocess.run(
+            [sys.executable, str(BUILD_SCRIPT), "--root", str(root), "--output-dir", str(output)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        port = _free_port()
+        process = subprocess.Popen(
+            [sys.executable, str(SERVER_SCRIPT), "--output-dir", str(output), "--root", str(root), "--port", str(port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            _wait_for_server(port, process)
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            try:
+                connection.request("GET", "/api/health", headers={"Host": "catalog.evil.example"})
+                response = connection.getresponse()
+                response.read()
+                assert response.status == 403
+            finally:
+                connection.close()
+
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            try:
+                connection.request("POST", "/api/refresh", headers={"Origin": "https://evil.example"})
+                response = connection.getresponse()
+                payload = json.loads(response.read().decode("utf-8"))
+                assert response.status == 403
+                assert payload["ok"] is False
+            finally:
+                connection.close()
+        finally:
+            process.terminate()
+            process.wait(timeout=5)

@@ -432,5 +432,5 @@ HTML_TEMPLATE = r'''<!doctype html>
 
 
 def render_catalog_html(catalog: Dict[str, Any]) -> str:
-    data = json.dumps(catalog, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    data = json.dumps(catalog, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")
     return HTML_TEMPLATE.replace("__CATALOG__", data).replace("__COPY_ICON__", COPY_ICON_SVG)

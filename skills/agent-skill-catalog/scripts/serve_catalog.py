@@ -15,11 +15,13 @@ from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 BUILD_SCRIPT = PACKAGE_ROOT / "scripts" / "build_catalog.py"
 DEFAULT_CONFIG = PACKAGE_ROOT / "references" / "catalog-config.json"
+ALLOWED_CLIENT_HOSTS = {"localhost", "127.0.0.1", "::1"}
 ALLOWED_IMAGE_TYPES = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -31,7 +33,7 @@ MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 
 
 def config_root_specs(path: Path) -> list[dict[str, Any]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8-sig"))
     roots = payload.get("roots", []) if isinstance(payload, dict) else []
     values: list[dict[str, str]] = []
     source = roots if isinstance(roots, list) and roots else ["."]
@@ -105,7 +107,7 @@ def parse_args() -> argparse.Namespace:
 def compact_summary(output_dir: Path) -> dict[str, Any]:
     catalog_path = output_dir / "catalog.json"
     try:
-        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         return {"catalog": False}
     summary = catalog.get("summary") if isinstance(catalog, dict) else {}
@@ -123,7 +125,7 @@ def output_curation_path(output_dir: Path) -> Path:
 def load_output_curation(output_dir: Path) -> dict[str, Any]:
     path = output_curation_path(output_dir)
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         payload = {}
     if not isinstance(payload, dict):
@@ -216,7 +218,7 @@ def ensure_plain_tree(target: Path, root: Path) -> None:
 
 def delete_catalog_skill(output_dir: Path, specs: list[dict[str, Any]], payload: dict[str, Any]) -> Path:
     try:
-        catalog = json.loads((output_dir / "catalog.json").read_text(encoding="utf-8"))
+        catalog = json.loads((output_dir / "catalog.json").read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
         raise FileNotFoundError("Current catalog cannot be read") from exc
     items = catalog.get("items", []) if isinstance(catalog, dict) else []
@@ -342,13 +344,49 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
 
+        def request_allowed(self) -> bool:
+            """Reject foreign Host/Origin values used by DNS-rebinding or CSRF pages."""
+            host = self.headers.get("Host", "").strip()
+            if not host:
+                return False
+            try:
+                parsed_host = urlsplit("//" + host)
+                host_port = parsed_host.port
+            except ValueError:
+                return False
+            port = self.server.server_address[1]
+            if (parsed_host.hostname or "").casefold() not in ALLOWED_CLIENT_HOSTS:
+                return False
+            if host_port is not None and host_port != port:
+                return False
+            origin = self.headers.get("Origin")
+            if origin:
+                try:
+                    parsed_origin = urlsplit(origin)
+                    origin_port = parsed_origin.port
+                except ValueError:
+                    return False
+                if parsed_origin.scheme != "http":
+                    return False
+                if (parsed_origin.hostname or "").casefold() not in ALLOWED_CLIENT_HOSTS:
+                    return False
+                if origin_port is not None and origin_port != port:
+                    return False
+            return True
+
         def do_GET(self) -> None:
+            if not self.request_allowed():
+                self.send_json(HTTPStatus.FORBIDDEN, {"ok": False, "error": "request host or origin is not allowed"})
+                return
             if self.path.split("?", 1)[0] == "/api/health":
                 self.send_json(HTTPStatus.OK, {"ok": True, **compact_summary(output_dir)})
                 return
             super().do_GET()
 
         def do_POST(self) -> None:
+            if not self.request_allowed():
+                self.send_json(HTTPStatus.FORBIDDEN, {"ok": False, "error": "request host or origin is not allowed"})
+                return
             route = self.path.split("?", 1)[0]
             if route == "/api/image":
                 self.save_image_override()
@@ -413,6 +451,9 @@ def make_handler(
             self.send_json(HTTPStatus.OK, {"ok": True, "deleted": deleted.name, **compact_summary(output_dir)})
 
         def do_DELETE(self) -> None:
+            if not self.request_allowed():
+                self.send_json(HTTPStatus.FORBIDDEN, {"ok": False, "error": "request host or origin is not allowed"})
+                return
             if self.path.split("?", 1)[0] != "/api/image":
                 self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "unknown endpoint"})
                 return
@@ -501,7 +542,7 @@ def main() -> int:
             print(f"Curation file does not exist: {curation_path}", file=sys.stderr)
             return 2
     try:
-        catalog = json.loads((output_dir / "catalog.json").read_text(encoding="utf-8"))
+        catalog = json.loads((output_dir / "catalog.json").read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         catalog = {}
     refresh_policy = catalog.get("refresh_policy") if isinstance(catalog, dict) else {}

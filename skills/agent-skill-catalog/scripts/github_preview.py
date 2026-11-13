@@ -168,6 +168,9 @@ def image_data_uri_from_bytes(body: bytes, suffix: str, max_bytes: Optional[int]
 
 def image_data_uri(path: Path, max_bytes: Optional[int] = None) -> str:
     try:
+        # Reject oversized local files before reading them into memory.
+        if max_bytes and path.stat().st_size > max_bytes:
+            return ""
         body = path.read_bytes()
     except OSError:
         return ""

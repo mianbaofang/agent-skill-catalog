@@ -165,6 +165,17 @@ def test_render_is_deterministic() -> None:
     assert render_catalog_html(_catalog()) == render_catalog_html(_catalog())
 
 
+def test_untrusted_text_cannot_open_an_html_comment_inside_the_script_payload() -> None:
+    catalog = _catalog()
+    catalog["items"][0]["name"] = "<!--<script>alert(1)</script>"
+    html = render_catalog_html(catalog)
+    script_start = html.find("<script>")
+    script_end = html.rfind("</script>")
+    assert script_start >= 0 and script_end > script_start
+    assert "<!--" not in html[script_start:script_end]
+    assert "<\\u0021--" in html
+
+
 def test_minimal_catalog_renders_without_optional_fields() -> None:
     minimal = {"generated_at": None, "categories": {}, "items": [], "families": [], "plugins": []}
     html = render_catalog_html(minimal)

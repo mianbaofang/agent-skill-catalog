@@ -1,5 +1,7 @@
 import base64
 import importlib.util
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -68,3 +70,96 @@ def test_readme_preview_is_used_before_generated_fallback(builder, tmp_path):
     result = builder.choose_image(tmp_path / 'SKILL.md', {}, 'other', 'real-skill', 'real-skill', 'Example', {'image': {'max_embedded_bytes': 524288}})
     assert result['status'] == 'verified-local'
     assert result['source'].startswith('readme:')
+
+
+def test_frontmatter_image_cannot_escape_skill_folder(builder, tmp_path):
+    skill = tmp_path / 'skill'
+    skill.mkdir()
+    (tmp_path / 'private.png').write_bytes(PNG)
+    (skill / 'preview.png').write_bytes(PNG)
+    config = {
+        'image': {
+            'max_embedded_bytes': 524288,
+            'github_repository_previews': False,
+            'frontmatter_keys': ['preview_image'],
+        }
+    }
+    escaped = builder.choose_image(
+        skill / 'SKILL.md',
+        {'preview_image': '../private.png'},
+        'other', 'skill', 'skill/SKILL.md', 'Example',
+        config,
+    )
+    assert escaped['status'] == 'generated-fallback'
+    assert escaped['source'] == 'invalid-frontmatter:preview_image'
+    inside = builder.choose_image(
+        skill / 'SKILL.md',
+        {'preview_image': 'preview.png'},
+        'other', 'skill', 'skill/SKILL.md', 'Example',
+        config,
+    )
+    assert inside['status'] == 'verified-local'
+    assert inside['source'] == 'frontmatter:preview_image'
+
+
+def test_sidecar_image_cannot_escape_skill_folder(builder, tmp_path):
+    skill = tmp_path / 'skill'
+    skill.mkdir()
+    (tmp_path / 'private.png').write_bytes(PNG)
+    config = {
+        'image': {
+            'max_embedded_bytes': 524288,
+            'github_repository_previews': False,
+            'sidecar_names': ['../private.png'],
+        }
+    }
+    result = builder.choose_image(
+        skill / 'SKILL.md', {}, 'other', 'skill', 'skill/SKILL.md', 'Example', config,
+    )
+    assert result['status'] == 'generated-fallback'
+
+
+def test_image_data_uri_rejects_oversized_file_before_reading(builder, tmp_path, monkeypatch):
+    image = tmp_path / 'oversized.png'
+    image.write_bytes(PNG + b'x' * 2048)
+
+    def unexpected_read(*_args, **_kwargs):
+        raise AssertionError('oversized image must be rejected by stat before read_bytes')
+
+    monkeypatch.setattr(Path, 'read_bytes', unexpected_read)
+    assert builder.image_data_uri(image, 128) == ''
+
+
+def test_scan_does_not_follow_links_outside_root(builder, tmp_path):
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    (outside / 'SKILL.md').write_text(
+        '---\nname: outside-leak\ndescription: private outside content\n---\n',
+        encoding='utf-8',
+    )
+    root = tmp_path / 'root'
+    root.mkdir()
+    linked = root / 'linked'
+    if sys.platform == 'win32':
+        created = subprocess.run(
+            ['cmd', '/c', 'mklink', '/J', str(linked), str(outside)],
+            capture_output=True,
+            text=True,
+        )
+        if created.returncode != 0:
+            pytest.skip('Windows junction creation is unavailable in this environment')
+    else:
+        try:
+            linked.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            pytest.skip('Directory symlink creation is unavailable in this environment')
+    config = builder.load_config(builder.DEFAULT_CONFIG)
+    config['github_discovery']['enabled'] = False
+    config['image']['github_repository_previews'] = False
+    items, _, _ = builder.scan(
+        config,
+        [{'path': str(root), 'label': 'Skills', 'kind': 'skill'}],
+        False,
+        tmp_path / 'cache',
+    )
+    assert items == []
