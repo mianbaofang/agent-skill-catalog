@@ -7,7 +7,7 @@ Point it at the folders where your `SKILL.md` files live and it builds a self-co
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/"><strong>Open the live demo</strong></a>
   &middot;
-  <a href="#install"><strong>Install v0.5.0</strong></a>
+  <a href="#install"><strong>Install v0.5.1</strong></a>
   &middot;
   <a href="README.zh-CN.md">中文</a>
 </p>
@@ -32,6 +32,13 @@ Point it at the folders where your `SKILL.md` files live and it builds a self-co
   <em>Screenshots come from the committed offline demo and are reproducible without a network. Cards with a real local cover are marked as such; entries without one keep the explicitly labelled generated fallback.</em>
 </p>
 
+## What's new in v0.5.1
+
+- **Scan linked skill folders on demand.** `--follow-linked-dirs` follows skills reached through Windows junctions or directory symlinks, with a cycle guard; skipped links are reported instead of silently dropped, and followed links keep unique identities. A real 474-skill directory that previously collapsed to 466 entries now scans fully and deterministically.
+- **A tighter local server and scan boundary.** The local catalog server rejects foreign `Host` (DNS rebinding) and cross-site `Origin` (CSRF) requests; imagery and linked directories stay confined to the scan root; UTF-8 BOM inputs are read correctly on Windows.
+- **One-line install in both languages.** Both READMEs lead with the verified `npx skills add mianbaofang/agent-skill-catalog` path, which also triggers the skills.sh listing.
+- **Intro film.** The README preview is an 18-second promo shot from a real local catalog build.
+
 ## What's new in v0.5.0
 
 - **Use each Skill's own images first.** Cover discovery reads the Skill's frontmatter, sidecar files, and its local README (Markdown and HTML) before asking GitHub for anything. Original GIF and WebP bytes are preserved, so the card shows the Skill's real preview instead of a stand-in.
@@ -44,7 +51,7 @@ See the [Changelog](CHANGELOG.md) for the full list.
 
 The generated catalog interface is Chinese. This documentation is available in English and Chinese; that does not make the generated UI bilingual.
 
-<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.0"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td></tr></table>
+<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub Stars"></a></td></tr></table>
 
 <p align="center">
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
@@ -80,7 +87,7 @@ npx skills add mianbaofang/agent-skill-catalog
 Install the published release with GitHub CLI (the path validated on Windows):
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.0 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.1 --agent codex --scope user
 ```
 
 To track the latest source on `main` instead of a tagged release, pin the branch:
@@ -90,7 +97,7 @@ gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main 
 ```
 
 `--pin main` installs whatever is currently on the repository's `main` branch, which moves between
-releases; prefer the `v0.5.0` command above for a stable build.
+releases; prefer the `v0.5.1` command above for a stable build.
 
 Then tell your agent which roots to scan:
 
@@ -99,6 +106,10 @@ Use agent-skill-catalog to scan my local Skill root and Codex plugin cache.
 Keep standalone Skills and plugins separate, group real parent/child families,
 and do not install, edit, or execute anything that was scanned.
 ```
+
+## Why I built this
+
+After a year of installing Agent Skills I had hundreds of them scattered across tool directories, and many lived behind junctioned folders on another drive. Whenever I wanted "the skill that does X", the only way to find it was to open `SKILL.md` files one by one — no covers, no search, and no visible invocation to copy. This catalog came out of that exact scene: point it at the roots I already have and get one local page where every skill shows its own cover, its source, and a copyable invocation — while never installing, editing, or executing anything that was scanned.
 
 ## Build your first catalog from source
 

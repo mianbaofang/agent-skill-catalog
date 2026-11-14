@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 - 2026-11-14
 
+- Add the explicit `--follow-linked-dirs` opt-in to also scan skills reached through Windows junctions or directory symlinks, report every skipped link in the build output instead of silently dropping it, and give followed links unique identities so same-named skills do not collapse into one entry; guard POSIX symlink loops with a visited-directory set. A real 474-skill directory that previously collapsed to 466 entries now scans fully and deterministically.
+- Lead both READMEs with the verified `npx skills add mianbaofang/agent-skill-catalog` install line and add the real-catalog intro film preview.
 - Keep Skill-provided frontmatter and sidecar preview images inside the Skill's own folder, so a scanned `SKILL.md` cannot read an arbitrary local image from outside the selected root.
 - Skip `SKILL.md` files that resolve outside the explicit scan root, including files reached through a Windows directory junction or a directory symlink.
 - Check a local image's size before reading it into memory, so an oversized preview is rejected without allocating the whole file.

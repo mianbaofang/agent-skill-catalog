@@ -16,7 +16,7 @@ Updated: 2026-11-12
 - Guide: skills and plugin inventory (Chinese): https://mianbaofang.github.io/agent-skill-catalog/guides/skills-and-plugin-inventory-zh.html
 - Source repository: https://github.com/mianbaofang/agent-skill-catalog
 - Installable Skill: https://github.com/mianbaofang/agent-skill-catalog/tree/main/skills/agent-skill-catalog
-- Current tagged release: https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.0
+- Current tagged release: https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.1
 
 ## What it does
 
@@ -39,10 +39,10 @@ Updated: 2026-11-12
 
 ## Install
 
-Install the stable release, pinned to `v0.5.0`:
+Install the stable release, pinned to `v0.5.1`:
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.0 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.1 --agent codex --scope user
 ```
 
 Contributors and maintainers can install the current source on `main`:

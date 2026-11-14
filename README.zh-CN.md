@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/"><strong>打开在线演示</strong></a>
   &middot;
-  <a href="#安装"><strong>安装 v0.5.0</strong></a>
+  <a href="#安装"><strong>安装 v0.5.1</strong></a>
   &middot;
   <a href="README.md">English</a>
 </p>
@@ -32,6 +32,13 @@
   <em>截图来自仓库内提交的离线演示，无需联网即可复现。有真实本地封面的卡片会标注来源；没有的条目保留明确标注的自动生成封面。</em>
 </p>
 
+## v0.5.1 更新内容
+
+- **按需扫描链接目录。** `--follow-linked-dirs` 会跟随经 Windows junction 或目录符号链接到达的 Skill，并带环检测；被跳过的链接会写入报告而不是悄悄丢弃，跟随的链接保持独立身份。此前一个 474 个技能的真实目录会被塌缩成 466 条，现在可以完整、确定地扫描。
+- **更严的本地服务与扫描边界。** 本地目录服务拒绝外来 `Host`（DNS 重绑定）与跨站 `Origin`（CSRF）请求；图片与链接目录被限制在扫描根内；Windows 上的 UTF-8 BOM 输入可以正确读取。
+- **双语 README 都提供一行安装。** 两个 README 均以实测过的 `npx skills add mianbaofang/agent-skill-catalog` 开头，该安装同时触发 skills.sh 收录。
+- **宣传片。** README 预览换成 18 秒宣传片，取自本机真实目录构建。
+
 ## v0.5.0 更新内容
 
 - **优先使用 Skill 自己的图片。** 选图依次读取 frontmatter、sidecar 文件和 Skill 自己的 README（Markdown 与 HTML），之后才向 GitHub 要图；GIF/WebP 的原始字节完整保留，卡片上看到的就是 Skill 的真实预览，而不是替代图。
@@ -44,7 +51,7 @@
 
 当前生成的目录界面是中文。本仓库文档提供英文和中文两个版本，但这不代表生成的界面本身支持双语。
 
-<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/tag/v0.5.0"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td></tr></table>
+<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="最新版本"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="测试状态"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="许可证"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub Stars"></a></td></tr></table>
 
 <p align="center">
   <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
@@ -79,7 +86,7 @@ npx skills add mianbaofang/agent-skill-catalog
 用 GitHub CLI 安装已发布的版本（这是在 Windows 上实测通过的路径）：
 
 ```powershell
-gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.0 --agent codex --scope user
+gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.1 --agent codex --scope user
 ```
 
 想跟踪 `main` 分支上的最新源码而不是某个打标签的版本，可以固定分支：
@@ -88,7 +95,7 @@ gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin v0.5.
 gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main --agent codex --scope user
 ```
 
-`--pin main` 安装的是仓库 `main` 分支上当前的内容，它会在各版本之间变动；要稳定版本请用上面的 `v0.5.0` 命令。
+`--pin main` 安装的是仓库 `main` 分支上当前的内容，它会在各版本之间变动；要稳定版本请用上面的 `v0.5.1` 命令。
 
 安装后告诉 Agent 要扫描哪些目录：
 
@@ -97,6 +104,10 @@ gh skill install mianbaofang/agent-skill-catalog agent-skill-catalog --pin main 
 独立 Skill 与插件分开，真实主/子 Skill 家族聚合显示；
 不要安装、修改或执行任何被扫描内容。
 ```
+
+## 为什么做这个 Skill
+
+装了一年 Agent Skill 之后，本机已经攒了几百个，散在各个工具目录里，不少还要经过另一个盘上的 junction 目录才能读到。想找「做某件事的那个 Skill」时，唯一办法就是一个个打开 `SKILL.md` 去翻——没有封面、没有搜索、调用方式也看不到。这个目录工具就来自这个场景：把我已有的目录指给它，得到一页本地目录，每一条都能看到 Skill 自己的封面、来源和可复制的调用方式——而被扫描的内容绝不安装、修改或执行。
 
 ## 从源码生成第一份目录
 
