@@ -1,5 +1,42 @@
 {
   "schema_version": "1.1",
+  "scan_scope": {
+    "roots": [
+      "root:0",
+      "root:1",
+      "root:2"
+    ],
+    "scan": {
+      "skip_dirs": [
+        ".git",
+        ".venv",
+        "venv",
+        "node_modules",
+        "__pycache__",
+        "tests",
+        "test",
+        "fixtures",
+        "examples",
+        "vendor",
+        "site-packages",
+        ".previews"
+      ],
+      "max_depth": 12
+    },
+    "config_fingerprint": "demo-config"
+  },
+  "index_changes": {
+    "comparable": false,
+    "reason": "initial-or-scan-scope-changed",
+    "added": [],
+    "removed": []
+  },
+  "scan_status": {
+    "unresolved_root_count": 0,
+    "skipped_linked_directory_count": 0,
+    "github_discovery_enabled": false,
+    "github_images_enabled": false
+  },
   "generated_at": "2026-08-18T00:00:00Z",
   "mode": "refresh",
   "roots": [

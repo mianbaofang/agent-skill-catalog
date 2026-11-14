@@ -24,3 +24,7 @@ venv/
 !/skills/agent-skill-catalog/reports/review_waivers.md
 !/skills/agent-skill-catalog/reports/runtime_permission_probes.md
 !/skills/agent-skill-catalog/reports/security_trust_report.md
+
+# Local release-build artifacts (published via Releases, not source commits)
+/agent-skill-catalog-skill.zip
+/agent-skill-catalog-skill.zip.sha256

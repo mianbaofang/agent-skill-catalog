@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 2026-11-14
+
+- Record the maintainer’s standing GitHub synchronization workflow in `AGENTS.md`: validate, commit task files, push the canonical branch, and verify the remote SHA; keep release publication separate.
+
+Fix shared-root README installer links being incorrectly inherited as child Skill repository identity and family grouping. Add a visible scan-status panel and scope-safe added/no-longer-indexed comparison. Surface unresolved roots, skipped links and network switches. Avoid repeating the same description/invocation in standalone Skill detail panels. Put installation and first offline use before release history in both READMEs.
+
 ## 0.5.1 - 2026-11-14
 
 - Add the explicit `--follow-linked-dirs` opt-in to also scan skills reached through Windows junctions or directory symlinks, report every skipped link in the build output instead of silently dropping it, and give followed links unique identities so same-named skills do not collapse into one entry; guard POSIX symlink loops with a visited-directory set. A real 474-skill directory that previously collapsed to 466 entries now scans fully and deterministically.

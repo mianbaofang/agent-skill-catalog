@@ -63,6 +63,8 @@ The output directory contains `catalog.json`, `description-enrichment.json`, a
 self-contained `index.html`, and output-owned image/curation files. Absolute
 roots stay redacted unless `--include-absolute-paths` is explicit.
 
+The page's expandable scan report distinguishes raw Skill entries from family cards and exposes unresolved roots, skipped linked directories, and GitHub switches. `index_changes` compares additions / no-longer-indexed entries only when `scan_scope` is unchanged; otherwise it starts a new baseline. A missing index entry is not proof of deletion. A shared installation-root README is not inherited as a child Skill's repository identity.
+
 ## Boundaries
 
 - The Agent, builder, and scanner never modify scanned roots: no installs, edits, deletions, or writes outside the selected output directory. The only source-writing feature in the product is an explicit, opt-in localhost-server deletion described below, which requires operator configuration and full-name confirmation and is never triggered by scanning, building, image selection, or refresh.

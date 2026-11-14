@@ -32,50 +32,6 @@ Point it at the folders where your `SKILL.md` files live and it builds a self-co
   <em>Screenshots come from the committed offline demo and are reproducible without a network. Cards with a real local cover are marked as such; entries without one keep the explicitly labelled generated fallback.</em>
 </p>
 
-## What's new in v0.5.1
-
-- **Scan linked skill folders on demand.** `--follow-linked-dirs` follows skills reached through Windows junctions or directory symlinks, with a cycle guard; skipped links are reported instead of silently dropped, and followed links keep unique identities. A real 474-skill directory that previously collapsed to 466 entries now scans fully and deterministically.
-- **A tighter local server and scan boundary.** The local catalog server rejects foreign `Host` (DNS rebinding) and cross-site `Origin` (CSRF) requests; imagery and linked directories stay confined to the scan root; UTF-8 BOM inputs are read correctly on Windows.
-- **One-line install in both languages.** Both READMEs lead with the verified `npx skills add mianbaofang/agent-skill-catalog` path, which also triggers the skills.sh listing.
-- **Intro film.** The README preview is an 18-second promo shot from a real local catalog build.
-
-## What's new in v0.5.0
-
-- **Use each Skill's own images first.** Cover discovery reads the Skill's frontmatter, sidecar files, and its local README (Markdown and HTML) before asking GitHub for anything. Original GIF and WebP bytes are preserved, so the card shows the Skill's real preview instead of a stand-in.
-- **Uniform landscape previews.** Every card cover and detail image sits in a 16:9 frame with the whole original visible (`contain`), so portrait and landscape Skills no longer produce a ragged mix of heights.
-- **Group Skills from one repository.** Standalone Skills installed from the same GitHub repository become one family, even when their names share no prefix. Plugins stay in their own separate view, and a manual override still wins.
-- **Sourced public introductions.** With `--web-research`, the invoking Agent searches public pages for a Skill; the applied description keeps the source URL, title, retrieval date, and identity evidence, shown as links in the detail dialog. Offline previews never trigger research, and a missing match keeps the local description.
-- **Honest fallbacks.** When neither the local files nor GitHub provide an image, the generated category cover stays explicitly labelled. No new AI cover is invented and no source image is converted to landscape.
-
-See the [Changelog](CHANGELOG.md) for the full list.
-
-The generated catalog interface is Chinese. This documentation is available in English and Chinese; that does not make the generated UI bilingual.
-
-<table align="center"><tr><td><a href="https://github.com/mianbaofang/agent-skill-catalog/releases/latest"><img src="https://img.shields.io/github/v/release/mianbaofang/agent-skill-catalog?style=flat-square" alt="Latest release"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/mianbaofang/agent-skill-catalog/validate.yml?branch=main&amp;style=flat-square&amp;label=tests" alt="Test status"></a></td><td><a href="LICENSE"><img src="https://img.shields.io/github/license/mianbaofang/agent-skill-catalog?style=flat-square" alt="License"></a></td><td><a href="https://github.com/mianbaofang/agent-skill-catalog/stargazers"><img src="https://img.shields.io/github/stars/mianbaofang/agent-skill-catalog?style=flat-square" alt="GitHub Stars"></a></td><td><a href="https://skills.sh/mianbaofang/agent-skill-catalog"><img src="https://skills.sh/b/mianbaofang/agent-skill-catalog" alt="skills.sh install count"></a></td></tr></table>
-
-<p align="center">
-  <a href="skills/agent-skill-catalog/SKILL.md">Skill</a>
-  &middot;
-  <a href="docs/DEMO.md">Product walkthrough</a>
-  &middot;
-  <a href="https://mianbaofang.github.io/agent-skill-catalog/">Project site</a>
-  &middot;
-  <a href="DISCLAIMER.md">Disclaimer</a>
-  &middot;
-  <a href="ACKNOWLEDGEMENTS.md">Acknowledgements</a>
-  &middot;
-  <a href="SECURITY.md">Security</a>
-</p>
-
-## What the catalog actually shows
-
-The screenshots come from a real generated catalog; the interface is Chinese. Each one is a captured
-offline snapshot built from committed demo fixtures (one real public reference and synthetic examples), reproducible without a network.
-
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="Generated catalog overview with category chips and counts, a searchable Skill grid using each Skill's own local cover where one exists, and a labelled generated fallback elsewhere" width="100%"></td></tr></table>
-
-<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.v0.5.0.png" alt="Generated catalog detail dialog for a family of Skills installed from one repository, showing the family's three sub-Skills, the invocation text with a copy action, and image provenance" width="100%"></td></tr></table>
-
 ## Install
 
 One line with the `skills` CLI (works for Claude Code, Codex, Cursor, Gemini CLI and more; also lists the skill on [skills.sh](https://www.skills.sh/mianbaofang/agent-skill-catalog)):
@@ -106,10 +62,6 @@ Use agent-skill-catalog to scan my local Skill root and Codex plugin cache.
 Keep standalone Skills and plugins separate, group real parent/child families,
 and do not install, edit, or execute anything that was scanned.
 ```
-
-## Why I built this
-
-After a year of installing Agent Skills I had hundreds of them scattered across tool directories, and many lived behind junctioned folders on another drive. Whenever I wanted "the skill that does X", the only way to find it was to open `SKILL.md` files one by one — no covers, no search, and no visible invocation to copy. This catalog came out of that exact scene: point it at the roots I already have and get one local page where every skill shows its own cover, its source, and a copyable invocation — while never installing, editing, or executing anything that was scanned.
 
 ## Build your first catalog from source
 
@@ -162,6 +114,30 @@ then rebuilds with `--refresh --require-complete-descriptions` until the queue i
 scripts do not call a hidden model and do not need a provider key. See
 [Build an offline skill catalog](https://mianbaofang.github.io/agent-skill-catalog/guides/offline-skill-catalog.html)
 for the full loop, and `references/workflow.md` in the Skill package for agent-facing steps.
+
+## Scan status and refresh changes
+
+> The scan report and grouping fix are unreleased source changes; the published v0.5.1 installer does not contain them yet.
+
+Expand the scan report to see the index time, unresolved roots, skipped linked directories, and GitHub fetch settings. Added / no-longer-indexed items are compared only across identical scan scopes; a root or configuration change starts a new baseline. No longer indexed does not mean deleted. Family-card counts and raw Skill-entry counts are labelled separately.
+
+<details>
+<summary>See the generated catalog and detail view</summary>
+
+## What the catalog actually shows
+
+The screenshots come from a real generated catalog; the interface is Chinese. Each one is a captured
+offline snapshot built from committed demo fixtures (one real public reference and synthetic examples), reproducible without a network.
+
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="Generated catalog overview with category chips and counts, a searchable Skill grid using each Skill's own local cover where one exists, and a labelled generated fallback elsewhere" width="100%"></td></tr></table>
+
+<table align="center"><tr><td><img src="docs/media/agent-skill-catalog-detail.v0.5.0.png" alt="Generated catalog detail dialog for a family of Skills installed from one repository, showing the family's three sub-Skills, the invocation text with a copy action, and image provenance" width="100%"></td></tr></table>
+
+</details>
+
+## Why I built this
+
+After a year of installing Agent Skills I had hundreds of them scattered across tool directories, and many lived behind junctioned folders on another drive. Whenever I wanted "the skill that does X", the only way to find it was to open `SKILL.md` files one by one — no covers, no search, and no visible invocation to copy. This catalog came out of that exact scene: point it at the roots I already have and get one local page where every skill shows its own cover, its source, and a copyable invocation — while never installing, editing, or executing anything that was scanned.
 
 ## Task guides
 
@@ -282,4 +258,4 @@ Ethan <ethan.zl@hotmail.com>
 
 ## License
 
-MIT.
+[MIT](LICENSE).

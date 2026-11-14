@@ -518,7 +518,9 @@ def github_from_nearby_metadata(skill_path: Path, root: Path, include_readmes: b
                 repository = github_from_values(payload.values())
                 if repository:
                     return repository
-        if include_readmes:
+        # A shared installation root's README often documents an installer,
+        # not the repository of every child Skill. Do not propagate that link.
+        if include_readmes and (current != resolved_root or current == skill_path.parent):
             for readme_name in ("README.md", "README.zh-CN.md", "README.en.md"):
                 candidate = current / readme_name
                 try:
@@ -1539,6 +1541,23 @@ def atomic_write_bytes(path: Path, content: bytes) -> None:
     replace_with_retry(temporary, path)
 
 
+def index_changes(previous: Any, items: list, scope: dict) -> dict:
+    """Index membership changes, only when scan scopes are identical.
+
+    A missing item is no longer indexed, not proof its source was deleted.
+    Names/paths are already redacted public catalog data.
+    """
+    comparable = isinstance(previous, dict) and previous.get("scan_scope") == scope and isinstance(previous.get("items"), list)
+    if not comparable:
+        return {"comparable": False, "reason": "initial-or-scan-scope-changed", "added": [], "removed": []}
+    before = {item["id"]: item for item in previous["items"]}
+    after = {item["id"]: item for item in items}
+    def public(item):
+        return {key: item[key] for key in ("id", "name", "kind", "relative_path") if key in item}
+    return {"comparable": True, "added": [public(after[key]) for key in sorted(after.keys() - before.keys())],
+            "removed": [public(before[key]) for key in sorted(before.keys() - after.keys())]}
+
+
 def build(args: argparse.Namespace) -> Dict[str, Any]:
     config_path = Path(args.config).resolve() if args.config else DEFAULT_CONFIG
     config = load_config(config_path)
@@ -1576,11 +1595,21 @@ def build(args: argparse.Namespace) -> Dict[str, Any]:
     families = assign_families(items, config)
     plugins = merge_plugins(raw_plugins, items, config)
     previous = read_json(output_dir / "catalog.json", {}) if output_dir.is_dir() else {}
+    scan_scope = {"roots": root_path_fingerprints(specs), "scan": config.get("scan", {}),
+                  "config_fingerprint": file_fingerprint(config_path)}
     images = image_summary(items)
     descriptions = description_enrichment(items, str(config.get("locale") or "zh-CN"))
     startup_curation_fingerprints = [file_fingerprint(Path(path)) for path in curation_files]
     catalog: Dict[str, Any] = {
         "schema_version": "1.1",
+        "scan_scope": scan_scope,
+        "index_changes": index_changes(previous, items, scan_scope),
+        "scan_status": {
+            "unresolved_root_count": len(unresolved),
+            "skipped_linked_directory_count": len({entry["name"] for entry in skipped_linked}),
+            "github_discovery_enabled": bool(discovery_report.get("enabled")),
+            "github_images_enabled": bool(config.get("image", {}).get("github_repository_previews", True)),
+        },
         "generated_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "mode": "refresh" if args.refresh else "initial",
         "roots": public_root_specs(specs, include_absolute),

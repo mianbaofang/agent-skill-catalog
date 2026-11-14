@@ -484,6 +484,12 @@ def normalize(builder, catalog: Dict[str, Any]) -> Dict[str, Any]:
         policy["startup_config_fingerprint"] = CONFIG_FINGERPRINT
         policy["startup_curation_fingerprints"] = [CURATION_FINGERPRINT]
 
+    scope = catalog.get("scan_scope")
+    if isinstance(scope, dict):
+        scope["roots"] = [spec["root_id"] for spec in roots]
+        scope["config_fingerprint"] = CONFIG_FINGERPRINT
+    # This public fixture is an initial build, never an audit of the maintainer's machine.
+    catalog["index_changes"] = {"comparable": False, "reason": "initial-or-scan-scope-changed", "added": [], "removed": []}
     catalog["generated_at"] = DEMO_EPOCH
     catalog.pop("previous_generated_at", None)
 
