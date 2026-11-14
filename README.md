@@ -14,6 +14,16 @@ Point it at the folders where your `SKILL.md` files live and it builds a self-co
 
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/">
+    <img src="docs/media/agent-skill-catalog-intro.gif" alt="18-second intro film: a terminal scans a real local skills directory, category chips land on the real page, a search for video-shotcraft hits its card and detail dialog, and one npx command installs the Skill" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <em>Intro film shot from a real local catalog build on the author's machine. Captions are in Chinese, matching the generated UI.</em>
+</p>
+
+<p align="center">
+  <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/">
     <img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="Generated catalog overview with category chips and counts, a searchable Skill grid using each Skill's own local cover where one exists, and a labelled generated fallback elsewhere" width="100%">
   </a>
 </p>

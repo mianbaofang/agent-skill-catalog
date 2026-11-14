@@ -14,6 +14,16 @@
 
 <p align="center">
   <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/">
+    <img src="docs/media/agent-skill-catalog-intro.gif" alt="18 秒宣传片：终端扫描本机真实 Skill 目录、分类徽章落位真实页面、一句话搜索命中 video-shotcraft 卡片与详情、一条 npx 命令安装" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <em>宣传片取自作者本机的真实目录构建。字幕为中文，与生成的目录界面一致。</em>
+</p>
+
+<p align="center">
+  <a href="https://mianbaofang.github.io/agent-skill-catalog/demo/">
     <img src="docs/media/agent-skill-catalog-overview.v0.5.0.png" alt="生成的目录总览：分类芯片与计数、可搜索的 Skill 网格；有本地封面的条目使用 Skill 自己的图片，没有的保留明确标注的自动生成封面" width="100%">
   </a>
 </p>
